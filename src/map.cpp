@@ -163,6 +163,7 @@ void DrawMapGeometry(char (* const map)[31])
         for (int c = 0; c < MAP_SIZE; ++c)
         {
             Vector3 pos = { (float)c, 0.5f, (float)r };
+            Vector3 size = { 1.0f, 1.0f, 1.0f };
 
             if (map[r][c] == TILE_WALL)
             {
@@ -175,29 +176,34 @@ void DrawMapGeometry(char (* const map)[31])
                     255
                 };
 
-                // Draw main wall cube
-                DrawCubeV(pos, Vector3{ 1.0f, 1.0f, 1.0f }, wallColor);
+                // Draw main wall cube (using DrawCubeV)
+                DrawCubeV(pos, size, wallColor);
 
-                // Add darker edges for depth
-                DrawCubeWiresV(pos, Vector3{ 1.0f, 1.0f, 1.0f }, Color{ 40, 40, 45, 255 });
+                // Add darker edges for depth (using DrawCubeWiresV)
+                DrawCubeWiresV(pos, size, Color{ 40, 40, 45, 255 });
 
                 // Add subtle horizontal lines for concrete texture
                 for (float yOffset = 0.2f; yOffset < 0.9f; yOffset += 0.3f)
                 {
                     Vector3 linePos = { (float)c, yOffset, (float)r };
-                    DrawCube(linePos.x, linePos.y, linePos.z, 1.02f, 0.02f, 1.02f,
+                    Vector3 lineSize = { 1.02f, 0.02f, 1.02f };
+                    // FIXED: Use DrawCubeV
+                    DrawCubeV(linePos, lineSize,
                         Color{ 80, 80, 85, 100 });
                 }
 
                 // Add shadowing to bottom
                 Vector3 shadowPos = { (float)c, 0.05f, (float)r };
-                DrawCube(shadowPos.x, shadowPos.y, shadowPos.z, 1.01f, 0.1f, 1.01f,
+                Vector3 shadowSize = { 1.01f, 0.1f, 1.01f };
+                // FIXED: Use DrawCubeV
+                DrawCubeV(shadowPos, shadowSize,
                     Color{ 20, 20, 25, 150 });
             }
             else if (map[r][c] == TILE_FLOOR)
             {
                 // Enhanced floor with tile pattern
                 Vector3 floorPos = { (float)c, 0.0f, (float)r };
+                Vector3 floorSize = { 1.0f, 0.05f, 1.0f };
 
                 // Base floor color - dirty concrete
                 Color floorColor = Color{ 60, 65, 60, 255 };
@@ -208,10 +214,10 @@ void DrawMapGeometry(char (* const map)[31])
                     floorColor = Color{ 55, 60, 55, 255 };
                 }
 
-                DrawCubeV(floorPos, Vector3{ 1.0f, 0.05f, 1.0f }, floorColor);
+                DrawCubeV(floorPos, floorSize, floorColor);
 
                 // Add grout lines between tiles
-                DrawCubeWiresV(floorPos, Vector3{ 1.0f, 0.05f, 1.0f }, Color{ 30, 35, 30, 180 });
+                DrawCubeWiresV(floorPos, floorSize, Color{ 30, 35, 30, 180 });
 
                 // Add random dirt/stains
                 if ((r * 17 + c * 23) % 7 == 0)
@@ -220,13 +226,10 @@ void DrawMapGeometry(char (* const map)[31])
                     float offsetX = ((r * 11 + c * 7) % 10) * 0.08f - 0.4f;
                     float offsetZ = ((r * 19 + c * 11) % 10) * 0.08f - 0.4f;
 
-                    Vector3 stainPos = {
-                        (float)c + offsetX,
-                        0.051f,
-                        (float)r + offsetZ
-                    };
-                    DrawCube(stainPos.x, stainPos.y, stainPos.z,
-                        stainSize, 0.001f, stainSize,
+                    Vector3 stainPos = { (float)c + offsetX, 0.051f, (float)r + offsetZ };
+                    Vector3 stainDim = { stainSize, 0.001f, stainSize };
+                    // FIXED: Use DrawCubeV
+                    DrawCubeV(stainPos, stainDim,
                         Color{ 30, 35, 30, 180 });
                 }
             }
@@ -237,20 +240,28 @@ void DrawMapGeometry(char (* const map)[31])
 
                 // Door frame (metallic)
                 Color frameColor = Color{ 80, 85, 90, 255 };
-                DrawCube(doorPos.x, doorPos.y, doorPos.z, 1.0f, 1.0f, 0.1f, frameColor);
-                DrawCubeWires(doorPos.x, doorPos.y, doorPos.z, 1.0f, 1.0f, 0.1f,
+                Vector3 frameSize = { 1.0f, 1.0f, 0.1f };
+                // FIXED: Use DrawCubeV
+                DrawCubeV(doorPos, frameSize, frameColor);
+
+                // FIXED: Use DrawCubeWiresV
+                DrawCubeWiresV(doorPos, frameSize,
                     Color{ 50, 55, 60, 255 });
 
                 // Door itself (wood texture approximation)
                 Color doorColor = Color{ 120, 80, 50, 255 };
-                DrawCube(doorPos.x, doorPos.y, doorPos.z, 0.9f, 0.9f, 0.08f, doorColor);
+                Vector3 doorSize = { 0.9f, 0.9f, 0.08f };
+                // FIXED: Use DrawCubeV
+                DrawCubeV(doorPos, doorSize, doorColor);
 
                 // Door panels (raised sections)
                 for (int panel = 0; panel < 2; panel++)
                 {
                     float panelY = 0.3f + panel * 0.4f;
                     Vector3 panelPos = { (float)c, panelY, (float)r };
-                    DrawCube(panelPos.x, panelPos.y, panelPos.z, 0.7f, 0.3f, 0.09f,
+                    Vector3 panelSize = { 0.7f, 0.3f, 0.09f };
+                    // FIXED: Use DrawCubeV
+                    DrawCubeV(panelPos, panelSize,
                         Color{ 130, 85, 55, 255 });
                 }
 
@@ -260,7 +271,9 @@ void DrawMapGeometry(char (* const map)[31])
 
                 // Shadow under door
                 Vector3 shadowPos = { (float)c, 0.02f, (float)r };
-                DrawCube(shadowPos.x, shadowPos.y, shadowPos.z, 1.0f, 0.04f, 0.2f,
+                Vector3 shadowSize = { 1.0f, 0.04f, 0.2f };
+                // FIXED: Use DrawCubeV
+                DrawCubeV(shadowPos, shadowSize,
                     Color{ 10, 10, 15, 150 });
             }
         }
@@ -281,9 +294,10 @@ void DrawMapGeometry(char (* const map)[31])
                 {
                     ceilingColor = Color{ 65, 65, 70, 255 };
                 }
+                Vector3 ceilingSize = { 0.95f, 0.1f, 0.95f };
 
-                DrawCubeV(ceilingPos, Vector3{ 0.95f, 0.1f, 0.95f }, ceilingColor);
-                DrawCubeWiresV(ceilingPos, Vector3{ 0.95f, 0.1f, 0.95f },
+                DrawCubeV(ceilingPos, ceilingSize, ceilingColor);
+                DrawCubeWiresV(ceilingPos, ceilingSize,
                     Color{ 40, 40, 45, 100 });
             }
         }
