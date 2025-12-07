@@ -52,37 +52,88 @@ bool IsActionDown(int actionIndex, const ControllerBinding* currentBindings) {
 }
 
 void DrawPlayerHands(Camera3D camera, InventorySlot* inventory, float pistolRecoilPitch, float pistolRecoilYaw) {
-    // [Implementation of DrawPlayerHands]
     int itemId = inventory[BACKPACK_SLOTS].itemId;
-    float handDistance = 0.5f;
-    float handHeight = -0.3f;
+    if (itemId == ITEM_NONE) return; // Don't draw anything if no item equipped
+
+    // Fixed positioning relative to camera view
+    // These create a stable "view model" that doesn't move with player velocity
     Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
     Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
-    Vector3 up = camera.up;
-    
-    // Base position for the weapon/item
-    Vector3 basePos = Vector3Add(camera.position, Vector3Scale(forward, handDistance));
-    basePos = Vector3Add(basePos, Vector3Scale(up, handHeight));
-    basePos = Vector3Add(basePos, Vector3Scale(right, 0.2f)); 
-    
-    // Apply recoil offset
-    Vector3 recoilOffset = Vector3Scale(forward, -0.01f);
-    Vector3 pitchOffset = Vector3Scale(up, pistolRecoilPitch * 0.001f);
-    Vector3 yawOffset = Vector3Scale(right, pistolRecoilYaw * 0.001f);
-    basePos = Vector3Add(basePos, recoilOffset);
-    basePos = Vector3Add(basePos, pitchOffset);
-    basePos = Vector3Add(basePos, yawOffset);
+    Vector3 up = Vector3Normalize(camera.up);
 
+    // Base hand position - fixed relative to camera
+    // Positioned in front and slightly down and to the right
+    float handDistance = 0.45f;    // Distance in front of camera
+    float handRightOffset = 0.22f;  // Offset to the right
+    float handDownOffset = -0.25f;  // Offset downward
+
+    Vector3 basePos = camera.position;
+    basePos = Vector3Add(basePos, Vector3Scale(forward, handDistance));
+    basePos = Vector3Add(basePos, Vector3Scale(right, handRightOffset));
+    basePos = Vector3Add(basePos, Vector3Scale(up, handDownOffset));
+
+    // Apply recoil offset (only for shooting, not movement)
+    if (pistolRecoilPitch > 0.01f || pistolRecoilYaw > 0.01f) {
+        Vector3 recoilOffset = Vector3Scale(forward, -pistolRecoilPitch * 0.002f);
+        Vector3 recoilUp = Vector3Scale(up, pistolRecoilPitch * 0.003f);
+        Vector3 recoilRight = Vector3Scale(right, pistolRecoilYaw * 0.002f);
+
+        basePos = Vector3Add(basePos, recoilOffset);
+        basePos = Vector3Add(basePos, recoilUp);
+        basePos = Vector3Add(basePos, recoilRight);
+    }
+
+    // Render the equipped item
     if (itemId == ITEM_PISTOL) {
-        // Simplified rendering for a pistol
-        DrawCube(basePos, 0.15f, 0.1f, 0.3f, GRAY);
-        DrawCube(Vector3Add(basePos, Vector3Scale(forward, 0.1f)), 0.08f, 0.08f, 0.1f, DARKGRAY); // Barrel
-    } else if (itemId == ITEM_FLASHLIGHT) {
-        DrawCylinder(basePos, 0.02f, 0.02f, 0.4f, 16, GRAY);
-        DrawCube(Vector3Add(basePos, Vector3Scale(forward, 0.2f)), 0.05f, 0.05f, 0.01f, WHITE); // Lens
+        // Pistol model - simple rectangular shapes
+        // Main body (grip + frame)
+        Vector3 gripPos = basePos;
+        DrawCube(gripPos, 0.04f, 0.12f, 0.08f, DARKGRAY);
+
+        // Slide (top part)
+        Vector3 slidePos = Vector3Add(gripPos, Vector3Scale(up, 0.04f));
+        slidePos = Vector3Add(slidePos, Vector3Scale(forward, 0.02f));
+        DrawCube(slidePos, 0.035f, 0.04f, 0.15f, GRAY);
+
+        // Barrel
+        Vector3 barrelPos = Vector3Add(slidePos, Vector3Scale(forward, 0.1f));
+        DrawCube(barrelPos, 0.02f, 0.02f, 0.06f, DARKGRAY);
+
+        // Trigger guard
+        Vector3 triggerPos = Vector3Add(gripPos, Vector3Scale(forward, 0.03f));
+        DrawCube(triggerPos, 0.01f, 0.03f, 0.02f, BLACK);
+
+    }
+    else if (itemId == ITEM_FLASHLIGHT) {
+        // Flashlight model - cylindrical
+        Vector3 flashlightPos = basePos;
+
+        // Rotate the flashlight to point forward
+        // Draw as a series of cubes to approximate a cylinder
+        Vector3 handlePos = flashlightPos;
+        Vector3 bodyPos = Vector3Add(handlePos, Vector3Scale(forward, 0.08f));
+        Vector3 lensPos = Vector3Add(bodyPos, Vector3Scale(forward, 0.12f));
+
+        // Handle (grip area)
+        DrawCube(handlePos, 0.03f, 0.03f, 0.08f, DARKGRAY);
+
+        // Body (main tube)
+        DrawCube(bodyPos, 0.035f, 0.035f, 0.15f, GRAY);
+
+        // Lens/head
+        DrawCube(lensPos, 0.04f, 0.04f, 0.03f, Color{ 230, 230, 200, 255 });
+
+        // Light glow effect when on
+        if (isFlashlightOn) {
+            Vector3 glowPos = Vector3Add(lensPos, Vector3Scale(forward, 0.02f));
+            DrawSphere(glowPos, 0.03f, Color{ 255, 255, 200, 150 });
+        }
+    }
+    else {
+        // Generic item representation (small cube)
+        DrawCube(basePos, 0.05f, 0.05f, 0.05f, BEIGE);
     }
 }
-
 void UpdatePlayer(float deltaTime, Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* yaw, float* pitch, bool* onGround, float playerSpeed, float playerHeight, float gravity, float jumpForce, float* stamina, bool isNoclip, bool useController) {
     // Mouse/Controller Look Input
     Vector2 mouseDelta = GetMouseDelta();

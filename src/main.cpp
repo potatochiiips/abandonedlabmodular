@@ -225,7 +225,15 @@ int main() {
                     isFlashlightOn = false;
                     flashlightBattery = 0.0f;
                 }
-
+                bool useItemPressed = useController ? IsActionPressed(ACTION_USE_ITEM, bindings) : IsMouseButtonPressed(MOUSE_RIGHT_BUTTON);
+                if (useItemPressed) {
+                    UseEquippedItem(inventory, &health, &stamina, &hunger, &thirst);
+                }
+                // Reload weapon with R key or controller X button
+                bool reloadPressed = IsKeyPressed(KEY_R) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT));
+                if (reloadPressed) {
+                    ReloadWeapon(inventory);
+                }
                 // Survival stat drain (simplified)
                 float drainRate = 1.0f * deltaTime;
                 hunger = fmaxf(0.0f, hunger - drainRate);
@@ -310,7 +318,9 @@ int main() {
         EndMode3D();
 
         // draw HUD/minimap after EndMode3D so they overlay the 3D scene
-        if (showMinimap && gameState == GameState::Gameplay && !isMapOpen) DrawMinimap(map, playerPosition, yaw, 10, screenW - 160, 10, screenWidth, false, screenH);
+        if (showMinimap && gameState == GameState::Gameplay && !isMapOpen) {
+    DrawMinimap(map, playerPosition, yaw, screenW - 160, 10, 150, 150, true, 0);
+}
         // Draw HUD (health/stamina/etc.)
         if (gameState == GameState::Gameplay) DrawHUD(screenW, screenH, health, stamina, hunger, thirst, fov, flashlightBattery, isFlashlightOn, inventory);
         if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);

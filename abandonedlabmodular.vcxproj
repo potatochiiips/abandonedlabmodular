@@ -98,6 +98,7 @@
     <ClCompile Include="src\map_impl.cpp" />
     <ClCompile Include="src\menu.cpp" />
     <ClCompile Include="src\menus.cpp" />
+    <ClCompile Include="src\menus_impl.cpp" />
     <ClCompile Include="src\player.cpp" />
     <ClCompile Include="src\recipes.cpp" />
   </ItemGroup>

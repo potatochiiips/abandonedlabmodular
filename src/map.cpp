@@ -92,6 +92,8 @@ void DrawMapMenu(int screenW, int screenH, char (* const map)[31], Vector3 camer
     that float as the player's yaw in degrees for the direction indicator.
     Signature unchanged to remain ABI-compatible with existing calls.
 */
+// Replace the DrawMinimap function in src/map.cpp with this improved version
+
 void DrawMinimap(char (* const map)[31], Vector3 cameraPos, float yawDegrees, int x, int y, int w, int h, bool showBorder, int highlight)
 {
     (void)highlight; // unused in this implementation
@@ -101,7 +103,7 @@ void DrawMinimap(char (* const map)[31], Vector3 cameraPos, float yawDegrees, in
     int mmH = h <= 0 ? 160 : h;
 
     // Draw background and optional border
-    DrawRectangle(x, y, mmW, mmH, Color{0, 0, 0, 200});
+    DrawRectangle(x, y, mmW, mmH, Color{ 0, 0, 0, 200 });
     if (showBorder) DrawRectangleLines(x, y, mmW, mmH, PIPBOY_GREEN);
 
     // Compute cell size
@@ -114,64 +116,80 @@ void DrawMinimap(char (* const map)[31], Vector3 cameraPos, float yawDegrees, in
         for (int c = 0; c < MAP_SIZE; ++c)
         {
             Color col;
-            if (map[r][c] == TILE_WALL) col = Color{90, 90, 90, 255};
-            else if (map[r][c] == TILE_DOOR) col = Color{200, 170, 60, 255};
-            else col = Color{20, 90, 20, 180};
+            if (map[r][c] == TILE_WALL)
+                col = Color{ 90, 90, 90, 255 };
+            else if (map[r][c] == TILE_DOOR)
+                col = Color{ 200, 170, 60, 255 };
+            else
+                col = Color{ 20, 90, 20, 180 };
 
             int rx = x + (int)floorf(c * cellW);
             int ry = y + (int)floorf(r * cellH);
-            DrawRectangle(rx, ry, (int)ceilf(cellW), (int)ceilf(cellH), col);
+            int rw = (int)ceilf(cellW);
+            int rh = (int)ceilf(cellH);
+
+            DrawRectangle(rx, ry, rw, rh, col);
         }
     }
 
-    // Draw player marker with fractional precision and a direction indicator (triangle)
+    // Draw player marker with fractional precision and a direction indicator
     float px = cameraPos.x;
     float pz = cameraPos.z;
+
+    // Ensure player is within map bounds
     if (px >= 0.0f && px < (float)MAP_SIZE && pz >= 0.0f && pz < (float)MAP_SIZE)
     {
+        // Calculate center position on minimap
         float fx = x + px * cellW;
         float fy = y + pz * cellH;
-        float radius = fmaxf(2.0f, fminf(cellW, cellH) * 0.5f);
 
-        // Compute forward vector from yawDegrees (degrees -> radians)
+        // Size of the player marker
+        float markerSize = fmaxf(3.0f, fminf(cellW, cellH) * 0.8f);
+
+        // Convert yaw to radians (yaw is in degrees, 0 = +X axis, 90 = +Z axis)
+        // In raylib's world space: +X is right, +Z is forward (into screen in top-down view)
         float rad = yawDegrees * DEG2RAD;
-        float dirX = cosf(rad); // +X map direction
-        float dirY = sinf(rad); // +Z map direction (mapped to screen Y)
 
-        // Convert world-direction to minimap pixel-space direction (scale by cell size)
-        float pdx = dirX * cellW;
-        float pdy = dirY * cellH;
+        // Calculate direction vector
+        // For top-down view: X maps to horizontal, Z maps to vertical
+        float dirX = cosf(rad);  // X component
+        float dirZ = sinf(rad);  // Z component
 
-        // Normalize direction (avoid zero-length)
-        float len = sqrtf(pdx * pdx + pdy * pdy);
-        if (len < 1e-4f)
-        {
-            pdx = 0.0f;
-            pdy = -1.0f;
-            len = 1.0f;
-        }
-        pdx /= len;
-        pdy /= len;
+        // Scale the direction for drawing
+        float arrowLength = markerSize * 1.5f;
 
-        // Triangle geometry: tip in front, base behind center, base width perpendicular to direction
-        float tipDist = radius * 1.2f;
-        float baseDist = radius * -0.6f; // behind the center
-        float halfWidth = radius * 0.8f;
+        // Triangle vertices for direction indicator
+        // Tip points in the direction of movement
+        Vector2 tip = {
+            fx + dirX * arrowLength,
+            fy + dirZ * arrowLength
+        };
 
-        // Perpendicular vector to (pdx, pdy)
-        float perpX = -pdy;
-        float perpY = pdx;
+        // Base of triangle (perpendicular to direction)
+        float perpX = -dirZ;  // Perpendicular to direction
+        float perpY = dirX;
 
-        // Points in pixel coordinates
-        Vector2 tip = { fx + pdx * tipDist, fy + pdy * tipDist };
-        Vector2 baseCenter = { fx + pdx * baseDist, fy + pdy * baseDist };
-        Vector2 baseLeft = { baseCenter.x + perpX * halfWidth, baseCenter.y + perpY * halfWidth };
-        Vector2 baseRight = { baseCenter.x - perpX * halfWidth, baseCenter.y - perpY * halfWidth };
+        float baseWidth = markerSize * 0.7f;
+        float baseBack = markerSize * 0.5f;
 
-        // Draw filled triangle for direction
-        DrawTriangle(tip, baseLeft, baseRight, Color{255, 100, 100, 230});
-        // Optional outline for clarity
-        DrawTriangleLines(tip, baseLeft, baseRight, Color{200, 50, 50, 200});
+        Vector2 base1 = {
+            fx - dirX * baseBack + perpX * baseWidth,
+            fy - dirZ * baseBack + perpY * baseWidth
+        };
+
+        Vector2 base2 = {
+            fx - dirX * baseBack - perpX * baseWidth,
+            fy - dirZ * baseBack - perpY * baseWidth
+        };
+
+        // Draw the direction indicator as a filled triangle
+        DrawTriangle(tip, base1, base2, Color{ 255, 80, 80, 240 });
+
+        // Draw outline for better visibility
+        DrawTriangleLines(tip, base1, base2, Color{ 200, 40, 40, 255 });
+
+        // Optional: Draw a small circle at player center for clarity
+        DrawCircle((int)fx, (int)fy, markerSize * 0.3f, Color{ 255, 200, 200, 200 });
     }
 }
 
