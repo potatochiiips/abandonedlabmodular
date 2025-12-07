@@ -1,4 +1,3 @@
-// Replace the entire src/inventory.cpp with this improved version
 
 #include "inventory.h"
 #include "items.h"
@@ -133,17 +132,21 @@ bool ReloadWeapon(InventorySlot* inventory) {
     TraceLog(LOG_INFO, TextFormat("Reloaded! Ammo: %d/%d", equippedSlot->ammo, PISTOL_MAX_AMMO));
     return true;
 }
-void DrawInventory(int screenW, int screenH, InventorySlot* inventory, int* selectedHandSlot, int* selectedInvSlot, bool useController) {
-    int invWidth = 600;
-    int invHeight = 400;
-    int padding = 20;
-    int slotSize = 60;
-    int spacing = 10;
-    int cols = 9;
-    int rows = BACKPACK_SLOTS / cols;
+    void DrawInventory(int screenW, int screenH, InventorySlot * inventory, int* selectedHandSlot, int* selectedInvSlot, bool useController) {
+        // Make inventory responsive to screen size
+        int invWidth = (int)(screenW * 0.7f);  // 70% of screen width
+        int invHeight = (int)(screenH * 0.85f); // 85% of screen height
+        int padding = 10;
 
-    int invX = (screenW - invWidth) / 2;
-    int invY = (screenH - invHeight) / 2;
+        // Calculate slot size based on available space
+        int cols = 9;
+        int rows = BACKPACK_SLOTS / cols;
+        int availableWidth = invWidth - (padding * 3); // Left padding, middle gap, right padding
+        int slotSize = (int)fminf(50.0f, (float)availableWidth / (float)(cols + 0.5f)); // Cap at 50px
+        int spacing = (int)fmaxf(3.0f, slotSize * 0.1f); // Spacing proportional to slot size
+
+        int invX = (screenW - invWidth) / 2;
+        int invY = (screenH - invHeight) / 2;
 
     DrawRectangle(invX, invY, invWidth, invHeight, PIPBOY_DARK);
     DrawRectangleLines(invX, invY, invWidth, invHeight, PIPBOY_GREEN);

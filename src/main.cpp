@@ -7,7 +7,7 @@
 #include "map.h"
 #include "player.h"
 #include "console.h"
-#include "fileio.h" // Includes save/load logic
+#include "fileio.h"
 
 // --- GLOBAL VARIABLE DEFINITIONS ---
 Camera3D camera = { 0 };
@@ -41,7 +41,7 @@ float shotTimer = 0.0f;
 const float SHOT_COOLDOWN = 0.5f;
 bool showMinimap = true;
 bool isControllerEnabled = true;
-bool isFullscreen = false;  // NEW: Initialize fullscreen state
+bool isFullscreen = false;
 int settingsSelection = 0;
 int controllerSettingsSelection = 0;
 bool isBindingMode = false;
@@ -54,8 +54,6 @@ float pitch = 0;
 bool cursorHidden = true;
 GameState gameState = GameState::MainMenu;
 GameState stateBeforeSettings = GameState::MainMenu;
-
-// ControllerBinding bindings[ACTION_COUNT]; // Defined here, declared extern in globals.h
 
 // Helper function (internal to main)
 void CloseInGameMenus() {
@@ -72,7 +70,6 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
 
     *yaw = -90.0f;
     *pitch = 0.0f;
-    // Compute forward target relative to position using yaw/pitch so camera faces correctly
     Vector3 forward;
     forward.x = cosf(DEG2RAD * (*yaw)) * cosf(DEG2RAD * (*pitch));
     forward.y = sinf(DEG2RAD * (*pitch));
@@ -92,11 +89,9 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     *fov = 75.0f;
 
     for (int i = 0; i < TOTAL_INVENTORY_SLOTS; i++) inventory[i] = { ITEM_NONE, 0, 0 };
-    // Initial Items (Hand slot 0)
-    inventory[BACKPACK_SLOTS] = { ITEM_PISTOL, 1, 7 }; // Pistol in hand slot 0
-    inventory[BACKPACK_SLOTS + 1] = { ITEM_FLASHLIGHT, 1, 0 }; // Flashlight in hand slot 1
+    inventory[BACKPACK_SLOTS] = { ITEM_PISTOL, 1, 7 };
+    inventory[BACKPACK_SLOTS + 1] = { ITEM_FLASHLIGHT, 1, 0 };
 
-    // Backpack
     inventory[0] = { ITEM_WATER_BOTTLE, 2, 0 };
     inventory[1] = { ITEM_WOOD, 1, 0 };
     inventory[2] = { ITEM_STONE, 2, 0 };
@@ -104,7 +99,6 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
 
     GenerateMap(map);
 
-    // Initialize controller bindings
     ControllerBinding defaultBindings[ACTION_COUNT] = {
         { false, GAMEPAD_BUTTON_RIGHT_FACE_DOWN, 0.0f, "A" },
         { false, GAMEPAD_BUTTON_LEFT_THUMB, 0.0f, "L3" },
@@ -118,15 +112,12 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     for (int i = 0; i < ACTION_COUNT; i++) bindings[i] = defaultBindings[i];
 }
 
-
 int main() {
     const int screenWidth = 800;
     const int screenHeight = 450;
     InitWindow(screenWidth, screenHeight, "Echoes of Time");
-    // Disable raylib's default behavior of closing the window when ESC is pressed
     SetExitKey(KEY_NULL);
 
-    // Ensure cursor starts enabled in menus (avoid initial jump)
     EnableCursor();
     cursorHidden = false;
 
@@ -134,36 +125,28 @@ int main() {
 
     SetTargetFPS(60);
 
-    int screenW = screenWidth, screenH = screenHeight; // Track current screen size
-    // Track previous binding/cursor state so we only call Enable/Disable once on transitions.
+    int screenW = screenWidth, screenH = screenHeight;
     bool prevBindingMode = isBindingMode;
+
     while (!WindowShouldClose()) {
         float deltaTime = GetFrameTime();
 
-        // Decide whether the cursor should be captured for FPS look or free for UI
         bool isAnyMenuOpen = (inventoryOpen || isCraftingOpen || isMapOpen);
         bool useController = isControllerEnabled && IsGamepadAvailable(0);
 
-        // Cursor capture policy:
-        // - In gameplay (no menus open) we capture/hide cursor so mouse look works.
-        // - In menus or console we show/release cursor so the user can click UI.
-        // - In binding mode we capture/hide cursor (we want raw input).
         bool shouldCaptureCursor = (gameState == GameState::Gameplay && !isAnyMenuOpen && !isBindingMode) || isBindingMode;
 
-        static bool prevCursorCaptured = false; // preserved across frames
+        static bool prevCursorCaptured = false;
         if (shouldCaptureCursor != prevCursorCaptured)
         {
             if (shouldCaptureCursor)
             {
-                // Enter capture: hide/capture cursor for FPS-style look
-                // Center mouse once so the first delta is stable (optional)
                 Vector2 center = { (float)(screenW / 2), (float)(screenH / 2) };
                 SetMousePosition((int)center.x, (int)center.y);
                 DisableCursor();
             }
             else
             {
-                // Release cursor for UI interaction
                 EnableCursor();
             }
             prevCursorCaptured = shouldCaptureCursor;
@@ -183,7 +166,7 @@ int main() {
                 gameState = stateBeforeSettings;
             }
             else if (gameState == GameState::Settings) {
-                gameState = GameState::Paused; // Only accessible from Paused/MainMenu
+                gameState = GameState::Paused;
             }
             else if (gameState == GameState::ControllerBindings) {
                 gameState = GameState::Settings;
@@ -192,8 +175,7 @@ int main() {
                 gameState = GameState::Gameplay;
             }
             else if (gameState == GameState::MainMenu) {
-                // Intentionally do NOT call `break` here to avoid immediately quitting the game
-                // when the user presses ESC in the main menu. Use the "Exit" menu option to quit.
+                // Do nothing
             }
             else if (isAnyMenuOpen) {
                 CloseInGameMenus();
@@ -208,8 +190,6 @@ int main() {
 
         // --- Gameplay Input & Logic ---
         if (gameState == GameState::Gameplay) {
-
-            // Toggle menus
             bool inventoryTogglePressed = IsKeyPressed(KEY_I) || (useController && IsActionPressed(ACTION_INVENTORY, bindings));
             if (inventoryTogglePressed) { CloseInGameMenus(); inventoryOpen = !inventoryOpen; }
 
@@ -220,38 +200,40 @@ int main() {
             if (mapTogglePressed) { CloseInGameMenus(); isMapOpen = !isMapOpen; }
 
             if (!isAnyMenuOpen) {
-                // Player movement and camera logic (from original single file)
                 UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
 
-                // Flashlight logic
                 bool flashlightPressed = useController ? IsActionPressed(ACTION_FLASHLIGHT, bindings) : IsKeyPressed(KEY_F);
                 if (flashlightPressed) isFlashlightOn = !isFlashlightOn;
 
                 if (isFlashlightOn && flashlightBattery > 0.0f) {
-                    flashlightBattery -= 5.0f * deltaTime; // FLASHLIGHT_DRAIN_RATE
+                    flashlightBattery -= 5.0f * deltaTime;
                 }
                 else if (flashlightBattery <= 0.0f) {
                     isFlashlightOn = false;
                     flashlightBattery = 0.0f;
                 }
+
                 bool useItemPressed = useController ? IsActionPressed(ACTION_USE_ITEM, bindings) : IsMouseButtonPressed(MOUSE_RIGHT_BUTTON);
                 if (useItemPressed) {
                     UseEquippedItem(inventory, &health, &stamina, &hunger, &thirst);
                 }
-                // Reload weapon with R key or controller X button
+
                 bool reloadPressed = IsKeyPressed(KEY_R) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT));
                 if (reloadPressed) {
                     ReloadWeapon(inventory);
                 }
-                // Survival stat drain (simplified)
+
                 float drainRate = 1.0f * deltaTime;
                 hunger = fmaxf(0.0f, hunger - drainRate);
                 thirst = fmaxf(0.0f, thirst - drainRate * 1.5f);
-                stamina = fminf(100.0f, stamina + drainRate * 2.0f); // Stamina regens faster
+                stamina = fminf(100.0f, stamina + drainRate * 2.0f);
 
                 if (health <= 0.0f) gameState = GameState::GameOver;
 
-                // Shooting logic
+                // Recoil decay
+                pistolRecoilPitch = fmaxf(0.0f, pistolRecoilPitch - RECOIL_DECAY_RATE * deltaTime * 60.0f);
+                pistolRecoilYaw = fmaxf(0.0f, pistolRecoilYaw - RECOIL_DECAY_RATE * deltaTime * 60.0f);
+
                 shotTimer = fmaxf(0.0f, shotTimer - deltaTime);
                 bool shootPressed = useController ? IsActionPressed(ACTION_SHOOT, bindings) : IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
                 if (shootPressed && shotTimer <= 0.0f && inventory[BACKPACK_SLOTS].itemId == ITEM_PISTOL && inventory[BACKPACK_SLOTS].ammo > 0) {
@@ -270,7 +252,7 @@ int main() {
                 if (mainMenuSelection == 0) { InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov); gameState = GameState::Gameplay; }
                 if (mainMenuSelection == 1) { stateBeforeSettings = GameState::MainMenu; saveSlotSelection = 0; gameState = GameState::LoadMenu; }
                 if (mainMenuSelection == 2) { stateBeforeSettings = GameState::MainMenu; settingsSelection = 0; gameState = GameState::Settings; }
-                if (mainMenuSelection == 3) break; // Exit
+                if (mainMenuSelection == 3) break;
             }
         }
         else if (gameState == GameState::Paused) {
@@ -310,36 +292,74 @@ int main() {
             }
         }
 
-        // After potential fullscreen change (run each frame or right after ToggleFullscreen)
         int newScreenW = GetScreenWidth();
         int newScreenH = GetScreenHeight();
         if (newScreenW != screenW || newScreenH != screenH) {
             screenW = newScreenW;
             screenH = newScreenH;
-            // Recompute HUD/minimap positions or any cached UI scale values here if you cache them.
-            // Using `screenW`/`screenH` everywhere below ensures UI follows window size automatically.
         }
+
         // --- Draw Frame ---
         BeginDrawing();
-        ClearBackground(BLACK);
 
-        // Draw 3D world and hands during gameplay (world geometry must be rendered in gameplay too)
-        BeginMode3D(camera);
-        DrawGrid(MAP_SIZE, GRID_SIZE);
-        DrawMapGeometry(map);
-        // draw player hands (first-person objects) here
-        DrawPlayerHands(camera, inventory, pistolRecoilPitch, pistolRecoilYaw);
-        EndMode3D();
+        // Enhanced background color for atmosphere
+        ClearBackground(Color{ 5, 10, 15, 255 });
 
-        // draw HUD/minimap after EndMode3D so they overlay the 3D scene
-        if (showMinimap && gameState == GameState::Gameplay && !isMapOpen) {
-            DrawMinimap(map, playerPosition, yaw, screenW - 160, 10, 150, 150, true, 0);
+        // Draw 3D world during gameplay
+        if (gameState == GameState::Gameplay || gameState == GameState::Paused) {
+            BeginMode3D(camera);
+
+            // Draw grid with atmospheric color
+            DrawGrid(MAP_SIZE, GRID_SIZE);
+
+            // Draw enhanced map geometry
+            DrawMapGeometry(map);
+
+            // Draw player hands/weapons
+            DrawPlayerHands(camera, inventory, pistolRecoilPitch, pistolRecoilYaw);
+
+            EndMode3D();
+
+            // Post-processing effects for atmosphere
+            if (gameState == GameState::Gameplay) {
+                // Vignette effect (darkens screen edges)
+                DrawRectangleGradientV(0, 0, screenW, screenH / 5,
+                    Color{ 0, 0, 0, 120 }, Color{ 0, 0, 0, 0 });
+                DrawRectangleGradientV(0, screenH * 4 / 5, screenW, screenH / 5,
+                    Color{ 0, 0, 0, 0 }, Color{ 0, 0, 0, 120 });
+                DrawRectangleGradientH(0, 0, screenW / 6, screenH,
+                    Color{ 0, 0, 0, 100 }, Color{ 0, 0, 0, 0 });
+                DrawRectangleGradientH(screenW * 5 / 6, 0, screenW / 6, screenH,
+                    Color{ 0, 0, 0, 0 }, Color{ 0, 0, 0, 100 });
+
+                // Flashlight glow overlay
+                if (isFlashlightOn && flashlightBattery > 0.0f) {
+                    float glowAlpha = (flashlightBattery / 100.0f) * 30.0f;
+                    DrawRectangle(0, 0, screenW, screenH,
+                        Color{ 255, 245, 200, (unsigned char)glowAlpha });
+                }
+
+                // Low health screen effect
+                if (health < 30.0f) {
+                    float pulseIntensity = sinf(GetTime() * 2.0f) * 0.5f + 0.5f;
+                    unsigned char redAlpha = (unsigned char)((30.0f - health) * 2.0f * pulseIntensity);
+                    DrawRectangle(0, 0, screenW, screenH, Color{ 180, 0, 0, redAlpha });
+                }
+            }
+
+            // Draw minimap and HUD
+            if (showMinimap && gameState == GameState::Gameplay && !isMapOpen) {
+                DrawMinimap(map, playerPosition, yaw, screenW - 160, 10, 150, 150, true, 0);
+            }
+
+            if (gameState == GameState::Gameplay) {
+                DrawHUD(screenW, screenH, health, stamina, hunger, thirst, fov, flashlightBattery, isFlashlightOn, inventory);
+            }
+
+            if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
+            if (isCraftingOpen) DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
+            if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
         }
-        // Draw HUD (health/stamina/etc.)
-        if (gameState == GameState::Gameplay) DrawHUD(screenW, screenH, health, stamina, hunger, thirst, fov, flashlightBattery, isFlashlightOn, inventory);
-        if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
-        if (isCraftingOpen) DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
-        if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
 
         if (gameState == GameState::MainMenu) {
             ClearBackground(PIPBOY_DARK);
@@ -347,11 +367,6 @@ int main() {
             DrawMenu(screenW, screenH, options, &mainMenuSelection, useController, "ECHOES OF TIME");
         }
         else if (gameState == GameState::Paused) {
-            ClearBackground(Color{ 10, 20, 10, 255 });
-            BeginMode3D(camera);
-            DrawGrid(MAP_SIZE, GRID_SIZE);
-            DrawMapGeometry(map);
-            EndMode3D();
             DrawRectangle(0, 0, screenW, screenH, Color{ 0, 0, 0, 180 });
             std::vector<std::string> options = { "Continue", "Save Game", "Settings", "Main Menu" };
             DrawMenu(screenW, screenH, options, &pauseMenuSelection, useController, "PAUSED");
@@ -365,19 +380,19 @@ int main() {
             DrawLoadMenu(screenW, screenH, &saveSlotSelection, stateBeforeSettings);
         }
         else if (gameState == GameState::Settings) {
-            // Note: DrawSettingsMenu handles navigation/toggling, not the state change itself
-            GameState tempState = stateBeforeSettings; // Pass temporary state for 'Back' logic
+            GameState tempState = stateBeforeSettings;
             DrawSettingsMenu(screenW, screenH, &showMinimap, &isControllerEnabled, &isFullscreen, &settingsSelection, &tempState);
         }
         else if (gameState == GameState::ControllerBindings) {
             DrawControllerBindings(screenW, screenH, &activeBindingIndex, &isBindingMode, &controllerSettingsSelection, bindings);
         }
         else if (gameState == GameState::Console) {
-            DrawConsole(screenW, screenH, consoleHistory, consoleInput, consoleInputLength); // Assuming DrawConsole exists
+            DrawConsole(screenW, screenH, consoleHistory, consoleInput, consoleInputLength);
         }
+
         EndDrawing();
     }
 
     CloseWindow();
     return 0;
-}
+}}

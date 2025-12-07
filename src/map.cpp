@@ -5,12 +5,10 @@
 // Generate a simple map: border walls, interior floor with some random walls.
 void GenerateMap(char (* const map)[31])
 {
-    // Ensure MAP_SIZE matches 31 as used across the project.
     for (int r = 0; r < MAP_SIZE; ++r)
     {
         for (int c = 0; c < MAP_SIZE; ++c)
         {
-            // Border walls
             if (r == 0 || r == MAP_SIZE - 1 || c == 0 || c == MAP_SIZE - 1)
                 map[r][c] = TILE_WALL;
             else
@@ -18,7 +16,6 @@ void GenerateMap(char (* const map)[31])
         }
     }
 
-    // Add a few random walls to make the map interesting (deterministic-ish)
     std::srand(12345);
     for (int i = 0; i < (MAP_SIZE * MAP_SIZE) / 12; ++i)
     {
@@ -27,14 +24,12 @@ void GenerateMap(char (* const map)[31])
         map[ry][rx] = TILE_WALL;
     }
 
-    // Place a door somewhere
-    map[MAP_SIZE/2][MAP_SIZE-2] = TILE_DOOR;
+    map[MAP_SIZE / 2][MAP_SIZE - 2] = TILE_DOOR;
 }
 
-// Draw a simple, centered full-screen map menu
 void DrawMapMenu(int screenW, int screenH, char (* const map)[31], Vector3 cameraPos, float zoom)
 {
-    (void)zoom; // keep signature compatible; not used in this simple stub
+    (void)zoom;
 
     const int menuW = screenW - 200;
     const int menuH = screenH - 120;
@@ -45,7 +40,6 @@ void DrawMapMenu(int screenW, int screenH, char (* const map)[31], Vector3 camer
     DrawRectangleLines(menuX, menuY, menuW, menuH, PIPBOY_GREEN);
     DrawText("MAP", menuX + 20, menuY + 10, 30, PIPBOY_GREEN);
 
-    // Draw the map grid scaled to the available area
     int mapAreaX = menuX + 20;
     int mapAreaY = menuY + 60;
     int mapAreaW = menuW - 40;
@@ -59,9 +53,9 @@ void DrawMapMenu(int screenW, int screenH, char (* const map)[31], Vector3 camer
         for (int c = 0; c < MAP_SIZE; ++c)
         {
             Color col = PIPBOY_DIM;
-            if (map[r][c] == TILE_WALL) col = Color{90, 90, 90, 255};
-            else if (map[r][c] == TILE_DOOR) col = Color{200, 170, 60, 255};
-            else col = Color{30, 120, 30, 200};
+            if (map[r][c] == TILE_WALL) col = Color{ 90, 90, 90, 255 };
+            else if (map[r][c] == TILE_DOOR) col = Color{ 200, 170, 60, 255 };
+            else col = Color{ 30, 120, 30, 200 };
 
             int x = mapAreaX + (int)floorf(c * cellW);
             int y = mapAreaY + (int)floorf(r * cellH);
@@ -72,7 +66,6 @@ void DrawMapMenu(int screenW, int screenH, char (* const map)[31], Vector3 camer
         }
     }
 
-    // Draw player marker (fractional position)
     float pxf = cameraPos.x;
     float pzf = cameraPos.z;
     if (pxf >= 0.0f && pxf < (float)MAP_SIZE && pzf >= 0.0f && pzf < (float)MAP_SIZE)
@@ -81,36 +74,23 @@ void DrawMapMenu(int screenW, int screenH, char (* const map)[31], Vector3 camer
         float fy = mapAreaY + pzf * cellH;
         float markerW = fmaxf(2.0f, cellW * 0.6f);
         float markerH = fmaxf(2.0f, cellH * 0.6f);
-        DrawRectangle((int)(fx - markerW/2.0f), (int)(fy - markerH/2.0f), (int)markerW, (int)markerH, Color{255, 50, 50, 220});
+        DrawRectangle((int)(fx - markerW / 2.0f), (int)(fy - markerH / 2.0f), (int)markerW, (int)markerH, Color{ 255, 50, 50, 220 });
     }
 }
 
-// Draw a compact minimap overlay (used during gameplay)
-//
-/** Note: the 3rd float parameter supplied by callers has historically been
-    used for "zoom" but main.cpp passes `yaw` there. This function treats
-    that float as the player's yaw in degrees for the direction indicator.
-    Signature unchanged to remain ABI-compatible with existing calls.
-*/
-// Replace the DrawMinimap function in src/map.cpp with this improved version
-
 void DrawMinimap(char (* const map)[31], Vector3 cameraPos, float yawDegrees, int x, int y, int w, int h, bool showBorder, int highlight)
 {
-    (void)highlight; // unused in this implementation
+    (void)highlight;
 
-    // Validate size and clamp
     int mmW = w <= 0 ? 160 : w;
     int mmH = h <= 0 ? 160 : h;
 
-    // Draw background and optional border
     DrawRectangle(x, y, mmW, mmH, Color{ 0, 0, 0, 200 });
     if (showBorder) DrawRectangleLines(x, y, mmW, mmH, PIPBOY_GREEN);
 
-    // Compute cell size
     float cellW = (float)mmW / (float)MAP_SIZE;
     float cellH = (float)mmH / (float)MAP_SIZE;
 
-    // Draw a simplified minimap: floor/wall/door
     for (int r = 0; r < MAP_SIZE; ++r)
     {
         for (int c = 0; c < MAP_SIZE; ++c)
@@ -132,41 +112,28 @@ void DrawMinimap(char (* const map)[31], Vector3 cameraPos, float yawDegrees, in
         }
     }
 
-    // Draw player marker with fractional precision and a direction indicator
     float px = cameraPos.x;
     float pz = cameraPos.z;
 
-    // Ensure player is within map bounds
     if (px >= 0.0f && px < (float)MAP_SIZE && pz >= 0.0f && pz < (float)MAP_SIZE)
     {
-        // Calculate center position on minimap
         float fx = x + px * cellW;
         float fy = y + pz * cellH;
 
-        // Size of the player marker
         float markerSize = fmaxf(3.0f, fminf(cellW, cellH) * 0.8f);
-
-        // Convert yaw to radians (yaw is in degrees, 0 = +X axis, 90 = +Z axis)
-        // In raylib's world space: +X is right, +Z is forward (into screen in top-down view)
         float rad = yawDegrees * DEG2RAD;
 
-        // Calculate direction vector
-        // For top-down view: X maps to horizontal, Z maps to vertical
-        float dirX = cosf(rad);  // X component
-        float dirZ = sinf(rad);  // Z component
+        float dirX = cosf(rad);
+        float dirZ = sinf(rad);
 
-        // Scale the direction for drawing
         float arrowLength = markerSize * 1.5f;
 
-        // Triangle vertices for direction indicator
-        // Tip points in the direction of movement
         Vector2 tip = {
             fx + dirX * arrowLength,
             fy + dirZ * arrowLength
         };
 
-        // Base of triangle (perpendicular to direction)
-        float perpX = -dirZ;  // Perpendicular to direction
+        float perpX = -dirZ;
         float perpY = dirX;
 
         float baseWidth = markerSize * 0.7f;
@@ -182,35 +149,142 @@ void DrawMinimap(char (* const map)[31], Vector3 cameraPos, float yawDegrees, in
             fy - dirZ * baseBack - perpY * baseWidth
         };
 
-        // Draw the direction indicator as a filled triangle
         DrawTriangle(tip, base1, base2, Color{ 255, 80, 80, 240 });
-
-        // Draw outline for better visibility
         DrawTriangleLines(tip, base1, base2, Color{ 200, 40, 40, 255 });
-
-        // Optional: Draw a small circle at player center for clarity
         DrawCircle((int)fx, (int)fy, markerSize * 0.3f, Color{ 255, 200, 200, 200 });
     }
 }
 
-// Optional: draw simple 3D geometry for walls (called inside BeginMode3D)
+// Enhanced realistic 3D geometry with better lighting and textures
 void DrawMapGeometry(char (* const map)[31])
 {
-    // Simple cubes for walls at y = 0.5 (height 1.0)
     for (int r = 0; r < MAP_SIZE; ++r)
     {
         for (int c = 0; c < MAP_SIZE; ++c)
         {
+            Vector3 pos = { (float)c, 0.5f, (float)r };
+
             if (map[r][c] == TILE_WALL)
             {
-                Vector3 pos = { (float)c, 0.5f, (float)r };
-                DrawCubeV(pos, Vector3{ 1.0f, 1.0f, 1.0f }, Color{120, 120, 120, 255});
-                DrawCubeWiresV(pos, Vector3{ 1.0f, 1.0f, 1.0f }, Color{40, 40, 40, 200});
+                // Main wall with subtle color variation
+                int variation = ((r * 7 + c * 13) % 20) - 10;
+                Color wallColor = Color{
+                    (unsigned char)(100 + variation),
+                    (unsigned char)(100 + variation),
+                    (unsigned char)(105 + variation),
+                    255
+                };
+
+                // Draw main wall cube
+                DrawCubeV(pos, Vector3{ 1.0f, 1.0f, 1.0f }, wallColor);
+
+                // Add darker edges for depth
+                DrawCubeWiresV(pos, Vector3{ 1.0f, 1.0f, 1.0f }, Color{ 40, 40, 45, 255 });
+
+                // Add subtle horizontal lines for concrete texture
+                for (float yOffset = 0.2f; yOffset < 0.9f; yOffset += 0.3f)
+                {
+                    Vector3 linePos = { (float)c, yOffset, (float)r };
+                    DrawCube(linePos.x, linePos.y, linePos.z, 1.02f, 0.02f, 1.02f,
+                        Color{ 80, 80, 85, 100 });
+                }
+
+                // Add shadowing to bottom
+                Vector3 shadowPos = { (float)c, 0.05f, (float)r };
+                DrawCube(shadowPos.x, shadowPos.y, shadowPos.z, 1.01f, 0.1f, 1.01f,
+                    Color{ 20, 20, 25, 150 });
+            }
+            else if (map[r][c] == TILE_FLOOR)
+            {
+                // Enhanced floor with tile pattern
+                Vector3 floorPos = { (float)c, 0.0f, (float)r };
+
+                // Base floor color - dirty concrete
+                Color floorColor = Color{ 60, 65, 60, 255 };
+
+                // Add slight checkerboard pattern
+                if ((r + c) % 2 == 0)
+                {
+                    floorColor = Color{ 55, 60, 55, 255 };
+                }
+
+                DrawCubeV(floorPos, Vector3{ 1.0f, 0.05f, 1.0f }, floorColor);
+
+                // Add grout lines between tiles
+                DrawCubeWiresV(floorPos, Vector3{ 1.0f, 0.05f, 1.0f }, Color{ 30, 35, 30, 180 });
+
+                // Add random dirt/stains
+                if ((r * 17 + c * 23) % 7 == 0)
+                {
+                    float stainSize = 0.2f + ((r * 13 + c * 19) % 10) * 0.03f;
+                    float offsetX = ((r * 11 + c * 7) % 10) * 0.08f - 0.4f;
+                    float offsetZ = ((r * 19 + c * 11) % 10) * 0.08f - 0.4f;
+
+                    Vector3 stainPos = {
+                        (float)c + offsetX,
+                        0.051f,
+                        (float)r + offsetZ
+                    };
+                    DrawCube(stainPos.x, stainPos.y, stainPos.z,
+                        stainSize, 0.001f, stainSize,
+                        Color{ 30, 35, 30, 180 });
+                }
             }
             else if (map[r][c] == TILE_DOOR)
             {
-                Vector3 pos = { (float)c, 0.0f, (float)r };
-                DrawCubeV(pos, Vector3{ 1.0f, 0.1f, 1.0f }, Color{200, 170, 60, 255});
+                // Enhanced door with frame
+                Vector3 doorPos = { (float)c, 0.5f, (float)r };
+
+                // Door frame (metallic)
+                Color frameColor = Color{ 80, 85, 90, 255 };
+                DrawCube(doorPos.x, doorPos.y, doorPos.z, 1.0f, 1.0f, 0.1f, frameColor);
+                DrawCubeWires(doorPos.x, doorPos.y, doorPos.z, 1.0f, 1.0f, 0.1f,
+                    Color{ 50, 55, 60, 255 });
+
+                // Door itself (wood texture approximation)
+                Color doorColor = Color{ 120, 80, 50, 255 };
+                DrawCube(doorPos.x, doorPos.y, doorPos.z, 0.9f, 0.9f, 0.08f, doorColor);
+
+                // Door panels (raised sections)
+                for (int panel = 0; panel < 2; panel++)
+                {
+                    float panelY = 0.3f + panel * 0.4f;
+                    Vector3 panelPos = { (float)c, panelY, (float)r };
+                    DrawCube(panelPos.x, panelPos.y, panelPos.z, 0.7f, 0.3f, 0.09f,
+                        Color{ 130, 85, 55, 255 });
+                }
+
+                // Door handle
+                Vector3 handlePos = { (float)c + 0.35f, 0.5f, (float)r };
+                DrawSphere(handlePos, 0.05f, Color{ 200, 180, 140, 255 });
+
+                // Shadow under door
+                Vector3 shadowPos = { (float)c, 0.02f, (float)r };
+                DrawCube(shadowPos.x, shadowPos.y, shadowPos.z, 1.0f, 0.04f, 0.2f,
+                    Color{ 10, 10, 15, 150 });
+            }
+        }
+    }
+
+    // Add ceiling tiles for enclosed feeling
+    for (int r = 0; r < MAP_SIZE; ++r)
+    {
+        for (int c = 0; c < MAP_SIZE; ++c)
+        {
+            if (map[r][c] != TILE_WALL)
+            {
+                Vector3 ceilingPos = { (float)c, 2.5f, (float)r };
+                Color ceilingColor = Color{ 70, 70, 75, 255 };
+
+                // Alternating ceiling tiles
+                if ((r + c) % 2 == 0)
+                {
+                    ceilingColor = Color{ 65, 65, 70, 255 };
+                }
+
+                DrawCubeV(ceilingPos, Vector3{ 0.95f, 0.1f, 0.95f }, ceilingColor);
+                DrawCubeWiresV(ceilingPos, Vector3{ 0.95f, 0.1f, 0.95f },
+                    Color{ 40, 40, 45, 100 });
             }
         }
     }
