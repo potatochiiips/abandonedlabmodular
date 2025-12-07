@@ -3,28 +3,158 @@
 #include <cmath>
 
 // Generate a simple map: border walls, interior floor with some random walls.
-void GenerateMap(char (* const map)[31])
-{
-    for (int r = 0; r < MAP_SIZE; ++r)
-    {
-        for (int c = 0; c < MAP_SIZE; ++c)
-        {
-            if (r == 0 || r == MAP_SIZE - 1 || c == 0 || c == MAP_SIZE - 1)
-                map[r][c] = TILE_WALL;
-            else
-                map[r][c] = TILE_FLOOR;
+// Assuming these are defined elsewhere (e.g., in a header file)
+// #define MAP_SIZE 100
+// #define TILE_WALL '#'
+// #define TILE_FLOOR '.'
+// #define TILE_DOOR '+'
+// --- MAP & TILE DEFINITIONS ---
+//#define WORLD_SIZE 128     // Reduced for a more manageable example, but still large
+//#define TILE_DOOR '+'      // Primary world entry/exit
+#define ROAD_TILE '='
+#define GRASS_TILE '"'
+#define BUILDING_TILE 'B'
+#define TREE_TILE 'T'
+#define LIGHT_TILE 'L'
+
+// --- BUILDING & PLACEMENT CONFIG ---
+#define ROAD_SPACING 16      // Major roads every 16 tiles
+#define ROAD_DEVIATION 8     // Minor roads offset by 8 tiles
+#define BUILDING_FOOTPRINT_W 6 // Width of building footprint
+#define BUILDING_FOOTPRINT_H 4 // Height of building footprint
+#define BUILDING_CHANCE 70   // % chance to place a building next to a road
+
+// --- HELPER FUNCTION: Generates a 20x20 interior (Micro-Level Concept) ---
+// In a real application, this function would be called when the player enters a 'B' tile.
+void generate_building_interior(char (*interior_map)[20]) {
+    // Conceptual: Uses Binary Space Partitioning (BSP) to create rooms.
+    // We only simulate the result here: a simple 20x20 room with an exit.
+
+    // Fill the interior with walls and floors
+    for (int r = 0; r < 20; ++r) {
+        for (int c = 0; c < 20; ++c) {
+            if (r == 0 || r == 19 || c == 0 || c == 19) {
+                interior_map[r][c] = '#'; // Interior Wall
+            }
+            else {
+                interior_map[r][c] = '.'; // Interior Floor
+            }
+        }
+    }
+    // Place an interior door/exit
+    interior_map[10][19] = 'D';
+}
+
+
+// --- MACRO-LEVEL: Initialize Terrain and Roads ---
+
+// Step 1: Initialize the world with grass/terrain
+void initialize_terrain(char (*map)[WORLD_SIZE]) {
+    for (int r = 0; r < WORLD_SIZE; ++r) {
+        for (int c = 0; c < WORLD_SIZE; ++c) {
+            map[r][c] = GRASS_TILE;
+        }
+    }
+}
+
+// Step 2: Generate a structured road network (Randomized Grid)
+void generate_roads(char (*map)[WORLD_SIZE]) {
+    // Generate major horizontal and vertical roads
+    for (int i = 0; i < WORLD_SIZE; i += ROAD_SPACING) {
+        for (int c = 0; c < WORLD_SIZE; ++c) {
+            map[i][c] = ROAD_TILE; // Horizontal
+            map[c][i] = ROAD_TILE; // Vertical
         }
     }
 
-    std::srand(12345);
-    for (int i = 0; i < (MAP_SIZE * MAP_SIZE) / 12; ++i)
-    {
-        int rx = 1 + std::rand() % (MAP_SIZE - 2);
-        int ry = 1 + std::rand() % (MAP_SIZE - 2);
-        map[ry][rx] = TILE_WALL;
+    // Add minor, offset roads for realism
+    for (int i = ROAD_DEVIATION; i < WORLD_SIZE; i += ROAD_SPACING) {
+        for (int c = 0; c < WORLD_SIZE; ++c) {
+            // Apply a small random chance to skip road segments (for rural feel)
+            if (std::rand() % 10 < 9) {
+                map[i][c] = ROAD_TILE;
+            }
+        }
+    }
+}
+
+
+// --- MESO-LEVEL: Placing Buildings and Features ---
+
+void place_buildings_and_features(char (*map)[WORLD_SIZE]) {
+
+    // 1. Place buildings
+    // Iterate in steps slightly larger than the building size to ensure gaps
+    int step_r = BUILDING_FOOTPRINT_H + 2;
+    int step_c = BUILDING_FOOTPRINT_W + 2;
+
+    for (int r = 1; r < WORLD_SIZE - step_r; r += step_r) {
+        for (int c = 1; c < WORLD_SIZE - step_c; c += step_c) {
+
+            // Check if the current plot (r, c) is adjacent to a road
+            bool near_road = (map[r - 1][c] == ROAD_TILE || map[r][c - 1] == ROAD_TILE);
+
+            if (near_road && (std::rand() % 100 < BUILDING_CHANCE)) {
+                // Place the building footprint
+                for (int br = r; br < r + BUILDING_FOOTPRINT_H; ++br) {
+                    for (int bc = c; bc < c + BUILDING_FOOTPRINT_W; ++bc) {
+                        map[br][bc] = BUILDING_TILE;
+                    }
+                }
+            }
+        }
     }
 
-    map[MAP_SIZE / 2][MAP_SIZE - 2] = TILE_DOOR;
+    // 2. Place trees and lights along roads/grass
+    for (int r = 1; r < WORLD_SIZE - 1; ++r) {
+        for (int c = 1; c < WORLD_SIZE - 1; ++c) {
+            // Check if the tile is grass and next to a road or building (for urban density)
+            bool adjacent_to_structure =
+                (map[r + 1][c] == ROAD_TILE || map[r - 1][c] == ROAD_TILE ||
+                    map[r][c + 1] == BUILDING_TILE || map[r][c - 1] == BUILDING_TILE);
+
+            if (map[r][c] == GRASS_TILE && adjacent_to_structure) {
+                if (std::rand() % 100 < 2) { // 2% chance for a streetlight
+                    map[r][c] = LIGHT_TILE;
+                }
+                else if (std::rand() % 100 < 5) { // 5% chance for a tree
+                    map[r][c] = TREE_TILE;
+                }
+            }
+        }
+    }
+}
+
+
+// --- MAIN GENERATION FUNCTION ---
+
+void GenerateMap(char (* const map)[WORLD_SIZE])
+{
+    // Use the current time to ensure a unique map is generated each time
+    std::srand(time(NULL));
+
+    // 1. Macro-Level Generation: Land and Infrastructure
+    initialize_terrain(map);
+    generate_roads(map);
+    // 
+
+    // 2. Meso-Level Generation: Structures and Features
+    place_buildings_and_features(map);
+
+    // 3. Final Touches
+    // Create a solid border of grass/wall (important for game boundaries)
+    for (int i = 0; i < WORLD_SIZE; ++i) {
+        map[0][i] = GRASS_TILE;
+        map[WORLD_SIZE - 1][i] = GRASS_TILE;
+        map[i][0] = GRASS_TILE;
+        map[i][WORLD_SIZE - 1] = GRASS_TILE;
+    }
+
+    // Place the main entry/exit door in the world boundary
+    map[WORLD_SIZE - 1][WORLD_SIZE / 2] = TILE_DOOR;
+
+    // NOTE: The interior maps (Micro-Level) are generated on demand 
+    // by the game engine using the 'generate_building_interior' function.
 }
 
 void DrawMapMenu(int screenW, int screenH, char (* const map)[31], Vector3 cameraPos, float zoom)
