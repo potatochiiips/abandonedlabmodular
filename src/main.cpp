@@ -99,6 +99,10 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
 
     GenerateMap(map);
 
+    // Reset building state
+    currentFloor = -1;
+    currentBuildingIndex = -1;
+
     ControllerBinding defaultBindings[ACTION_COUNT] = {
         { false, GAMEPAD_BUTTON_RIGHT_FACE_DOWN, 0.0f, "A" },
         { false, GAMEPAD_BUTTON_LEFT_THUMB, 0.0f, "L3" },
@@ -201,6 +205,38 @@ int main() {
 
             if (!isAnyMenuOpen) {
                 UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
+
+                // Door interaction
+                if (IsKeyPressed(KEY_E)) {
+                    Door* nearDoor = GetNearestDoor(playerPosition, 2.0f);
+                    if (nearDoor) {
+                        if (currentFloor < 0) {
+                            // Entering building
+                            nearDoor->isOpen = true;
+
+                            // Find which building this door belongs to
+                            for (size_t i = 0; i < buildingInteriors.size(); i++) {
+                                if (Vector3Distance(nearDoor->position, buildingInteriors[i].worldPos) < 10.0f) {
+                                    currentBuildingIndex = (int)i;
+                                    currentFloor = 0;
+                                    playerPosition = nearDoor->targetPosition;
+                                    camera.position = playerPosition;
+                                    break;
+                                }
+                            }
+                        }
+                        else {
+                            // Exiting building or changing floors
+                            currentFloor = -1;
+                            currentBuildingIndex = -1;
+                            playerPosition = Vector3Add(nearDoor->position, Vector3{ 0, 0, 2.0f });
+                            camera.position = playerPosition;
+                        }
+                    }
+                }
+
+                // Update door animations
+                UpdateDoors(deltaTime);
 
                 bool flashlightPressed = useController ? IsActionPressed(ACTION_FLASHLIGHT, bindings) : IsKeyPressed(KEY_F);
                 if (flashlightPressed) isFlashlightOn = !isFlashlightOn;
@@ -319,6 +355,14 @@ int main() {
             DrawPlayerHands(camera, inventory, pistolRecoilPitch, pistolRecoilYaw);
 
             EndMode3D();
+
+            // Door prompt
+            Door* nearDoor = GetNearestDoor(playerPosition, 2.0f);
+            if (nearDoor && !isAnyMenuOpen) {
+                const char* doorText = currentFloor < 0 ? "Press E to Enter" : "Press E to Exit";
+                int textWidth = MeasureText(doorText, 20);
+                DrawText(doorText, screenW / 2 - textWidth / 2, screenH - 100, 20, PIPBOY_GREEN);
+            }
 
             // Post-processing effects for atmosphere
             if (gameState == GameState::Gameplay) {
