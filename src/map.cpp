@@ -99,6 +99,52 @@ void DrawMapMarker(Vector2 mapPos, float size, Color col) {
     DrawTriangle(tip, left, right, col);
 }
 
+// ----------------- Minimap Rendering -----------------
+void DrawMinimap(char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw, int minimapX, int minimapY, int minimapW, int minimapH, bool largeMap, int screenH) {
+    (void)yaw;       // unused parameter
+    (void)screenH;   // unused parameter
+
+    // Background
+    DrawRectangle(minimapX, minimapY, minimapW, minimapH, Color{ 0, 0, 0, 180 });
+    DrawRectangleLines(minimapX, minimapY, minimapW, minimapH, PIPBOY_GREEN);
+
+    // Calculate visible range
+    int viewRange = largeMap ? 20 : 15;
+    float cellSize = (float)minimapW / (viewRange * 2);
+
+    int playerX = (int)playerPos.x;
+    int playerZ = (int)playerPos.z;
+
+    // Draw map tiles
+    for (int r = -viewRange; r < viewRange; ++r) {
+        for (int c = -viewRange; c < viewRange; ++c) {
+            int worldX = playerX + c;
+            int worldZ = playerZ + r;
+
+            if (worldX < 0 || worldX >= MAP_SIZE || worldZ < 0 || worldZ >= MAP_SIZE) continue;
+
+            Color col = PIPBOY_DIM;
+            switch (map[worldZ][worldX]) {
+            case TILE_WALL: col = Color{ 90, 90, 90, 255 }; break;
+            case TILE_DOOR: col = Color{ 200, 170, 60, 255 }; break;
+            case BUILDING_TILE: col = Color{ 100, 100, 120, 255 }; break;
+            case ROAD_TILE: col = Color{ 80, 80, 80, 255 }; break;
+            case TREE_TILE: col = Color{ 10, 80, 10, 255 }; break;
+            case LIGHT_TILE: col = Color{ 255, 255, 180, 255 }; break;
+            case GRASS_TILE: col = Color{ 30, 120, 30, 200 }; break;
+            }
+
+            int drawX = minimapX + (int)((c + viewRange) * cellSize);
+            int drawY = minimapY + (int)((r + viewRange) * cellSize);
+            DrawRectangle(drawX, drawY, (int)ceilf(cellSize), (int)ceilf(cellSize), col);
+        }
+    }
+
+    // Draw player marker in center
+    Vector2 centerPos = { minimapX + minimapW / 2.0f, minimapY + minimapH / 2.0f };
+    DrawMapMarker(centerPos, fmaxf(3.0f, cellSize * 0.8f), Color{ 255, 50, 50, 255 });
+}
+
 // ----------------- 2D Map Menu Rendering -----------------
 void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3 cameraPos, float zoom) {
     (void)zoom;
