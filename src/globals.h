@@ -35,8 +35,8 @@
 // ----------------------------------------------------------------------------------
 
 // --- MAP DEFINITIONS ---
-#define MAP_SIZE 128
-#define WORLD_SIZE MAP_SIZE /
+#define WORLD_SIZE 128
+#define MAP_SIZE WORLD_SIZE
 #define TILE_WALL 0
 #define TILE_FLOOR 1
 #define TILE_DOOR 2
