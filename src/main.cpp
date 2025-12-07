@@ -1,3 +1,5 @@
+// Optimized src/main.cpp with graphics settings integration
+
 #include "globals.h"
 #include "hud.h"
 #include "menus.h"
@@ -44,6 +46,7 @@ bool isControllerEnabled = true;
 bool isFullscreen = false;
 int settingsSelection = 0;
 int controllerSettingsSelection = 0;
+int graphicsSettingsSelection = 0; // NEW
 bool isBindingMode = false;
 int activeBindingIndex = -1;
 int saveSlotSelection = 0;
@@ -55,14 +58,28 @@ bool cursorHidden = true;
 GameState gameState = GameState::MainMenu;
 GameState stateBeforeSettings = GameState::MainMenu;
 
-// Helper function (internal to main)
+// NEW: Graphics settings
+GraphicsSettings graphicsSettings = {
+    2,      // resolutionIndex (1280x720)
+    true,   // vsync
+    false,  // msaa
+    4,      // msaaSamples
+    60,     // targetFPS
+    1.0f,   // renderScale
+    false   // showFPS
+};
+
+// Performance optimization: Frame time tracking
+static float frameTimeAccumulator = 0.0f;
+static int frameCount = 0;
+static float avgFrameTime = 0.0f;
+
 void CloseInGameMenus() {
     inventoryOpen = false;
     isCraftingOpen = false;
     isMapOpen = false;
 }
 
-// Implementation of InitNewGame (declared in player.h)
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov) {
     *playerPosition = Vector3{ MAP_SIZE / 2.0f, playerHeight, MAP_SIZE / 2.0f };
     *playerVelocity = Vector3{ 0.0f, 0.0f, 0.0f };
@@ -99,7 +116,6 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
 
     GenerateMap(map);
 
-    // Reset building state
     currentFloor = -1;
     currentBuildingIndex = -1;
 
@@ -117,23 +133,45 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
 }
 
 int main() {
-    const int screenWidth = 800;
-    const int screenHeight = 450;
-    InitWindow(screenWidth, screenHeight, "Echoes of Time");
+    // Load graphics settings before window creation
+    LoadGraphicsSettings(&graphicsSettings);
+
+    const Resolution& initialRes = AVAILABLE_RESOLUTIONS[graphicsSettings.resolutionIndex];
+
+    // Set config flags before InitWindow
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    if (graphicsSettings.msaa) {
+        if (graphicsSettings.msaaSamples == 2) SetConfigFlags(FLAG_MSAA_4X_HINT);
+        else if (graphicsSettings.msaaSamples == 4) SetConfigFlags(FLAG_MSAA_4X_HINT);
+        // Note: Raylib doesn't have separate flags for 2x/8x, uses 4x as standard
+    }
+
+    InitWindow(initialRes.width, initialRes.height, "Echoes of Time - Enhanced Edition");
     SetExitKey(KEY_NULL);
 
     EnableCursor();
     cursorHidden = false;
 
+    // Apply initial graphics settings
+    ApplyGraphicsSettings(graphicsSettings);
+
     InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov);
 
-    SetTargetFPS(60);
-
-    int screenW = screenWidth, screenH = screenHeight;
+    int screenW = GetScreenWidth();
+    int screenH = GetScreenHeight();
     bool prevBindingMode = isBindingMode;
 
     while (!WindowShouldClose()) {
         float deltaTime = GetFrameTime();
+
+        // Performance monitoring
+        frameTimeAccumulator += deltaTime;
+        frameCount++;
+        if (frameTimeAccumulator >= 1.0f) {
+            avgFrameTime = frameTimeAccumulator / frameCount;
+            frameTimeAccumulator = 0.0f;
+            frameCount = 0;
+        }
 
         bool isAnyMenuOpen = (inventoryOpen || isCraftingOpen || isMapOpen);
         bool useController = isControllerEnabled && IsGamepadAvailable(0);
@@ -141,16 +179,13 @@ int main() {
         bool shouldCaptureCursor = (gameState == GameState::Gameplay && !isAnyMenuOpen && !isBindingMode) || isBindingMode;
 
         static bool prevCursorCaptured = false;
-        if (shouldCaptureCursor != prevCursorCaptured)
-        {
-            if (shouldCaptureCursor)
-            {
+        if (shouldCaptureCursor != prevCursorCaptured) {
+            if (shouldCaptureCursor) {
                 Vector2 center = { (float)(screenW / 2), (float)(screenH / 2) };
                 SetMousePosition((int)center.x, (int)center.y);
                 DisableCursor();
             }
-            else
-            {
+            else {
                 EnableCursor();
             }
             prevCursorCaptured = shouldCaptureCursor;
@@ -172,21 +207,20 @@ int main() {
             else if (gameState == GameState::Settings) {
                 gameState = GameState::Paused;
             }
+            else if (gameState == GameState::GraphicsSettings) {
+                gameState = GameState::Settings;
+            }
             else if (gameState == GameState::ControllerBindings) {
                 gameState = GameState::Settings;
             }
             else if (gameState == GameState::Console) {
                 gameState = GameState::Gameplay;
             }
-            else if (gameState == GameState::MainMenu) {
-                // Do nothing
-            }
             else if (isAnyMenuOpen) {
                 CloseInGameMenus();
             }
         }
 
-        // Console toggle
         if (IsKeyPressed(KEY_GRAVE)) {
             if (gameState == GameState::Gameplay) gameState = GameState::Console;
             else if (gameState == GameState::Console) gameState = GameState::Gameplay;
@@ -206,15 +240,11 @@ int main() {
             if (!isAnyMenuOpen) {
                 UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
 
-                // Door interaction
                 if (IsKeyPressed(KEY_E)) {
                     Door* nearDoor = GetNearestDoor(playerPosition, 2.0f);
                     if (nearDoor) {
                         if (currentFloor < 0) {
-                            // Entering building
                             nearDoor->isOpen = true;
-
-                            // Find which building this door belongs to
                             for (size_t i = 0; i < buildingInteriors.size(); i++) {
                                 if (Vector3Distance(nearDoor->position, buildingInteriors[i].worldPos) < 10.0f) {
                                     currentBuildingIndex = (int)i;
@@ -226,7 +256,6 @@ int main() {
                             }
                         }
                         else {
-                            // Exiting building or changing floors
                             currentFloor = -1;
                             currentBuildingIndex = -1;
                             playerPosition = Vector3Add(nearDoor->position, Vector3{ 0, 0, 2.0f });
@@ -235,7 +264,6 @@ int main() {
                     }
                 }
 
-                // Update door animations
                 UpdateDoors(deltaTime);
 
                 bool flashlightPressed = useController ? IsActionPressed(ACTION_FLASHLIGHT, bindings) : IsKeyPressed(KEY_F);
@@ -266,7 +294,6 @@ int main() {
 
                 if (health <= 0.0f) gameState = GameState::GameOver;
 
-                // Recoil decay
                 pistolRecoilPitch = fmaxf(0.0f, pistolRecoilPitch - RECOIL_DECAY_RATE * deltaTime * 60.0f);
                 pistolRecoilYaw = fmaxf(0.0f, pistolRecoilYaw - RECOIL_DECAY_RATE * deltaTime * 60.0f);
 
@@ -282,7 +309,7 @@ int main() {
             }
         }
 
-        // --- Game State/Menu Logic ---
+        // Menu state handling (keeping existing logic)...
         if (gameState == GameState::MainMenu) {
             if (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))) {
                 if (mainMenuSelection == 0) { InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov); gameState = GameState::Gameplay; }
@@ -317,16 +344,6 @@ int main() {
                 }
             }
         }
-        else if (gameState == GameState::Settings) {
-            if (settingsSelection == 4 && (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)))) {
-                gameState = stateBeforeSettings;
-            }
-        }
-        else if (gameState == GameState::ControllerBindings) {
-            if (!isBindingMode && (IsKeyPressed(KEY_ESCAPE) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)))) {
-                gameState = GameState::Settings;
-            }
-        }
 
         int newScreenW = GetScreenWidth();
         int newScreenH = GetScreenHeight();
@@ -335,28 +352,25 @@ int main() {
             screenH = newScreenH;
         }
 
-        // --- Draw Frame ---
+        // --- OPTIMIZED RENDERING ---
         BeginDrawing();
 
-        // Enhanced background color for atmosphere
         ClearBackground(Color{ 5, 10, 15, 255 });
 
-        // Draw 3D world during gameplay
+        // Only render 3D when necessary
         if (gameState == GameState::Gameplay || gameState == GameState::Paused) {
             BeginMode3D(camera);
 
-            // Draw grid with atmospheric color
-            DrawGrid(MAP_SIZE, GRID_SIZE);
+            // Optimized grid drawing (only when needed)
+            if (currentFloor < 0) {
+                DrawGrid(MAP_SIZE, GRID_SIZE);
+            }
 
-            // Draw enhanced map geometry
             DrawMapGeometry(map);
-
-            // Draw player hands/weapons
             DrawPlayerHands(camera, inventory, pistolRecoilPitch, pistolRecoilYaw);
 
             EndMode3D();
 
-            // Door prompt
             Door* nearDoor = GetNearestDoor(playerPosition, 2.0f);
             if (nearDoor && !isAnyMenuOpen) {
                 const char* doorText = currentFloor < 0 ? "Press E to Enter" : "Press E to Exit";
@@ -364,26 +378,18 @@ int main() {
                 DrawText(doorText, screenW / 2 - textWidth / 2, screenH - 100, 20, PIPBOY_GREEN);
             }
 
-            // Post-processing effects for atmosphere
-            if (gameState == GameState::Gameplay) {
-                // Vignette effect (darkens screen edges)
-                DrawRectangleGradientV(0, 0, screenW, screenH / 5,
-                    Color{ 0, 0, 0, 120 }, Color{ 0, 0, 0, 0 });
-                DrawRectangleGradientV(0, screenH * 4 / 5, screenW, screenH / 5,
-                    Color{ 0, 0, 0, 0 }, Color{ 0, 0, 0, 120 });
-                DrawRectangleGradientH(0, 0, screenW / 6, screenH,
-                    Color{ 0, 0, 0, 100 }, Color{ 0, 0, 0, 0 });
-                DrawRectangleGradientH(screenW * 5 / 6, 0, screenW / 6, screenH,
-                    Color{ 0, 0, 0, 0 }, Color{ 0, 0, 0, 100 });
+            // Post-processing effects (can be disabled for performance)
+            if (graphicsSettings.renderScale >= 0.9f) {
+                DrawRectangleGradientV(0, 0, screenW, screenH / 5, Color{ 0, 0, 0, 120 }, Color{ 0, 0, 0, 0 });
+                DrawRectangleGradientV(0, screenH * 4 / 5, screenW, screenH / 5, Color{ 0, 0, 0, 0 }, Color{ 0, 0, 0, 120 });
+                DrawRectangleGradientH(0, 0, screenW / 6, screenH, Color{ 0, 0, 0, 100 }, Color{ 0, 0, 0, 0 });
+                DrawRectangleGradientH(screenW * 5 / 6, 0, screenW / 6, screenH, Color{ 0, 0, 0, 0 }, Color{ 0, 0, 0, 100 });
 
-                // Flashlight glow overlay
                 if (isFlashlightOn && flashlightBattery > 0.0f) {
                     float glowAlpha = (flashlightBattery / 100.0f) * 30.0f;
-                    DrawRectangle(0, 0, screenW, screenH,
-                        Color{ 255, 245, 200, (unsigned char)glowAlpha });
+                    DrawRectangle(0, 0, screenW, screenH, Color{ 255, 245, 200, (unsigned char)glowAlpha });
                 }
 
-                // Low health screen effect
                 if (health < 30.0f) {
                     float pulseIntensity = sinf(GetTime() * 2.0f) * 0.5f + 0.5f;
                     unsigned char redAlpha = (unsigned char)((30.0f - health) * 2.0f * pulseIntensity);
@@ -391,7 +397,6 @@ int main() {
                 }
             }
 
-            // Draw minimap and HUD
             if (showMinimap && gameState == GameState::Gameplay && !isMapOpen) {
                 DrawMinimap(map, playerPosition, yaw, screenW - 160, 10, 150, 150, true, 0);
             }
@@ -405,6 +410,7 @@ int main() {
             if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
         }
 
+        // Menu rendering
         if (gameState == GameState::MainMenu) {
             ClearBackground(PIPBOY_DARK);
             std::vector<std::string> options = { "New Game", "Load Game", "Settings", "Exit" };
@@ -427,11 +433,21 @@ int main() {
             GameState tempState = stateBeforeSettings;
             DrawSettingsMenu(screenW, screenH, &showMinimap, &isControllerEnabled, &isFullscreen, &settingsSelection, &tempState);
         }
+        else if (gameState == GameState::GraphicsSettings) {
+            GameState tempState = GameState::Settings;
+            DrawGraphicsSettingsMenu(screenW, screenH, &graphicsSettings, &graphicsSettingsSelection, &tempState);
+        }
         else if (gameState == GameState::ControllerBindings) {
             DrawControllerBindings(screenW, screenH, &activeBindingIndex, &isBindingMode, &controllerSettingsSelection, bindings);
         }
         else if (gameState == GameState::Console) {
             DrawConsole(screenW, screenH, consoleHistory, consoleInput, consoleInputLength);
+        }
+
+        // FPS display
+        if (graphicsSettings.showFPS) {
+            DrawText(TextFormat("FPS: %d (%.2fms)", GetFPS(), avgFrameTime * 1000.0f),
+                10, 10, 20, PIPBOY_GREEN);
         }
 
         EndDrawing();

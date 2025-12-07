@@ -6,3 +6,11 @@ void DrawMenu(int screenW, int screenH, const std::vector<std::string>& options,
 void DrawLoadMenu(int screenW, int screenH, int* selectedSlot, GameState currentState);
 void DrawSettingsMenu(int screenW, int screenH, bool* showMinimap, bool* isControllerEnabled, bool* isFullscreen, int* settingsSelection, GameState* nextState);
 void DrawControllerBindings(int screenW, int screenH, int* activeBindingIndex, bool* isBindingMode, int* controllerSettingsSelection, ControllerBinding* currentBindings);
+
+// NEW: Graphics settings menu
+void DrawGraphicsSettingsMenu(int screenW, int screenH, GraphicsSettings* settings, int* selection, GameState* nextState);
+
+// Graphics settings persistence functions
+void SaveGraphicsSettings(const GraphicsSettings& settings);
+void LoadGraphicsSettings(GraphicsSettings* settings);
+void ApplyGraphicsSettings(const GraphicsSettings& settings);

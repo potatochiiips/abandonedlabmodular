@@ -31,6 +31,39 @@
 #endif
 
 // ----------------------------------------------------------------------------------
+// GRAPHICS SETTINGS STRUCTURES
+// ----------------------------------------------------------------------------------
+
+struct Resolution {
+    int width;
+    int height;
+    const char* label;
+};
+
+struct GraphicsSettings {
+    int resolutionIndex;
+    bool vsync;
+    bool msaa;
+    int msaaSamples; // 2, 4, or 8
+    int targetFPS;
+    float renderScale; // 0.5f to 1.0f for performance scaling
+    bool showFPS;
+};
+
+// Available resolutions
+const Resolution AVAILABLE_RESOLUTIONS[] = {
+    {800, 600, "800x600"},
+    {1024, 768, "1024x768"},
+    {1280, 720, "1280x720 (HD)"},
+    {1366, 768, "1366x768"},
+    {1600, 900, "1600x900"},
+    {1920, 1080, "1920x1080 (Full HD)"},
+    {2560, 1440, "2560x1440 (2K)"},
+    {3840, 2160, "3840x2160 (4K)"}
+};
+const int RESOLUTION_COUNT = 8;
+
+// ----------------------------------------------------------------------------------
 // DATA STRUCTURES & DEFINITIONS
 // ----------------------------------------------------------------------------------
 
@@ -51,7 +84,8 @@ enum class GameState {
     Paused,
     LoadMenu,
     Console,
-    ControllerBindings
+    ControllerBindings,
+    GraphicsSettings  // NEW: Graphics settings menu
 };
 
 // --- ITEM DEFINITIONS ---
@@ -139,8 +173,6 @@ extern ControllerBinding bindings[ACTION_COUNT];
 // ----------------------------------------------------------------------------------
 // Externs for globals used across translation units (menu, main, player, etc.)
 // ----------------------------------------------------------------------------------
-// These match the definitions placed in src/main.cpp. Declaring them here allows
-// other modules (menu.cpp, player.cpp, ...) to reference the shared state.
 extern Camera3D camera;
 extern Vector3 playerPosition;
 extern Vector3 playerVelocity;
@@ -179,9 +211,10 @@ extern const float SHOT_COOLDOWN;
 
 extern bool showMinimap;
 extern bool isControllerEnabled;
-extern bool isFullscreen;  // NEW: Fullscreen state
+extern bool isFullscreen;
 extern int settingsSelection;
 extern int controllerSettingsSelection;
+extern int graphicsSettingsSelection; // NEW
 
 extern bool isBindingMode;
 extern int activeBindingIndex;
@@ -196,5 +229,13 @@ extern bool cursorHidden;
 extern GameState gameState;
 extern GameState stateBeforeSettings;
 
+// NEW: Graphics settings global
+extern GraphicsSettings graphicsSettings;
+
 // Prototype for InitNewGame implemented in src/main.cpp
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov);
+
+// NEW: Graphics functions
+void ApplyGraphicsSettings(const GraphicsSettings& settings);
+void SaveGraphicsSettings(const GraphicsSettings& settings);
+void LoadGraphicsSettings(GraphicsSettings* settings);
