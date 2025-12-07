@@ -41,6 +41,7 @@ float shotTimer = 0.0f;
 const float SHOT_COOLDOWN = 0.5f;
 bool showMinimap = true;
 bool isControllerEnabled = true;
+bool isFullscreen = false;  // NEW: Initialize fullscreen state
 int settingsSelection = 0;
 int controllerSettingsSelection = 0;
 bool isBindingMode = false;
@@ -65,7 +66,7 @@ void CloseInGameMenus() {
 
 // Implementation of InitNewGame (declared in player.h)
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov) {
-    *playerPosition = Vector3{ MAP_SIZE/2.0f, playerHeight, MAP_SIZE/2.0f }; 
+    *playerPosition = Vector3{ MAP_SIZE / 2.0f, playerHeight, MAP_SIZE / 2.0f };
     *playerVelocity = Vector3{ 0.0f, 0.0f, 0.0f };
     camera->position = *playerPosition;
 
@@ -88,13 +89,13 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     *thirst = 100.0f;
     *flashlightBattery = 100.0f;
     *isFlashlightOn = false;
-    *fov = 75.0f; 
+    *fov = 75.0f;
 
     for (int i = 0; i < TOTAL_INVENTORY_SLOTS; i++) inventory[i] = { ITEM_NONE, 0, 0 };
     // Initial Items (Hand slot 0)
     inventory[BACKPACK_SLOTS] = { ITEM_PISTOL, 1, 7 }; // Pistol in hand slot 0
     inventory[BACKPACK_SLOTS + 1] = { ITEM_FLASHLIGHT, 1, 0 }; // Flashlight in hand slot 1
-    
+
     // Backpack
     inventory[0] = { ITEM_WATER_BOTTLE, 2, 0 };
     inventory[1] = { ITEM_WOOD, 1, 0 };
@@ -102,7 +103,7 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     inventory[3] = { ITEM_MAG, 2, 0 };
 
     GenerateMap(map);
-    
+
     // Initialize controller bindings
     ControllerBinding defaultBindings[ACTION_COUNT] = {
         { false, GAMEPAD_BUTTON_RIGHT_FACE_DOWN, 0.0f, "A" },
@@ -114,7 +115,7 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
         { false, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT, 0.0f, "B" },
         { false, GAMEPAD_BUTTON_RIGHT_TRIGGER_1, 0.0f, "RB" }
     };
-    for(int i=0; i<ACTION_COUNT; i++) bindings[i] = defaultBindings[i];
+    for (int i = 0; i < ACTION_COUNT; i++) bindings[i] = defaultBindings[i];
 }
 
 
@@ -174,24 +175,31 @@ int main() {
                 gameState = GameState::Paused;
                 pauseMenuSelection = 0;
                 stateBeforeSettings = GameState::Paused;
-            } else if (gameState == GameState::Paused) {
+            }
+            else if (gameState == GameState::Paused) {
                 gameState = GameState::Gameplay;
-            } else if (gameState == GameState::LoadMenu) {
+            }
+            else if (gameState == GameState::LoadMenu) {
                 gameState = stateBeforeSettings;
-            } else if (gameState == GameState::Settings) {
+            }
+            else if (gameState == GameState::Settings) {
                 gameState = GameState::Paused; // Only accessible from Paused/MainMenu
-            } else if (gameState == GameState::ControllerBindings) {
-                gameState = GameState::Settings; 
-            } else if (gameState == GameState::Console) {
+            }
+            else if (gameState == GameState::ControllerBindings) {
+                gameState = GameState::Settings;
+            }
+            else if (gameState == GameState::Console) {
                 gameState = GameState::Gameplay;
-            } else if (gameState == GameState::MainMenu) {
+            }
+            else if (gameState == GameState::MainMenu) {
                 // Intentionally do NOT call `break` here to avoid immediately quitting the game
                 // when the user presses ESC in the main menu. Use the "Exit" menu option to quit.
-            } else if (isAnyMenuOpen) {
+            }
+            else if (isAnyMenuOpen) {
                 CloseInGameMenus();
             }
         }
-        
+
         // Console toggle
         if (IsKeyPressed(KEY_GRAVE)) {
             if (gameState == GameState::Gameplay) gameState = GameState::Console;
@@ -200,28 +208,29 @@ int main() {
 
         // --- Gameplay Input & Logic ---
         if (gameState == GameState::Gameplay) {
-            
+
             // Toggle menus
             bool inventoryTogglePressed = IsKeyPressed(KEY_I) || (useController && IsActionPressed(ACTION_INVENTORY, bindings));
             if (inventoryTogglePressed) { CloseInGameMenus(); inventoryOpen = !inventoryOpen; }
 
             bool craftingTogglePressed = IsKeyPressed(KEY_C) || (useController && IsActionPressed(ACTION_CRAFTING, bindings));
             if (craftingTogglePressed) { CloseInGameMenus(); isCraftingOpen = !isCraftingOpen; if (isCraftingOpen) selectedRecipeIndex = 0; }
-            
+
             bool mapTogglePressed = IsKeyPressed(KEY_M) || (useController && IsActionPressed(ACTION_MAP, bindings));
             if (mapTogglePressed) { CloseInGameMenus(); isMapOpen = !isMapOpen; }
 
             if (!isAnyMenuOpen) {
                 // Player movement and camera logic (from original single file)
                 UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
-                
+
                 // Flashlight logic
                 bool flashlightPressed = useController ? IsActionPressed(ACTION_FLASHLIGHT, bindings) : IsKeyPressed(KEY_F);
                 if (flashlightPressed) isFlashlightOn = !isFlashlightOn;
 
                 if (isFlashlightOn && flashlightBattery > 0.0f) {
                     flashlightBattery -= 5.0f * deltaTime; // FLASHLIGHT_DRAIN_RATE
-                } else if (flashlightBattery <= 0.0f) {
+                }
+                else if (flashlightBattery <= 0.0f) {
                     isFlashlightOn = false;
                     flashlightBattery = 0.0f;
                 }
@@ -263,20 +272,23 @@ int main() {
                 if (mainMenuSelection == 2) { stateBeforeSettings = GameState::MainMenu; settingsSelection = 0; gameState = GameState::Settings; }
                 if (mainMenuSelection == 3) break; // Exit
             }
-        } else if (gameState == GameState::Paused) {
+        }
+        else if (gameState == GameState::Paused) {
             if (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))) {
                 if (pauseMenuSelection == 0) gameState = GameState::Gameplay;
                 if (pauseMenuSelection == 1) { stateBeforeSettings = GameState::Paused; saveSlotSelection = 0; gameState = GameState::LoadMenu; }
                 if (pauseMenuSelection == 2) { stateBeforeSettings = GameState::Paused; settingsSelection = 0; gameState = GameState::Settings; }
-                if (pauseMenuSelection == 3) gameState = GameState::MainMenu; 
+                if (pauseMenuSelection == 3) gameState = GameState::MainMenu;
             }
-        } else if (gameState == GameState::LoadMenu) {
+        }
+        else if (gameState == GameState::LoadMenu) {
             if ((IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)))) {
                 bool fileExists = SaveFileExists(saveSlotSelection + 1);
                 if (stateBeforeSettings == GameState::Paused) {
                     SaveGame(saveSlotSelection + 1, playerPosition, yaw, pitch, health, stamina, hunger, thirst, inventory, flashlightBattery, isFlashlightOn, map, fov);
                     gameState = GameState::Paused;
-                } else if (stateBeforeSettings == GameState::MainMenu && fileExists) {
+                }
+                else if (stateBeforeSettings == GameState::MainMenu && fileExists) {
                     if (LoadGame(saveSlotSelection + 1, &playerPosition, &yaw, &pitch, &health, &stamina, &hunger, &thirst, inventory, &flashlightBattery, &isFlashlightOn, map, &fov)) {
                         camera.position = playerPosition;
                         Vector3 target = { cosf(DEG2RAD * yaw), sinf(DEG2RAD * pitch), sinf(DEG2RAD * yaw) * cosf(DEG2RAD * pitch) };
@@ -286,11 +298,13 @@ int main() {
                     }
                 }
             }
-        } else if (gameState == GameState::Settings) {
-             if (settingsSelection == 3 && (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)))) {
+        }
+        else if (gameState == GameState::Settings) {
+            if (settingsSelection == 4 && (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)))) {
                 gameState = stateBeforeSettings;
             }
-        } else if (gameState == GameState::ControllerBindings) {
+        }
+        else if (gameState == GameState::ControllerBindings) {
             if (!isBindingMode && (IsKeyPressed(KEY_ESCAPE) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)))) {
                 gameState = GameState::Settings;
             }
@@ -319,40 +333,46 @@ int main() {
 
         // draw HUD/minimap after EndMode3D so they overlay the 3D scene
         if (showMinimap && gameState == GameState::Gameplay && !isMapOpen) {
-    DrawMinimap(map, playerPosition, yaw, screenW - 160, 10, 150, 150, true, 0);
-}
+            DrawMinimap(map, playerPosition, yaw, screenW - 160, 10, 150, 150, true, 0);
+        }
         // Draw HUD (health/stamina/etc.)
         if (gameState == GameState::Gameplay) DrawHUD(screenW, screenH, health, stamina, hunger, thirst, fov, flashlightBattery, isFlashlightOn, inventory);
         if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
         if (isCraftingOpen) DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
         if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
-        
+
         if (gameState == GameState::MainMenu) {
             ClearBackground(PIPBOY_DARK);
-            std::vector<std::string> options = {"New Game", "Load Game", "Settings", "Exit"};
+            std::vector<std::string> options = { "New Game", "Load Game", "Settings", "Exit" };
             DrawMenu(screenW, screenH, options, &mainMenuSelection, useController, "ECHOES OF TIME");
-        } else if (gameState == GameState::Paused) {
-            ClearBackground(Color{10, 20, 10, 255}); 
+        }
+        else if (gameState == GameState::Paused) {
+            ClearBackground(Color{ 10, 20, 10, 255 });
             BeginMode3D(camera);
             DrawGrid(MAP_SIZE, GRID_SIZE);
             DrawMapGeometry(map);
             EndMode3D();
-            DrawRectangle(0, 0, screenW, screenH, Color{0, 0, 0, 180}); 
-            std::vector<std::string> options = {"Continue", "Save Game", "Settings", "Main Menu"};
+            DrawRectangle(0, 0, screenW, screenH, Color{ 0, 0, 0, 180 });
+            std::vector<std::string> options = { "Continue", "Save Game", "Settings", "Main Menu" };
             DrawMenu(screenW, screenH, options, &pauseMenuSelection, useController, "PAUSED");
-        } else if (gameState == GameState::GameOver) {
-             DrawRectangle(0, 0, screenW, screenH, Color{10, 10, 10, 200});
-             DrawText("GAME OVER", screenW/2 - MeasureText("GAME OVER", 80)/2, screenH/2 - 40, 80, PIPBOY_GREEN);
-             DrawText("You perished. Press ESC to return to main menu.", screenW/2 - MeasureText("You perished. Press ESC to return to main menu.", 20)/2, screenH/2 + 40, 20, PIPBOY_GREEN);
-        } else if (gameState == GameState::LoadMenu) {
+        }
+        else if (gameState == GameState::GameOver) {
+            DrawRectangle(0, 0, screenW, screenH, Color{ 10, 10, 10, 200 });
+            DrawText("GAME OVER", screenW / 2 - MeasureText("GAME OVER", 80) / 2, screenH / 2 - 40, 80, PIPBOY_GREEN);
+            DrawText("You perished. Press ESC to return to main menu.", screenW / 2 - MeasureText("You perished. Press ESC to return to main menu.", 20) / 2, screenH / 2 + 40, 20, PIPBOY_GREEN);
+        }
+        else if (gameState == GameState::LoadMenu) {
             DrawLoadMenu(screenW, screenH, &saveSlotSelection, stateBeforeSettings);
-        } else if (gameState == GameState::Settings) {
+        }
+        else if (gameState == GameState::Settings) {
             // Note: DrawSettingsMenu handles navigation/toggling, not the state change itself
             GameState tempState = stateBeforeSettings; // Pass temporary state for 'Back' logic
-            DrawSettingsMenu(screenW, screenH, &showMinimap, &isControllerEnabled, &settingsSelection, &tempState);
-        } else if (gameState == GameState::ControllerBindings) {
+            DrawSettingsMenu(screenW, screenH, &showMinimap, &isControllerEnabled, &isFullscreen, &settingsSelection, &tempState);
+        }
+        else if (gameState == GameState::ControllerBindings) {
             DrawControllerBindings(screenW, screenH, &activeBindingIndex, &isBindingMode, &controllerSettingsSelection, bindings);
-        } else if (gameState == GameState::Console) {
+        }
+        else if (gameState == GameState::Console) {
             DrawConsole(screenW, screenH, consoleHistory, consoleInput, consoleInputLength); // Assuming DrawConsole exists
         }
         EndDrawing();

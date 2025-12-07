@@ -17,17 +17,17 @@
 // COMPATIBILITY FIXES FOR OLDER RAYLIB VERSIONS (Missing constants/functions)
 // ----------------------------------------------------------------------------------
 #ifndef GAMEPAD_BUTTON_DPAD_UP
-    #define GAMEPAD_BUTTON_DPAD_UP 12
-    #define GAMEPAD_BUTTON_DPAD_RIGHT 13
-    #define GAMEPAD_BUTTON_DPAD_DOWN 14
-    #define GAMEPAD_BUTTON_DPAD_LEFT 15
-    #define GAMEPAD_BUTTON_START 9
+#define GAMEPAD_BUTTON_DPAD_UP 12
+#define GAMEPAD_BUTTON_DPAD_RIGHT 13
+#define GAMEPAD_BUTTON_DPAD_DOWN 14
+#define GAMEPAD_BUTTON_DPAD_LEFT 15
+#define GAMEPAD_BUTTON_START 9
 #endif 
 #ifndef GAMEPAD_BUTTON_COUNT
-    #define GAMEPAD_BUTTON_COUNT 16
+#define GAMEPAD_BUTTON_COUNT 16
 #endif
 #ifndef GAMEPAD_AXIS_COUNT
-    #define GAMEPAD_AXIS_COUNT 6
+#define GAMEPAD_AXIS_COUNT 6
 #endif
 
 // ----------------------------------------------------------------------------------
@@ -50,7 +50,7 @@ enum class GameState {
     Paused,
     LoadMenu,
     Console,
-    ControllerBindings 
+    ControllerBindings
 };
 
 // --- ITEM DEFINITIONS ---
@@ -98,10 +98,10 @@ struct CraftingIngredient {
 };
 
 struct CraftingRecipe {
-    std::vector<CraftingIngredient> ingredients; 
+    std::vector<CraftingIngredient> ingredients;
     int resultId;
     int resultQuantity;
-    const char* recipeName; 
+    const char* recipeName;
 };
 
 // ==================================================================================
@@ -178,6 +178,7 @@ extern const float SHOT_COOLDOWN;
 
 extern bool showMinimap;
 extern bool isControllerEnabled;
+extern bool isFullscreen;  // NEW: Fullscreen state
 extern int settingsSelection;
 extern int controllerSettingsSelection;
 
