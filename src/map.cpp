@@ -23,10 +23,7 @@ void generate_building_interior(char interior_map[20][20]) {
         for (int c = 0; c < 20; ++c)
             interior_map[r][c] = (r == 0 || r == 19 || c == 0 || c == 19) ? TILE_WALL : TILE_FLOOR;
 
-    ```
-        interior_map[10][19] = TILE_DOOR; // exit door
-    ```
-
+    interior_map[10][19] = TILE_DOOR; // exit door
 }
 
 // ----------------- Terrain -----------------
@@ -43,12 +40,9 @@ void generate_roads(char map[WORLD_SIZE][WORLD_SIZE]) {
             map[c][i] = ROAD_TILE;
         }
 
-    ```
-        for (int i = ROAD_DEVIATION; i < WORLD_SIZE; i += ROAD_SPACING)
-            for (int c = 0; c < WORLD_SIZE; ++c)
-                if (std::rand() % 10 < 9) map[i][c] = ROAD_TILE;
-    ```
-
+    for (int i = ROAD_DEVIATION; i < WORLD_SIZE; i += ROAD_SPACING)
+        for (int c = 0; c < WORLD_SIZE; ++c)
+            if (std::rand() % 10 < 9) map[i][c] = ROAD_TILE;
 }
 
 // ----------------- Structures -----------------
@@ -56,17 +50,16 @@ void place_buildings_and_features(char map[WORLD_SIZE][WORLD_SIZE]) {
     int step_r = BUILDING_FOOTPRINT_H + 2;
     int step_c = BUILDING_FOOTPRINT_W + 2;
 
-    ```
-        for (int r = 1; r < WORLD_SIZE - step_r; r += step_r) {
-            for (int c = 1; c < WORLD_SIZE - step_c; c += step_c) {
-                bool near_road = map[r - 1][c] == ROAD_TILE || map[r][c - 1] == ROAD_TILE;
-                if (near_road && (std::rand() % 100 < BUILDING_CHANCE)) {
-                    for (int br = r; br < r + BUILDING_FOOTPRINT_H; ++br)
-                        for (int bc = c; bc < c + BUILDING_FOOTPRINT_W; ++bc)
-                            map[br][bc] = BUILDING_TILE;
-                }
+    for (int r = 1; r < WORLD_SIZE - step_r; r += step_r) {
+        for (int c = 1; c < WORLD_SIZE - step_c; c += step_c) {
+            bool near_road = map[r - 1][c] == ROAD_TILE || map[r][c - 1] == ROAD_TILE;
+            if (near_road && (std::rand() % 100 < BUILDING_CHANCE)) {
+                for (int br = r; br < r + BUILDING_FOOTPRINT_H; ++br)
+                    for (int bc = c; bc < c + BUILDING_FOOTPRINT_W; ++bc)
+                        map[br][bc] = BUILDING_TILE;
             }
         }
+    }
 
     // Trees/lights near roads/buildings
     for (int r = 1; r < WORLD_SIZE - 1; ++r) {
@@ -78,8 +71,6 @@ void place_buildings_and_features(char map[WORLD_SIZE][WORLD_SIZE]) {
             }
         }
     }
-    ```
-
 }
 
 // ----------------- Main Map Generation -----------------
@@ -89,18 +80,15 @@ void GenerateMap(char map[WORLD_SIZE][WORLD_SIZE]) {
     generate_roads(map);
     place_buildings_and_features(map);
 
-    ```
-        // World border
-        for (int i = 0; i < WORLD_SIZE; ++i) {
-            map[0][i] = GRASS_TILE;
-            map[WORLD_SIZE - 1][i] = GRASS_TILE;
-            map[i][0] = GRASS_TILE;
-            map[i][WORLD_SIZE - 1] = GRASS_TILE;
-        }
+    // World border
+    for (int i = 0; i < WORLD_SIZE; ++i) {
+        map[0][i] = GRASS_TILE;
+        map[WORLD_SIZE - 1][i] = GRASS_TILE;
+        map[i][0] = GRASS_TILE;
+        map[i][WORLD_SIZE - 1] = GRASS_TILE;
+    }
 
     map[WORLD_SIZE - 1][WORLD_SIZE / 2] = TILE_DOOR;
-    ```
-
 }
 
 // ----------------- 2D Map Marker -----------------
@@ -119,8 +107,7 @@ void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3
     const int menuX = 100;
     const int menuY = 60;
 
-    ```
-        DrawRectangle(menuX, menuY, menuW, menuH, PIPBOY_DARK);
+    DrawRectangle(menuX, menuY, menuW, menuH, PIPBOY_DARK);
     DrawRectangleLines(menuX, menuY, menuW, menuH, PIPBOY_GREEN);
     DrawText("MAP", menuX + 20, menuY + 10, 30, PIPBOY_GREEN);
 
@@ -159,8 +146,6 @@ void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3
         Vector2 mapPos = Vector2{ mapAreaX + px * cellW, mapAreaY + pz * cellH };
         DrawMapMarker(mapPos, fmaxf(2.0f, cellW * 0.6f), Color{ 255,50,50,220 });
     }
-    ```
-
 }
 
 // ----------------- 3D Map Geometry -----------------
