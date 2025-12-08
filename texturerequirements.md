@@ -14,13 +14,7 @@ This document lists all textures needed for the game. The game includes \*\*proc
 
 assets/
 
-├── textures/
 
-│   ├── wall\_concrete.png
-
-│   ├── wall\_brick.png
-
-│   ├── wall\_metal.png
 
 │   ├── floor\_tile.png
 

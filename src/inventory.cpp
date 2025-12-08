@@ -134,9 +134,9 @@ bool ReloadWeapon(InventorySlot* inventory) {
 }
     void DrawInventory(int screenW, int screenH, InventorySlot * inventory, int* selectedHandSlot, int* selectedInvSlot, bool useController) {
         // Make inventory responsive to screen size
-        int invWidth = (int)(screenW * 0.7f);  // 70% of screen width
+        int invWidth = (int)(screenW * 0.6f);  // 70% of screen width
         int invHeight = (int)(screenH * 0.85f); // 85% of screen height
-        int padding = 10;
+        int padding = 15;
 
         // Calculate slot size based on available space
         int cols = 9;
