@@ -11,6 +11,7 @@
 #include "console.h"
 #include "fileio.h"
 #include "texture_manager.h"
+#include "rlgl.h"
 
 // --- GLOBAL VARIABLE DEFINITIONS ---
 Camera3D camera = { 0 };
