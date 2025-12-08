@@ -46,7 +46,13 @@ void SaveGame(int slotIndex, Vector3 pos, float yaw, float pitch, float hp, floa
             outfile << "\n";
         }
         outfile << "map_end\n";
+        // Save progression
+        outfile << "progression_start\n";
+        g_PlayerProgression.SaveToFile(outfile);
+        outfile << "progression_end\n";
 
+        // Save waypoints
+        g_WaypointManager.SaveToFile("waypoints.dat");
         outfile.close();
         TraceLog(LOG_INFO, TextFormat("Game saved to slot %d.", slotIndex));
     } else {
@@ -130,6 +136,27 @@ bool LoadGame(int slotIndex, Vector3* pos, float* yaw, float* pitch, float* hp, 
         } else if (key == "map_start") {
             readingMap = true;
         }
+        // Load progression
+        bool readingProgression = false;
+
+        while (std::getline(infile, line)) {
+            if (line == "progression_start") {
+                readingProgression = true;
+                continue;
+            }
+            if (line == "progression_end") {
+                readingProgression = false;
+                continue;
+            }
+
+            if (readingProgression) {
+                std::stringstream ss(line);
+                g_PlayerProgression.LoadFromFile(infile);
+            }
+        }
+
+        // Load waypoints
+        g_WaypointManager.LoadFromFile("waypoints.dat");
     }
 
     infile.close();

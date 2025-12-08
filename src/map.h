@@ -39,3 +39,11 @@ void DrawDoor(const Door& door);
 void UpdateDoors(float deltaTime);
 Door* GetNearestDoor(Vector3 playerPos, float maxDistance);
 void DrawVegetation(int x, int z, char tileType);
+
+// Frustum culling helper
+struct AABB {
+    Vector3 min;
+    Vector3 max;
+};
+
+bool IsAABBInFrustum(const Camera3D& camera, const AABB& box);

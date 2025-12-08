@@ -10,6 +10,8 @@ const char* GetItemName(int itemId) {
         case ITEM_POTATO_CHIPS: return "Chips";
         case ITEM_PISTOL: return "Pistol";
         case ITEM_MAG: return "Magazine";
+        case ITEM_M16: return "M16 Rifle";
+        case ITEM_M16_MAG: return "M16 Magazine";
         default: return "Empty";
     }
 }

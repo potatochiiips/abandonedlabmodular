@@ -41,7 +41,15 @@ void DrawTexturedCube(Vector3 position, Vector3 size, Texture2D texture, Color t
         EndShaderMode();
     }
 }
+bool IsAABBInFrustum(const Camera3D& camera, const AABB& box) {
+    // Simple frustum culling - only render nearby objects
+    float distance = Vector3Distance(camera.position,
+        Vector3{ (box.min.x + box.max.x) * 0.5f,
+                (box.min.y + box.max.y) * 0.5f,
+                (box.min.z + box.max.z) * 0.5f });
 
+    return distance < 100.0f; // Render distance
+}
 // Helper to generate random building interior
 void GenerateBuildingInterior(BuildingInterior& building, int floors) {
     building.floors = floors;
@@ -509,7 +517,6 @@ void DrawMapGeometry(char map[MAP_SIZE][MAP_SIZE]) {
         // This is handled in main.cpp before calling this function
         // Just draw the geometry here
     }
-
     // Draw outside world
     if (currentFloor < 0) {
         Texture2D grassTex = g_TextureManager->GetTexture(TEX_GRASS);

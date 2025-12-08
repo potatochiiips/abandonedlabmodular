@@ -190,7 +190,29 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     };
     for (int i = 0; i < ACTION_COUNT; i++) bindings[i] = defaultBindings[i];
 }
+void InitializeQuests() {
+    // Tutorial quest
+    int quest1 = g_QuestManager.AddQuest(
+        "Welcome to the Lab",
+        "Get familiar with your surroundings and find basic supplies",
+        100
+    );
+    g_QuestManager.AddObjective(quest1, QUEST_OBJ_COLLECT, ITEM_WATER_BOTTLE, 2,
+        "Collect 2 water bottles");
+    g_QuestManager.AddObjective(quest1, QUEST_OBJ_COLLECT, ITEM_FLASHLIGHT, 1,
+        "Find a flashlight");
 
+    // Combat quest
+    int quest2 = g_QuestManager.AddQuest(
+        "Armed and Ready",
+        "Equip yourself with weapons and ammunition",
+        150
+    );
+    g_QuestManager.AddObjective(quest2, QUEST_OBJ_COLLECT, ITEM_PISTOL, 1,
+        "Find a pistol");
+    g_QuestManager.AddObjective(quest2, QUEST_OBJ_COLLECT, ITEM_MAG, 3,
+        "Collect 3 magazines");
+}
 int main() {
     // Load graphics settings before window creation
     LoadGraphicsSettings(&graphicsSettings);

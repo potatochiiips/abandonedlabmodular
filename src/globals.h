@@ -12,6 +12,10 @@
 #include <sstream>
 #include <cmath>
 #include <fstream> 
+#include "waypoints.h"
+#include "quest_system.h"
+#include "weapons.h"
+#include "ui_tabs.h"
 
 // ----------------------------------------------------------------------------------
 // COMPATIBILITY FIXES FOR OLDER RAYLIB VERSIONS (Missing constants/functions)
@@ -48,6 +52,9 @@ struct GraphicsSettings {
     int targetFPS;
     float renderScale; // 0.5f to 1.0f for performance scaling
     bool showFPS;
+    bool enableLOD;
+    bool enableFrustumCulling;
+    int maxDrawCalls; // Limit per frame
 };
 
 // Available resolutions
@@ -98,6 +105,8 @@ enum class GameState {
 #define ITEM_POTATO_CHIPS 6
 #define ITEM_PISTOL 7
 #define ITEM_MAG 8
+#define ITEM_M16 9
+#define ITEM_M16_MAG 10
 // ------------------------
 
 // --- FALLOUT 4 (PIP-BOY) STYLE COLORS ---
@@ -208,6 +217,10 @@ extern float pistolRecoilYaw;
 extern const float RECOIL_DECAY_RATE;
 extern float shotTimer;
 extern const float SHOT_COOLDOWN;
+extern bool isAimingDownSights;
+extern bool isReloading;
+extern float reloadTimer;
+extern float adsTransitionProgress;
 
 extern bool showMinimap;
 extern bool isControllerEnabled;
