@@ -1,4 +1,4 @@
-// Optimized src/main.cpp with graphics settings integration
+// Complete updated main.cpp with texture and shader system integration
 
 #include "globals.h"
 #include "hud.h"
@@ -10,6 +10,7 @@
 #include "player.h"
 #include "console.h"
 #include "fileio.h"
+#include "texture_manager.h"
 
 // --- GLOBAL VARIABLE DEFINITIONS ---
 Camera3D camera = { 0 };
@@ -46,7 +47,7 @@ bool isControllerEnabled = true;
 bool isFullscreen = false;
 int settingsSelection = 0;
 int controllerSettingsSelection = 0;
-int graphicsSettingsSelection = 0; // NEW
+int graphicsSettingsSelection = 0;
 bool isBindingMode = false;
 int activeBindingIndex = -1;
 int saveSlotSelection = 0;
@@ -58,7 +59,7 @@ bool cursorHidden = true;
 GameState gameState = GameState::MainMenu;
 GameState stateBeforeSettings = GameState::MainMenu;
 
-// NEW: Graphics settings
+// Graphics settings
 GraphicsSettings graphicsSettings = {
     2,      // resolutionIndex (1280x720)
     true,   // vsync
@@ -73,6 +74,63 @@ GraphicsSettings graphicsSettings = {
 static float frameTimeAccumulator = 0.0f;
 static int frameCount = 0;
 static float avgFrameTime = 0.0f;
+
+// Helper function to draw textured cubes
+void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float height, float length, Color color) {
+    float x = position.x;
+    float y = position.y;
+    float z = position.z;
+
+    rlBegin(RL_QUADS);
+    rlColor4ub(color.r, color.g, color.b, color.a);
+
+    rlSetTexture(texture.id);
+
+    // Front Face
+    rlNormal3f(0.0f, 0.0f, 1.0f);
+    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z + length / 2);
+    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
+    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z + length / 2);
+    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z + length / 2);
+
+    // Back Face
+    rlNormal3f(0.0f, 0.0f, -1.0f);
+    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
+    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z - length / 2);
+    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
+    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
+
+    // Top Face
+    rlNormal3f(0.0f, 1.0f, 0.0f);
+    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z - length / 2);
+    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width / 2, y + height / 2, z + length / 2);
+    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width / 2, y + height / 2, z + length / 2);
+    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
+
+    // Bottom Face
+    rlNormal3f(0.0f, -1.0f, 0.0f);
+    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
+    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
+    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
+    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z + length / 2);
+
+    // Right face
+    rlNormal3f(1.0f, 0.0f, 0.0f);
+    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
+    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
+    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z + length / 2);
+    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
+
+    // Left Face
+    rlNormal3f(-1.0f, 0.0f, 0.0f);
+    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
+    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z + length / 2);
+    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z + length / 2);
+    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z - length / 2);
+
+    rlEnd();
+    rlSetTexture(0);
+}
 
 void CloseInGameMenus() {
     inventoryOpen = false;
@@ -143,7 +201,6 @@ int main() {
     if (graphicsSettings.msaa) {
         if (graphicsSettings.msaaSamples == 2) SetConfigFlags(FLAG_MSAA_4X_HINT);
         else if (graphicsSettings.msaaSamples == 4) SetConfigFlags(FLAG_MSAA_4X_HINT);
-        // Note: Raylib doesn't have separate flags for 2x/8x, uses 4x as standard
     }
 
     InitWindow(initialRes.width, initialRes.height, "Echoes of Time - Enhanced Edition");
@@ -154,6 +211,9 @@ int main() {
 
     // Apply initial graphics settings
     ApplyGraphicsSettings(graphicsSettings);
+
+    // Initialize texture and shader systems
+    InitializeRenderingSystems();
 
     InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov);
 
@@ -309,7 +369,7 @@ int main() {
             }
         }
 
-        // Menu state handling (keeping existing logic)...
+        // Menu state handling
         if (gameState == GameState::MainMenu) {
             if (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))) {
                 if (mainMenuSelection == 0) { InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov); gameState = GameState::Gameplay; }
@@ -352,18 +412,35 @@ int main() {
             screenH = newScreenH;
         }
 
-        // --- OPTIMIZED RENDERING ---
+        // --- RENDERING ---
         BeginDrawing();
 
         ClearBackground(Color{ 5, 10, 15, 255 });
 
         // Only render 3D when necessary
         if (gameState == GameState::Gameplay || gameState == GameState::Paused) {
+
+            // Update shader lighting uniforms
+            if (g_ShaderManager) {
+                Vector3 sunPos = { MAP_SIZE / 2.0f, 100.0f, MAP_SIZE / 2.0f };
+                Vector3 flashDir = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+                float flashIntensity = (flashlightBattery / 100.0f) * 5.0f;
+
+                g_ShaderManager->UpdateLighting(camera, sunPos, isFlashlightOn,
+                    camera.position, flashDir, flashIntensity);
+            }
+
             BeginMode3D(camera);
 
             // Optimized grid drawing (only when needed)
             if (currentFloor < 0) {
+                if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+                    BeginShaderMode(g_ShaderManager->GetLightingShader());
+                }
                 DrawGrid(MAP_SIZE, GRID_SIZE);
+                if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+                    EndShaderMode();
+                }
             }
 
             DrawMapGeometry(map);
@@ -378,7 +455,7 @@ int main() {
                 DrawText(doorText, screenW / 2 - textWidth / 2, screenH - 100, 20, PIPBOY_GREEN);
             }
 
-            // Post-processing effects (can be disabled for performance)
+            // Post-processing effects
             if (graphicsSettings.renderScale >= 0.9f) {
                 DrawRectangleGradientV(0, 0, screenW, screenH / 5, Color{ 0, 0, 0, 120 }, Color{ 0, 0, 0, 0 });
                 DrawRectangleGradientV(0, screenH * 4 / 5, screenW, screenH / 5, Color{ 0, 0, 0, 0 }, Color{ 0, 0, 0, 120 });
@@ -452,6 +529,9 @@ int main() {
 
         EndDrawing();
     }
+
+    // Cleanup rendering systems
+    CleanupRenderingSystems();
 
     CloseWindow();
     return 0;

@@ -101,6 +101,8 @@
     <ClCompile Include="src\menus_impl.cpp" />
     <ClCompile Include="src\player.cpp" />
     <ClCompile Include="src\recipes.cpp" />
+    <!-- NEW: Texture and shader management -->
+    <ClCompile Include="src\texture_manager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\console.h" />
@@ -114,6 +116,13 @@
     <ClInclude Include="src\menus.h" />
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\recipes.h" />
+    <!-- NEW: Texture and shader management header -->
+    <ClInclude Include="src\texture_manager.h" />
+  </ItemGroup>
+  <!-- NEW: Include shader files in project for easy access -->
+  <ItemGroup>
+    <None Include="assets\shaders\lighting.vs" />
+    <None Include="assets\shaders\lighting.fs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

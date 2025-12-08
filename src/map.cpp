@@ -1,5 +1,6 @@
 #include "globals.h"
 #include "map.h"
+#include "texture_manager.h"
 #include <cstdlib>
 #include <ctime>
 #include <cmath>
@@ -25,6 +26,21 @@ std::vector<BuildingInterior> buildingInteriors;
 std::vector<Door> doors;
 int currentFloor = -1;
 int currentBuildingIndex = -1;
+
+// Helper function to draw textured cube with shader support
+void DrawTexturedCube(Vector3 position, Vector3 size, Texture2D texture, Color tint = WHITE) {
+    if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+        BeginShaderMode(g_ShaderManager->GetLightingShader());
+    }
+
+    // Use the DrawCubeTexture function from main.cpp
+    extern void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float height, float length, Color color);
+    DrawCubeTexture(texture, position, size.x, size.y, size.z, tint);
+
+    if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+        EndShaderMode();
+    }
+}
 
 // Helper to generate random building interior
 void GenerateBuildingInterior(BuildingInterior& building, int floors) {
@@ -169,31 +185,57 @@ void GenerateMap(char map[WORLD_SIZE][WORLD_SIZE]) {
     }
 }
 
-// Draw vegetation
+// Draw vegetation with textures
 void DrawVegetation(int x, int z, char tileType) {
     Vector3 pos = Vector3{ (float)x, 0.0f, (float)z };
 
     if (tileType == TREE_TILE) {
-        // Tree trunk
-        Vector3 trunkPos = Vector3{ (float)x, 0.5f, (float)z };
-        DrawCylinder(trunkPos, 0.15f, 0.12f, 1.0f, 8, Color{ 101, 67, 33, 255 });
+        // Tree trunk with bark texture
+        Texture2D barkTex = g_TextureManager->GetTexture(TEX_TREE_BARK);
 
-        // Tree foliage (3 spheres)
+        // Using shader if available
+        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+            BeginShaderMode(g_ShaderManager->GetLightingShader());
+        }
+        DrawCylinderEx(Vector3{ (float)x, 0.0f, (float)z },
+            Vector3{ (float)x, 1.0f, (float)z },
+            0.15f, 0.12f, 8, Color{ 101, 67, 33, 255 });
+        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+            EndShaderMode();
+        }
+
+        // Tree foliage with leaf texture
+        Texture2D leafTex = g_TextureManager->GetTexture(TEX_TREE_LEAVES);
         Vector3 foliagePos1 = Vector3{ (float)x, 1.5f, (float)z };
         Vector3 foliagePos2 = Vector3{ (float)x + 0.2f, 1.7f, (float)z };
         Vector3 foliagePos3 = Vector3{ (float)x - 0.2f, 1.6f, (float)z + 0.1f };
 
+        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+            BeginShaderMode(g_ShaderManager->GetLightingShader());
+        }
         DrawSphere(foliagePos1, 0.6f, Color{ 34, 139, 34, 255 });
         DrawSphere(foliagePos2, 0.5f, Color{ 50, 205, 50, 255 });
         DrawSphere(foliagePos3, 0.5f, Color{ 34, 139, 34, 255 });
+        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+            EndShaderMode();
+        }
     }
     else if (tileType == BUSH_TILE) {
-        // Bush as small sphere
+        // Bush with texture
+        Texture2D bushTex = g_TextureManager->GetTexture(TEX_BUSH_LEAVES);
         Vector3 bushPos = Vector3{ (float)x, 0.2f, (float)z };
+
+        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+            BeginShaderMode(g_ShaderManager->GetLightingShader());
+        }
         DrawSphere(bushPos, 0.3f, Color{ 46, 125, 50, 255 });
+        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+            EndShaderMode();
+        }
     }
     else if (tileType == FLOWER_TILE) {
-        // Flowers as small colored spheres
+        // Flowers with texture
+        Texture2D flowerTex = g_TextureManager->GetTexture(TEX_FLOWER_PETALS);
         Vector3 flowerPos = Vector3{ (float)x, 0.1f, (float)z };
         Color colors[] = {
             Color{255, 20, 147, 255}, // Pink
@@ -202,36 +244,46 @@ void DrawVegetation(int x, int z, char tileType) {
             Color{255, 69, 0, 255}    // Red
         };
         int colorIdx = (x + z) % 4;
-        DrawSphere(flowerPos, 0.08f, colors[colorIdx]);
 
-        // Stem
+        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+            BeginShaderMode(g_ShaderManager->GetLightingShader());
+        }
+        DrawSphere(flowerPos, 0.08f, colors[colorIdx]);
         DrawCylinder(Vector3{ (float)x, 0.05f, (float)z }, 0.02f, 0.02f, 0.1f, 4, Color{ 34, 139, 34, 255 });
+        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+            EndShaderMode();
+        }
     }
 }
 
-// Draw building exterior with windows
+// Draw building exterior with textures and windows
 void DrawBuildingExterior(const BuildingInterior& building) {
     float height = (float)building.floors * 3.0f;
     Vector3 pos = building.worldPos;
     pos.y = height / 2.0f;
 
-    // Main building body
+    // Get textures
+    Texture2D exteriorTex = g_TextureManager->GetTexture(TEX_BUILDING_EXTERIOR);
+    Texture2D windowTex = g_TextureManager->GetTexture(TEX_WINDOW_GLASS);
+    Texture2D roofTex = g_TextureManager->GetTexture(TEX_ROOF_SHINGLES);
+
+    // Main building body with texture
     Vector3 size = Vector3{ (float)building.width, height, (float)building.depth };
-    DrawCubeV(pos, size, Color{ 120, 120, 130, 255 });
+    DrawTexturedCube(pos, size, exteriorTex, Color{ 255, 255, 255, 255 });
     DrawCubeWiresV(pos, size, Color{ 80, 80, 90, 255 });
 
     // Draw windows for each floor
     for (int floor = 0; floor < building.floors; floor++) {
         float floorY = floor * 3.0f + 1.5f;
 
-        // Front windows
+        // Front windows with glass texture
         for (int i = 1; i < building.width - 1; i += 2) {
             Vector3 windowPos = Vector3{
                 building.worldPos.x - building.width / 2.0f + i + 0.5f,
                 floorY,
                 building.worldPos.z + building.depth / 2.0f + 0.01f
             };
-            DrawCube(windowPos, 0.8f, 1.2f, 0.1f, Color{ 135, 206, 235, 180 });
+            DrawTexturedCube(windowPos, Vector3{ 0.8f, 1.2f, 0.1f }, windowTex, Color{ 255, 255, 255, 180 });
         }
 
         // Side windows
@@ -241,19 +293,24 @@ void DrawBuildingExterior(const BuildingInterior& building) {
                 floorY,
                 building.worldPos.z - building.depth / 2.0f + i + 0.5f
             };
-            DrawCube(windowPos, 0.1f, 1.2f, 0.8f, Color{ 135, 206, 235, 180 });
+            DrawTexturedCube(windowPos, Vector3{ 0.1f, 1.2f, 0.8f }, windowTex, Color{ 255, 255, 255, 180 });
         }
     }
 
-    // Roof
+    // Roof with shingles texture
     Vector3 roofPos = Vector3{ pos.x, height + 0.2f, pos.z };
-    DrawCubeV(roofPos, Vector3{ (float)building.width + 0.5f, 0.3f, (float)building.depth + 0.5f },
-        Color{ 80, 50, 50, 255 });
+    DrawTexturedCube(roofPos, Vector3{ (float)building.width + 0.5f, 0.3f, (float)building.depth + 0.5f }, roofTex);
 }
 
-// Draw building interior
+// Draw building interior with textures
 void DrawBuildingInterior(const BuildingInterior& building, int floor) {
     if (floor < 0 || floor >= building.floors) return;
+
+    // Get interior textures
+    Texture2D wallTex = g_TextureManager->GetTexture(TEX_WALL_CONCRETE);
+    Texture2D floorTex = g_TextureManager->GetTexture(TEX_FLOOR_TILE);
+    Texture2D ceilingTex = g_TextureManager->GetTexture(TEX_CEILING_TILE);
+    Texture2D doorTex = g_TextureManager->GetTexture(TEX_DOOR_WOOD);
 
     for (int r = 0; r < 20; r++) {
         for (int c = 0; c < 20; c++) {
@@ -261,52 +318,66 @@ void DrawBuildingInterior(const BuildingInterior& building, int floor) {
             char tile = building.layout[floor][r][c];
 
             if (tile == TILE_WALL) {
-                DrawCubeV(pos, Vector3{ 1.0f, 3.0f, 1.0f }, Color{ 140, 140, 145, 255 });
+                DrawTexturedCube(pos, Vector3{ 1.0f, 3.0f, 1.0f }, wallTex);
                 DrawCubeWiresV(pos, Vector3{ 1.0f, 3.0f, 1.0f }, Color{ 100, 100, 105, 255 });
             }
             else if (tile == TILE_FLOOR || tile == 'S' || tile == 's') {
-                // Floor
-                DrawCubeV(Vector3{ (float)c, (float)floor * 3.0f, (float)r },
-                    Vector3{ 1.0f, 0.1f, 1.0f }, Color{ 80, 70, 60, 255 });
+                // Floor with texture
+                DrawTexturedCube(Vector3{ (float)c, (float)floor * 3.0f, (float)r },
+                    Vector3{ 1.0f, 0.1f, 1.0f }, floorTex);
 
-                // Ceiling
-                DrawCubeV(Vector3{ (float)c, (float)floor * 3.0f + 2.9f, (float)r },
-                    Vector3{ 1.0f, 0.1f, 1.0f }, Color{ 200, 200, 200, 255 });
+                // Ceiling with texture
+                DrawTexturedCube(Vector3{ (float)c, (float)floor * 3.0f + 2.9f, (float)r },
+                    Vector3{ 1.0f, 0.1f, 1.0f }, ceilingTex);
 
                 // Stairs marker
                 if (tile == 'S' || tile == 's') {
+                    if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+                        BeginShaderMode(g_ShaderManager->GetLightingShader());
+                    }
                     DrawCube(pos, 0.8f, 0.3f, 0.8f, Color{ 139, 90, 43, 255 });
+                    if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+                        EndShaderMode();
+                    }
                 }
             }
             else if (tile == TILE_DOOR) {
-                // Door frame
-                DrawCubeV(pos, Vector3{ 1.0f, 2.0f, 0.1f }, Color{ 139, 90, 43, 255 });
+                // Door with texture
+                DrawTexturedCube(pos, Vector3{ 1.0f, 2.0f, 0.1f }, doorTex);
             }
         }
     }
 }
 
-// Draw door
+// Draw door with texture
 void DrawDoor(const Door& door) {
-    float openAngle = door.openAmount * 90.0f; // 90 degrees when fully open
+    float openAngle = door.openAmount * 90.0f;
 
     Vector3 hingePos = door.position;
     hingePos.x -= 0.4f;
 
+    Texture2D doorTex = g_TextureManager->GetTexture(TEX_DOOR_WOOD);
+
     // Draw door frame
-    DrawCube(door.position, 1.0f, 2.0f, 0.15f, Color{ 101, 67, 33, 255 });
+    DrawTexturedCube(door.position, Vector3{ 1.0f, 2.0f, 0.15f }, doorTex, Color{ 101, 67, 33, 255 });
 
     // Draw door panel (rotates when opening)
     if (!door.isOpen || door.openAmount < 0.99f) {
-        // Simple approximation - door slides to side as it opens
         Vector3 doorPos = door.position;
         doorPos.x -= door.openAmount * 0.8f;
-        DrawCube(doorPos, 0.8f, 1.8f, 0.1f, Color{ 139, 90, 43, 255 });
+        DrawTexturedCube(doorPos, Vector3{ 0.8f, 1.8f, 0.1f }, doorTex, Color{ 139, 90, 43, 255 });
 
         // Door handle
         Vector3 handlePos = doorPos;
         handlePos.x += 0.3f;
+
+        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+            BeginShaderMode(g_ShaderManager->GetLightingShader());
+        }
         DrawSphere(handlePos, 0.05f, Color{ 212, 175, 55, 255 });
+        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
+            EndShaderMode();
+        }
     }
 }
 
@@ -431,10 +502,19 @@ void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3
     DrawMinimap(map, cameraPos, 0, menuX + 20, menuY + 60, menuW - 40, menuH - 80, true, screenH);
 }
 
-// Draw 3D map geometry
+// Draw 3D map geometry with textures and shaders
 void DrawMapGeometry(char map[MAP_SIZE][MAP_SIZE]) {
+    // Update shader lighting before drawing (if available)
+    if (g_ShaderManager) {
+        // This is handled in main.cpp before calling this function
+        // Just draw the geometry here
+    }
+
     // Draw outside world
     if (currentFloor < 0) {
+        Texture2D grassTex = g_TextureManager->GetTexture(TEX_GRASS);
+        Texture2D roadTex = g_TextureManager->GetTexture(TEX_ROAD_ASPHALT);
+
         for (int r = 0; r < MAP_SIZE; ++r) {
             for (int c = 0; c < MAP_SIZE; ++c) {
                 Vector3 pos = Vector3{ (float)c, 0.5f, (float)r };
@@ -444,16 +524,18 @@ void DrawMapGeometry(char map[MAP_SIZE][MAP_SIZE]) {
                     continue;
                 }
                 else if (map[r][c] == TILE_FLOOR || map[r][c] == GRASS_TILE || map[r][c] == ROAD_TILE) {
-                    Color floorCol;
-                    if (map[r][c] == ROAD_TILE) floorCol = Color{ 60, 60, 65, 255 };
-                    else if (map[r][c] == GRASS_TILE) floorCol = Color{ 50, 100, 50, 255 };
-                    else floorCol = Color{ 60, 65, 60, 255 };
+                    Texture2D floorTex;
+                    if (map[r][c] == ROAD_TILE) floorTex = roadTex;
+                    else if (map[r][c] == GRASS_TILE) floorTex = grassTex;
+                    else floorTex = g_TextureManager->GetTexture(TEX_FLOOR_CONCRETE);
 
-                    DrawCubeV(Vector3{ (float)c, 0.0f, (float)r }, Vector3{ 1.0f, 0.05f, 1.0f }, floorCol);
+                    DrawTexturedCube(Vector3{ (float)c, 0.0f, (float)r },
+                        Vector3{ 1.0f, 0.05f, 1.0f }, floorTex);
                 }
                 else if (map[r][c] == TREE_TILE || map[r][c] == BUSH_TILE || map[r][c] == FLOWER_TILE) {
-                    // Draw grass underneath
-                    DrawCubeV(Vector3{ (float)c, 0.0f, (float)r }, Vector3{ 1.0f, 0.05f, 1.0f }, Color{ 50, 100, 50, 255 });
+                    // Draw grass underneath vegetation
+                    DrawTexturedCube(Vector3{ (float)c, 0.0f, (float)r },
+                        Vector3{ 1.0f, 0.05f, 1.0f }, grassTex);
                     // Draw vegetation
                     DrawVegetation(c, r, map[r][c]);
                 }
