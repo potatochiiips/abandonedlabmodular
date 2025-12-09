@@ -46,7 +46,7 @@ public:
     WeaponSystem() {
         InitializeWeapons();
     }
-    
+
     void InitializeWeapons() {
         // Pistol
         WeaponStats pistol;
@@ -62,7 +62,7 @@ public:
         pistol.adsAccuracyBonus = 0.2f;
         pistol.isAutomatic = false;
         weapons[ITEM_PISTOL] = pistol;
-        
+
         // M16
         WeaponStats m16;
         m16.weaponId = ITEM_M16;
@@ -78,14 +78,14 @@ public:
         m16.isAutomatic = true;
         weapons[ITEM_M16] = m16;
     }
-    
+
     WeaponStats* GetWeaponStats(int weaponId) {
         if (weapons.find(weaponId) != weapons.end()) {
             return &weapons[weaponId];
         }
         return nullptr;
     }
-    
+
     // Update weapon animations
     void UpdateWeapon(WeaponState& state, float deltaTime) {
         // Update animation timer
@@ -95,56 +95,57 @@ public:
                 state.animState = state.isADS ? ANIM_ADS : ANIM_IDLE;
             }
         }
-        
+
         // Smooth ADS transition
         float adsTarget = state.isADS ? 1.0f : 0.0f;
         float adsSpeed = 5.0f;
         if (state.adsProgress < adsTarget) {
             state.adsProgress = fminf(state.adsProgress + deltaTime * adsSpeed, adsTarget);
-        } else if (state.adsProgress > adsTarget) {
+        }
+        else if (state.adsProgress > adsTarget) {
             state.adsProgress = fmaxf(state.adsProgress - deltaTime * adsSpeed, adsTarget);
         }
-        
+
         // Smooth recoil recovery
         state.recoilOffset.x *= 0.9f;
         state.recoilOffset.y *= 0.9f;
         state.recoilOffset.z *= 0.9f;
     }
-    
+
     // Calculate weapon position based on animation state
     Vector3 CalculateWeaponPosition(const Camera3D& camera, const WeaponState& state, bool isRifle) {
         Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
         Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
         Vector3 up = Vector3Normalize(camera.up);
-        
+
         float handDistance = 0.45f - (state.adsProgress * 0.2f);
         float handRightOffset = 0.22f - (state.adsProgress * 0.15f);
         float handDownOffset = -0.25f + (state.adsProgress * 0.1f);
-        
+
         if (isRifle) {
             handDistance = 0.5f - (state.adsProgress * 0.25f);
             handRightOffset = 0.15f - (state.adsProgress * 0.15f);
             handDownOffset = -0.2f + (state.adsProgress * 0.15f);
         }
-        
+
         Vector3 pos = camera.position;
         pos = Vector3Add(pos, Vector3Scale(forward, handDistance));
         pos = Vector3Add(pos, Vector3Scale(right, handRightOffset));
         pos = Vector3Add(pos, Vector3Scale(up, handDownOffset));
-        
+
         // Add recoil offset
         pos = Vector3Add(pos, state.recoilOffset);
-        
+
         // Add animation bobbing
         if (state.animState == ANIM_IDLE && state.adsProgress < 0.5f) {
-            float time = GetTime();
+            float time = (float)GetTime();  // Cast to float to avoid warning
             float bob = sinf(time * 2.0f) * 0.005f;
             pos.y += bob;
         }
-        
+
         return pos;
     }
-    
+
 private:
     std::map<int, WeaponStats> weapons;
 };
@@ -155,12 +156,12 @@ void DrawEnhancedPistol(Vector3 basePos, Vector3 forward, Vector3 right, Vector3
 // Draw M16 model
 void DrawM16Rifle(Vector3 basePos, Vector3 forward, Vector3 right, Vector3 up, const WeaponState& state);
 
-// Draw left hand on weapon
+// Draw left hand on weapon - FIXED SIGNATURE (6 parameters)
 void DrawLeftHandOnWeapon(Vector3 weaponPos, Vector3 forward, Vector3 right, Vector3 up, bool isRifle, float adsProgress);
 
 // Draw idle hands animation
 void DrawIdleHands(const Camera3D& camera, float time);
 
-// Global weapon system
+// Global weapon system (DECLARED HERE, DEFINED IN weapons.cpp)
 extern WeaponSystem g_WeaponSystem;
 extern WeaponState g_CurrentWeaponState;

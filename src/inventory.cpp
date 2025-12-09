@@ -1,4 +1,3 @@
-
 #include "inventory.h"
 #include "items.h"
 
@@ -23,6 +22,7 @@ bool AddItemToInventory(InventorySlot* inventory, int itemId, int quantity, int 
     }
     return false;
 }
+
 void UseEquippedItem(InventorySlot* inventory, float* health, float* stamina, float* hunger, float* thirst) {
     // Get the currently equipped item (hand slot 0)
     InventorySlot* equippedSlot = &inventory[BACKPACK_SLOTS];
@@ -56,7 +56,8 @@ void UseEquippedItem(InventorySlot* inventory, float* health, float* stamina, fl
         break;
 
     case ITEM_PISTOL:
-        // Pistol shoots with left-click/trigger, not right-click
+    case ITEM_M16:
+        // Weapons shoot with left-click/trigger, not right-click
         TraceLog(LOG_INFO, "Use left mouse button or RT to shoot.");
         break;
 
@@ -81,19 +82,30 @@ void UseEquippedItem(InventorySlot* inventory, float* health, float* stamina, fl
         }
     }
 }
+
 bool ReloadWeapon(InventorySlot* inventory) {
     // Get the currently equipped item (hand slot 0)
     InventorySlot* equippedSlot = &inventory[BACKPACK_SLOTS];
 
     // Check if holding a weapon that can be reloaded
-    if (equippedSlot->itemId != ITEM_PISTOL) {
+    if (equippedSlot->itemId != ITEM_PISTOL && equippedSlot->itemId != ITEM_M16) {
         TraceLog(LOG_INFO, "No weapon equipped that can be reloaded.");
         return false;
     }
 
+    // Determine weapon capacity and magazine type
+    int maxAmmo = 15; // Default pistol
+    int magId = ITEM_MAG;
+    int magAmmoCount = 15;
+
+    if (equippedSlot->itemId == ITEM_M16) {
+        maxAmmo = 30;
+        magId = ITEM_M16_MAG;
+        magAmmoCount = 30;
+    }
+
     // Check if weapon is already full
-    const int PISTOL_MAX_AMMO = 15; // Maximum ammo capacity for pistol
-    if (equippedSlot->ammo >= PISTOL_MAX_AMMO) {
+    if (equippedSlot->ammo >= maxAmmo) {
         TraceLog(LOG_INFO, "Weapon already at maximum ammo.");
         return false;
     }
@@ -101,7 +113,7 @@ bool ReloadWeapon(InventorySlot* inventory) {
     // Search inventory for magazine
     int magSlotIndex = -1;
     for (int i = 0; i < BACKPACK_SLOTS; i++) {
-        if (inventory[i].itemId == ITEM_MAG && inventory[i].quantity > 0) {
+        if (inventory[i].itemId == magId && inventory[i].quantity > 0) {
             magSlotIndex = i;
             break;
         }
@@ -114,9 +126,8 @@ bool ReloadWeapon(InventorySlot* inventory) {
     }
 
     // Calculate ammo to add
-    const int MAG_AMMO_COUNT = 15; // Ammo per magazine
-    int ammoNeeded = PISTOL_MAX_AMMO - equippedSlot->ammo;
-    int ammoToAdd = (ammoNeeded < MAG_AMMO_COUNT) ? ammoNeeded : MAG_AMMO_COUNT;
+    int ammoNeeded = maxAmmo - equippedSlot->ammo;
+    int ammoToAdd = (ammoNeeded < magAmmoCount) ? ammoNeeded : magAmmoCount;
 
     // Perform reload
     equippedSlot->ammo += ammoToAdd;
@@ -129,29 +140,28 @@ bool ReloadWeapon(InventorySlot* inventory) {
         inventory[magSlotIndex].ammo = 0;
     }
 
-    TraceLog(LOG_INFO, TextFormat("Reloaded! Ammo: %d/%d", equippedSlot->ammo, PISTOL_MAX_AMMO));
+    TraceLog(LOG_INFO, TextFormat("Reloaded! Ammo: %d/%d", equippedSlot->ammo, maxAmmo));
     return true;
 }
-    void DrawInventory(int screenW, int screenH, InventorySlot * inventory, int* selectedHandSlot, int* selectedInvSlot, bool useController) {
-        // Make inventory responsive to screen size
-        int invWidth = (int)(screenW * 0.6f);  // 70% of screen width
-        int invHeight = (int)(screenH * 0.85f); // 85% of screen height
-        int padding = 15;
 
-        // Calculate slot size based on available space
-        int cols = 9;
-        int rows = BACKPACK_SLOTS / cols;
-        int availableWidth = invWidth - (padding * 3); // Left padding, middle gap, right padding
-        int slotSize = (int)fminf(50.0f, (float)availableWidth / (float)(cols + 0.5f)); // Cap at 50px
-        int spacing = (int)fmaxf(3.0f, slotSize * 0.1f); // Spacing proportional to slot size
+void DrawInventory(int screenW, int screenH, InventorySlot* inventory, int* selectedHandSlot, int* selectedInvSlot, bool useController) {
+    // Make inventory responsive to screen size - adjusted for tab system
+    int invWidth = (int)(screenW * 0.85f);
+    int invHeight = (int)(screenH * 0.8f);
+    int padding = 15;
 
-        int invX = (screenW - invWidth) / 2;
-        int invY = (screenH - invHeight) / 2;
+    // Calculate slot size based on available space
+    int cols = 9;
+    int rows = BACKPACK_SLOTS / cols;
+    int availableWidth = invWidth - (padding * 3);
+    int slotSize = (int)fminf(50.0f, (float)availableWidth / (float)(cols + 0.5f));
+    int spacing = (int)fmaxf(3.0f, slotSize * 0.1f);
 
-    DrawRectangle(invX, invY, invWidth, invHeight, PIPBOY_DARK);
-    DrawRectangleLines(invX, invY, invWidth, invHeight, PIPBOY_GREEN);
-    DrawText("INVENTORY (I/Y)", invX + padding, invY + 10, 20, PIPBOY_GREEN);
-    DrawText("Drag & Drop items to move them", invX + padding, invY + invHeight - 25, 14, PIPBOY_DIM);
+    int invX = (screenW - invWidth) / 2;
+    int invY = (screenH - invHeight) / 2 + 50; // Offset for tabs
+
+    // Header
+    DrawText("Drag & Drop items to move them", invX + padding, invY + 10, 14, PIPBOY_DIM);
 
     Vector2 mousePos = GetMousePosition();
     bool mousePressed = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
@@ -170,17 +180,14 @@ bool ReloadWeapon(InventorySlot* inventory) {
         bool isHovered = (mousePos.x >= x && mousePos.x <= x + slotSize &&
             mousePos.y >= handY && mousePos.y <= handY + slotSize);
 
-        // Determine if this slot is being dragged
         bool isBeingDragged = (isDragging && draggedFromHand && draggedSlotIndex == i);
 
         Color borderColor = isSelected ? PIPBOY_GREEN : (isHovered ? PIPBOY_GREEN : PIPBOY_DIM);
 
-        // Draw slot background
         if (!isBeingDragged) {
             DrawRectangle(x, handY, slotSize, slotSize, PIPBOY_DARK);
             DrawRectangleLinesEx(Rectangle{ (float)x, (float)handY, (float)slotSize, (float)slotSize }, 2, borderColor);
 
-            // Draw item in slot
             if (inventory[index].itemId != ITEM_NONE) {
                 DrawText(GetItemName(inventory[index].itemId), x + 5, handY + 5, 12, PIPBOY_GREEN);
                 if (inventory[index].quantity > 1)
@@ -190,12 +197,10 @@ bool ReloadWeapon(InventorySlot* inventory) {
             }
         }
         else {
-            // Draw empty slot when dragging from here
             DrawRectangle(x, handY, slotSize, slotSize, Color{ 20, 40, 20, 255 });
             DrawRectangleLinesEx(Rectangle{ (float)x, (float)handY, (float)slotSize, (float)slotSize }, 2, PIPBOY_DIM);
         }
 
-        // Start dragging from hand slot
         if (isHovered && mousePressed && inventory[index].itemId != ITEM_NONE && !isDragging) {
             isDragging = true;
             draggedSlotIndex = i;
@@ -206,17 +211,13 @@ bool ReloadWeapon(InventorySlot* inventory) {
             *selectedInvSlot = -1;
         }
 
-        // Drop onto hand slot
         if (isHovered && mouseReleased && isDragging) {
-            // Swap items
             if (draggedFromHand) {
-                // Swapping between hand slots
                 InventorySlot temp = inventory[BACKPACK_SLOTS + draggedSlotIndex];
                 inventory[BACKPACK_SLOTS + draggedSlotIndex] = inventory[index];
                 inventory[index] = temp;
             }
             else {
-                // Moving from backpack to hand
                 InventorySlot temp = inventory[draggedSlotIndex];
                 inventory[draggedSlotIndex] = inventory[index];
                 inventory[index] = temp;
@@ -225,7 +226,6 @@ bool ReloadWeapon(InventorySlot* inventory) {
             draggedSlotIndex = -1;
         }
 
-        // Click to select
         if (isHovered && mousePressed && !isDragging) {
             *selectedHandSlot = i;
             *selectedInvSlot = -1;
@@ -250,12 +250,10 @@ bool ReloadWeapon(InventorySlot* inventory) {
 
         Color borderColor = isSelected ? PIPBOY_GREEN : (isHovered ? PIPBOY_GREEN : PIPBOY_DIM);
 
-        // Draw slot
         if (!isBeingDragged) {
             DrawRectangle(x, y, slotSize, slotSize, PIPBOY_DARK);
             DrawRectangleLinesEx(Rectangle{ (float)x, (float)y, (float)slotSize, (float)slotSize }, 2, borderColor);
 
-            // Draw item
             if (inventory[i].itemId != ITEM_NONE) {
                 DrawText(GetItemName(inventory[i].itemId), x + 5, y + 5, 12, PIPBOY_GREEN);
                 if (inventory[i].quantity > 1)
@@ -265,12 +263,10 @@ bool ReloadWeapon(InventorySlot* inventory) {
             }
         }
         else {
-            // Empty slot while dragging
             DrawRectangle(x, y, slotSize, slotSize, Color{ 20, 40, 20, 255 });
             DrawRectangleLinesEx(Rectangle{ (float)x, (float)y, (float)slotSize, (float)slotSize }, 2, PIPBOY_DIM);
         }
 
-        // Start dragging from backpack
         if (isHovered && mousePressed && inventory[i].itemId != ITEM_NONE && !isDragging) {
             isDragging = true;
             draggedSlotIndex = i;
@@ -281,17 +277,13 @@ bool ReloadWeapon(InventorySlot* inventory) {
             *selectedHandSlot = -1;
         }
 
-        // Drop onto backpack slot
         if (isHovered && mouseReleased && isDragging) {
-            // Swap items
             if (draggedFromHand) {
-                // Moving from hand to backpack
                 InventorySlot temp = inventory[BACKPACK_SLOTS + draggedSlotIndex];
                 inventory[BACKPACK_SLOTS + draggedSlotIndex] = inventory[i];
                 inventory[i] = temp;
             }
             else {
-                // Swapping within backpack
                 InventorySlot temp = inventory[draggedSlotIndex];
                 inventory[draggedSlotIndex] = inventory[i];
                 inventory[i] = temp;
@@ -300,7 +292,6 @@ bool ReloadWeapon(InventorySlot* inventory) {
             draggedSlotIndex = -1;
         }
 
-        // Click to select
         if (isHovered && mousePressed && !isDragging) {
             *selectedInvSlot = i;
             *selectedHandSlot = -1;
@@ -312,11 +303,9 @@ bool ReloadWeapon(InventorySlot* inventory) {
         int drawX = (int)(mousePos.x - dragOffset.x);
         int drawY = (int)(mousePos.y - dragOffset.y);
 
-        // Semi-transparent background
         DrawRectangle(drawX, drawY, slotSize, slotSize, Color{ 40, 80, 40, 230 });
         DrawRectangleLinesEx(Rectangle{ (float)drawX, (float)drawY, (float)slotSize, (float)slotSize }, 3, PIPBOY_GREEN);
 
-        // Get the item being dragged
         int sourceIndex = draggedFromHand ? (BACKPACK_SLOTS + draggedSlotIndex) : draggedSlotIndex;
         InventorySlot draggedItem = inventory[sourceIndex];
 
@@ -329,23 +318,25 @@ bool ReloadWeapon(InventorySlot* inventory) {
         }
     }
 
-    // Cancel drag if released outside inventory
     if (mouseReleased && isDragging) {
         isDragging = false;
         draggedSlotIndex = -1;
     }
 
     // --- Item Details Panel ---
-    int detailPanelX = invX + invWidth + 10;
-    DrawRectangle(detailPanelX, invY, 200, invHeight, PIPBOY_DARK);
-    DrawRectangleLines(detailPanelX, invY, 200, invHeight, PIPBOY_GREEN);
-    DrawText("ITEM DETAILS", detailPanelX + 10, invY + 10, 18, PIPBOY_GREEN);
+    int detailPanelX = invX + invWidth - 210;
+    int detailPanelW = 200;
+    int detailPanelH = invHeight - 60;
+
+    DrawRectangle(detailPanelX, invY + 40, detailPanelW, detailPanelH, PIPBOY_DARK);
+    DrawRectangleLines(detailPanelX, invY + 40, detailPanelW, detailPanelH, PIPBOY_GREEN);
+    DrawText("ITEM DETAILS", detailPanelX + 10, invY + 50, 18, PIPBOY_GREEN);
 
     int selectedIndex = (*selectedHandSlot != -1) ? BACKPACK_SLOTS + *selectedHandSlot : *selectedInvSlot;
     if (selectedIndex >= 0 && selectedIndex < TOTAL_INVENTORY_SLOTS) {
         const InventorySlot& item = inventory[selectedIndex];
         if (item.itemId != ITEM_NONE) {
-            int detailY = invY + 50;
+            int detailY = invY + 90;
             DrawText(TextFormat("Name: %s", GetItemName(item.itemId)), detailPanelX + 10, detailY, 15, PIPBOY_GREEN);
             DrawText(TextFormat("Qty: %d", item.quantity), detailPanelX + 10, detailY + 20, 15, PIPBOY_GREEN);
             if (item.ammo > 0)

@@ -1,9 +1,6 @@
 #include "ui_tabs.h"
 #include "quest_system.h"
 
-// Global instance
-TabManager g_TabManager;
-
 // Static selection tracking
 static int skillSelection = 0;
 static int questSelection = 0;

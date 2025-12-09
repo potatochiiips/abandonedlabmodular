@@ -101,11 +101,11 @@
     <ClCompile Include="src\menus_impl.cpp" />
     <ClCompile Include="src\player.cpp" />
     <ClCompile Include="src\recipes.cpp" />
-	<ClCompile Include="src\waypoints.cpp" />
-<ClCompile Include="src\quest_system.cpp" />
-<ClCompile Include="src\weapons.cpp" />
-<ClCompile Include="src\ui_tabs.cpp" />
-    <!-- NEW: Texture and shader management -->
+    <ClCompile Include="src\waypoints.cpp" />
+    <ClCompile Include="src\quest_system.cpp" />
+    <ClCompile Include="src\weapons.cpp" />
+    <ClCompile Include="src\ui_tabs.cpp" />
+    <ClCompile Include="src\ui_tabs_impl.cpp" />
     <ClCompile Include="src\texture_manager.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -120,14 +120,12 @@
     <ClInclude Include="src\menus.h" />
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\recipes.h" />
-	<ClInclude Include="src\waypoints.h" />
-<ClInclude Include="src\quest_system.h" />
-<ClInclude Include="src\weapons.h" />
-<ClInclude Include="src\ui_tabs.h" />
-    <!-- NEW: Texture and shader management header -->
+    <ClInclude Include="src\waypoints.h" />
+    <ClInclude Include="src\quest_system.h" />
+    <ClInclude Include="src\weapons.h" />
+    <ClInclude Include="src\ui_tabs.h" />
     <ClInclude Include="src\texture_manager.h" />
   </ItemGroup>
-  <!-- NEW: Include shader files in project for easy access -->
   <ItemGroup>
     <None Include="assets\shaders\lighting.vs" />
     <None Include="assets\shaders\lighting.fs" />

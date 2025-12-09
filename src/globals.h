@@ -11,11 +11,7 @@
 #include <map>
 #include <sstream>
 #include <cmath>
-#include <fstream> 
-#include "waypoints.h"
-#include "quest_system.h"
-#include "weapons.h"
-#include "ui_tabs.h"
+#include <fstream>
 
 // ----------------------------------------------------------------------------------
 // COMPATIBILITY FIXES FOR OLDER RAYLIB VERSIONS (Missing constants/functions)
@@ -33,42 +29,6 @@
 #ifndef GAMEPAD_AXIS_COUNT
 #define GAMEPAD_AXIS_COUNT 6
 #endif
-
-// ----------------------------------------------------------------------------------
-// GRAPHICS SETTINGS STRUCTURES
-// ----------------------------------------------------------------------------------
-
-struct Resolution {
-    int width;
-    int height;
-    const char* label;
-};
-
-struct GraphicsSettings {
-    int resolutionIndex;
-    bool vsync;
-    bool msaa;
-    int msaaSamples; // 2, 4, or 8
-    int targetFPS;
-    float renderScale; // 0.5f to 1.0f for performance scaling
-    bool showFPS;
-    bool enableLOD;
-    bool enableFrustumCulling;
-    int maxDrawCalls; // Limit per frame
-};
-
-// Available resolutions
-const Resolution AVAILABLE_RESOLUTIONS[] = {
-    {800, 600, "800x600"},
-    {1024, 768, "1024x768"},
-    {1280, 720, "1280x720 (HD)"},
-    {1366, 768, "1366x768"},
-    {1600, 900, "1600x900"},
-    {1920, 1080, "1920x1080 (Full HD)"},
-    {2560, 1440, "2560x1440 (2K)"},
-    {3840, 2160, "3840x2160 (4K)"}
-};
-const int RESOLUTION_COUNT = 8;
 
 // ----------------------------------------------------------------------------------
 // DATA STRUCTURES & DEFINITIONS
@@ -92,7 +52,7 @@ enum class GameState {
     LoadMenu,
     Console,
     ControllerBindings,
-    GraphicsSettings  // NEW: Graphics settings menu
+    GraphicsSettings
 };
 
 // --- ITEM DEFINITIONS ---
@@ -119,7 +79,7 @@ enum class GameState {
 struct InventorySlot {
     int itemId;
     int quantity;
-    int ammo; // for weapons
+    int ammo;
 };
 
 // Constants
@@ -131,6 +91,41 @@ const int MAX_SAVE_SLOTS = 3;
 
 // Console
 #define MAX_COMMAND_LENGTH 100
+
+// ==================================================================================
+// GRAPHICS SETTINGS STRUCTURES
+// ==================================================================================
+
+struct Resolution {
+    int width;
+    int height;
+    const char* label;
+};
+
+struct GraphicsSettings {
+    int resolutionIndex;
+    bool vsync;
+    bool msaa;
+    int msaaSamples;
+    int targetFPS;
+    float renderScale;
+    bool showFPS;
+    bool enableLOD;
+    bool enableFrustumCulling;
+    int maxDrawCalls;
+};
+
+const Resolution AVAILABLE_RESOLUTIONS[] = {
+    {800, 600, "800x600"},
+    {1024, 768, "1024x768"},
+    {1280, 720, "1280x720 (HD)"},
+    {1366, 768, "1366x768"},
+    {1600, 900, "1600x900"},
+    {1920, 1080, "1920x1080 (Full HD)"},
+    {2560, 1440, "2560x1440 (2K)"},
+    {3840, 2160, "3840x2160 (4K)"}
+};
+const int RESOLUTION_COUNT = 8;
 
 // ==================================================================================
 // CRAFTING STRUCTURES
@@ -152,7 +147,6 @@ struct CraftingRecipe {
 // CONTROLLER BINDING STRUCTURES AND HELPERS 
 // ==================================================================================
 
-// Raylib Gamepad Axis mapping for movement/look
 #define GAMEPAD_PLAYER_MOVE_AXIS_X GAMEPAD_AXIS_LEFT_X
 #define GAMEPAD_PLAYER_MOVE_AXIS_Y GAMEPAD_AXIS_LEFT_Y
 #define GAMEPAD_CAMERA_MOVE_AXIS_X GAMEPAD_AXIS_RIGHT_X
@@ -171,16 +165,16 @@ enum PlayerAction {
 };
 
 struct ControllerBinding {
-    bool isAxis; // true for axis, false for button
-    int inputId; // GamepadButton or GamepadAxis ID
-    float threshold; // for axis: positive or negative threshold (e.g., 0.5 or -0.5)
-    const char* actionName; // Display name of the binding
+    bool isAxis;
+    int inputId;
+    float threshold;
+    const char* actionName;
 };
 
 extern ControllerBinding bindings[ACTION_COUNT];
 
 // ----------------------------------------------------------------------------------
-// Externs for globals used across translation units (menu, main, player, etc.)
+// Externs for globals used across translation units
 // ----------------------------------------------------------------------------------
 extern Camera3D camera;
 extern Vector3 playerPosition;
@@ -227,7 +221,7 @@ extern bool isControllerEnabled;
 extern bool isFullscreen;
 extern int settingsSelection;
 extern int controllerSettingsSelection;
-extern int graphicsSettingsSelection; // NEW
+extern int graphicsSettingsSelection;
 
 extern bool isBindingMode;
 extern int activeBindingIndex;
@@ -242,13 +236,18 @@ extern bool cursorHidden;
 extern GameState gameState;
 extern GameState stateBeforeSettings;
 
-// NEW: Graphics settings global
 extern GraphicsSettings graphicsSettings;
 
-// Prototype for InitNewGame implemented in src/main.cpp
+
+// Prototype for InitNewGame
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov);
 
-// NEW: Graphics functions
+// Graphics functions
 void ApplyGraphicsSettings(const GraphicsSettings& settings);
 void SaveGraphicsSettings(const GraphicsSettings& settings);
 void LoadGraphicsSettings(GraphicsSettings* settings);
+// Include other headers after forward declarations
+#include "waypoints.h"
+#include "quest_system.h"
+#include "weapons.h"
+#include "ui_tabs.h"

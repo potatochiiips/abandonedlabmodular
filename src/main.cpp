@@ -1,4 +1,4 @@
-// Complete updated main.cpp with texture and shader system integration
+// Complete updated main.cpp with texture, shader, and weapon system integration
 
 #include "globals.h"
 #include "hud.h"
@@ -11,6 +11,9 @@
 #include "console.h"
 #include "fileio.h"
 #include "texture_manager.h"
+#include "weapons.h"
+#include "quest_system.h"
+#include "ui_tabs.h"
 #include "rlgl.h"
 
 // --- GLOBAL VARIABLE DEFINITIONS ---
@@ -43,6 +46,10 @@ float pistolRecoilYaw = 0.0f;
 const float RECOIL_DECAY_RATE = 1.0f;
 float shotTimer = 0.0f;
 const float SHOT_COOLDOWN = 0.5f;
+bool isAimingDownSights = false;
+bool isReloading = false;
+float reloadTimer = 0.0f;
+float adsTransitionProgress = 0.0f;
 bool showMinimap = true;
 bool isControllerEnabled = true;
 bool isFullscreen = false;
@@ -172,11 +179,20 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     inventory[1] = { ITEM_WOOD, 1, 0 };
     inventory[2] = { ITEM_STONE, 2, 0 };
     inventory[3] = { ITEM_MAG, 2, 0 };
+    inventory[4] = { ITEM_M16, 1, 25 };
+    inventory[5] = { ITEM_M16_MAG, 3, 0 };
 
     GenerateMap(map);
 
     currentFloor = -1;
     currentBuildingIndex = -1;
+
+    // Reset weapon state
+    g_CurrentWeaponState.animState = ANIM_IDLE;
+    g_CurrentWeaponState.animTimer = 0.0f;
+    g_CurrentWeaponState.isADS = false;
+    g_CurrentWeaponState.adsProgress = 0.0f;
+    g_CurrentWeaponState.recoilOffset = Vector3{ 0, 0, 0 };
 
     ControllerBinding defaultBindings[ACTION_COUNT] = {
         { false, GAMEPAD_BUTTON_RIGHT_FACE_DOWN, 0.0f, "A" },
@@ -189,9 +205,8 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
         { false, GAMEPAD_BUTTON_RIGHT_TRIGGER_1, 0.0f, "RB" }
     };
     for (int i = 0; i < ACTION_COUNT; i++) bindings[i] = defaultBindings[i];
-}
-void InitializeQuests() {
-    // Tutorial quest
+
+    // Initialize quests
     int quest1 = g_QuestManager.AddQuest(
         "Welcome to the Lab",
         "Get familiar with your surroundings and find basic supplies",
@@ -202,7 +217,6 @@ void InitializeQuests() {
     g_QuestManager.AddObjective(quest1, QUEST_OBJ_COLLECT, ITEM_FLASHLIGHT, 1,
         "Find a flashlight");
 
-    // Combat quest
     int quest2 = g_QuestManager.AddQuest(
         "Armed and Ready",
         "Equip yourself with weapons and ammunition",
@@ -213,6 +227,7 @@ void InitializeQuests() {
     g_QuestManager.AddObjective(quest2, QUEST_OBJ_COLLECT, ITEM_MAG, 3,
         "Collect 3 magazines");
 }
+
 int main() {
     // Load graphics settings before window creation
     LoadGraphicsSettings(&graphicsSettings);
@@ -323,6 +338,7 @@ int main() {
             if (!isAnyMenuOpen) {
                 UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
 
+                // Door interaction
                 if (IsKeyPressed(KEY_E)) {
                     Door* nearDoor = GetNearestDoor(playerPosition, 2.0f);
                     if (nearDoor) {
@@ -349,6 +365,7 @@ int main() {
 
                 UpdateDoors(deltaTime);
 
+                // Flashlight toggle
                 bool flashlightPressed = useController ? IsActionPressed(ACTION_FLASHLIGHT, bindings) : IsKeyPressed(KEY_F);
                 if (flashlightPressed) isFlashlightOn = !isFlashlightOn;
 
@@ -360,16 +377,68 @@ int main() {
                     flashlightBattery = 0.0f;
                 }
 
+                // Use item
                 bool useItemPressed = useController ? IsActionPressed(ACTION_USE_ITEM, bindings) : IsMouseButtonPressed(MOUSE_RIGHT_BUTTON);
                 if (useItemPressed) {
                     UseEquippedItem(inventory, &health, &stamina, &hunger, &thirst);
                 }
 
-                bool reloadPressed = IsKeyPressed(KEY_R) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT));
-                if (reloadPressed) {
-                    ReloadWeapon(inventory);
+                // ADS toggle (right mouse hold for pistol/rifle)
+                int equippedWeapon = inventory[BACKPACK_SLOTS].itemId;
+                if (equippedWeapon == ITEM_PISTOL || equippedWeapon == ITEM_M16) {
+                    bool adsPressed = IsMouseButtonDown(MOUSE_RIGHT_BUTTON) ||
+                        (useController && IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_TRIGGER_2));
+                    g_CurrentWeaponState.isADS = adsPressed;
                 }
 
+                // Reload weapon
+                bool reloadPressed = IsKeyPressed(KEY_R) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT));
+                if (reloadPressed && !isReloading) {
+                    if (ReloadWeapon(inventory)) {
+                        isReloading = true;
+                        WeaponStats* stats = g_WeaponSystem.GetWeaponStats(inventory[BACKPACK_SLOTS].itemId);
+                        reloadTimer = stats ? stats->reloadTime : 1.5f;
+                        g_CurrentWeaponState.animState = ANIM_RELOAD;
+                        g_CurrentWeaponState.animTimer = reloadTimer;
+                    }
+                }
+
+                // Update reload timer
+                if (isReloading) {
+                    reloadTimer -= deltaTime;
+                    if (reloadTimer <= 0.0f) {
+                        isReloading = false;
+                        reloadTimer = 0.0f;
+                    }
+                }
+
+                // Weapon shooting with weapon system
+                bool shootPressed = useController ? IsActionPressed(ACTION_SHOOT, bindings) : IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
+                if (shootPressed && shotTimer <= 0.0f && !isReloading) {
+                    int weaponId = inventory[BACKPACK_SLOTS].itemId;
+                    WeaponStats* stats = g_WeaponSystem.GetWeaponStats(weaponId);
+
+                    if (stats && inventory[BACKPACK_SLOTS].ammo > 0) {
+                        shotTimer = stats->fireRate;
+                        inventory[BACKPACK_SLOTS].ammo--;
+
+                        // Apply recoil
+                        pistolRecoilPitch = stats->recoilPitch;
+                        pistolRecoilYaw = stats->recoilYaw;
+
+                        // Visual recoil on weapon
+                        g_CurrentWeaponState.recoilOffset.y = -0.02f;
+                        g_CurrentWeaponState.recoilOffset.z = -0.05f;
+
+                        g_CurrentWeaponState.animState = ANIM_SHOOT;
+                        g_CurrentWeaponState.animTimer = 0.2f;
+
+                        TraceLog(LOG_INFO, TextFormat("%s fired! Damage: %.0f",
+                            GetItemName(weaponId), stats->damage));
+                    }
+                }
+
+                // Stat draining
                 float drainRate = 1.0f * deltaTime;
                 hunger = fmaxf(0.0f, hunger - drainRate);
                 thirst = fmaxf(0.0f, thirst - drainRate * 1.5f);
@@ -377,18 +446,14 @@ int main() {
 
                 if (health <= 0.0f) gameState = GameState::GameOver;
 
+                // Update weapon system
+                g_WeaponSystem.UpdateWeapon(g_CurrentWeaponState, deltaTime);
+
+                // Recoil decay
                 pistolRecoilPitch = fmaxf(0.0f, pistolRecoilPitch - RECOIL_DECAY_RATE * deltaTime * 60.0f);
                 pistolRecoilYaw = fmaxf(0.0f, pistolRecoilYaw - RECOIL_DECAY_RATE * deltaTime * 60.0f);
 
                 shotTimer = fmaxf(0.0f, shotTimer - deltaTime);
-                bool shootPressed = useController ? IsActionPressed(ACTION_SHOOT, bindings) : IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
-                if (shootPressed && shotTimer <= 0.0f && inventory[BACKPACK_SLOTS].itemId == ITEM_PISTOL && inventory[BACKPACK_SLOTS].ammo > 0) {
-                    shotTimer = SHOT_COOLDOWN;
-                    inventory[BACKPACK_SLOTS].ammo--;
-                    pistolRecoilPitch = 5.0f;
-                    pistolRecoilYaw = 1.0f;
-                    TraceLog(LOG_INFO, "Pistol fired!");
-                }
             }
         }
 
@@ -467,7 +532,40 @@ int main() {
             }
 
             DrawMapGeometry(map);
-            DrawPlayerHands(camera, inventory, pistolRecoilPitch, pistolRecoilYaw);
+
+            // Draw waypoints in 3D
+            g_WaypointManager.DrawIn3D(playerPosition, 100.0f);
+
+            // Draw weapon using weapon system
+            int equippedWeapon = inventory[BACKPACK_SLOTS].itemId;
+            if (equippedWeapon != ITEM_NONE) {
+                Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+                Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
+                Vector3 up = Vector3Normalize(camera.up);
+
+                Vector3 weaponPos = g_WeaponSystem.CalculateWeaponPosition(camera, g_CurrentWeaponState, equippedWeapon == ITEM_M16);
+
+                if (equippedWeapon == ITEM_PISTOL) {
+                    DrawEnhancedPistol(weaponPos, forward, right, up, g_CurrentWeaponState);
+                    DrawLeftHandOnWeapon(weaponPos, forward, right, up, false, g_CurrentWeaponState.adsProgress);
+                }
+                else if (equippedWeapon == ITEM_M16) {
+                    DrawM16Rifle(weaponPos, forward, right, up, g_CurrentWeaponState);
+                    DrawLeftHandOnWeapon(weaponPos, forward, right, up, true, g_CurrentWeaponState.adsProgress);
+                }
+                else if (equippedWeapon == ITEM_FLASHLIGHT) {
+                    // Still use the old DrawPlayerHands for flashlight
+                    DrawPlayerHands(camera, inventory, pistolRecoilPitch, pistolRecoilYaw);
+                }
+                else {
+                    // Generic items use old system
+                    DrawPlayerHands(camera, inventory, pistolRecoilPitch, pistolRecoilYaw);
+                }
+            }
+            else {
+                // No weapon - draw idle hands
+                DrawIdleHands(camera, (float)GetTime());
+            }
 
             EndMode3D();
 
@@ -499,15 +597,76 @@ int main() {
 
             if (showMinimap && gameState == GameState::Gameplay && !isMapOpen) {
                 DrawMinimap(map, playerPosition, yaw, screenW - 160, 10, 150, 150, true, 0);
+
+                // Draw waypoints on minimap
+                g_WaypointManager.DrawOnMinimap(screenW - 160, 10, 150, 150, playerPosition, 15, 10.0f);
             }
 
             if (gameState == GameState::Gameplay) {
                 DrawHUD(screenW, screenH, health, stamina, hunger, thirst, fov, flashlightBattery, isFlashlightOn, inventory);
+
+                // Draw quest tracker
+                g_QuestManager.DrawQuestTracker(screenW, screenH);
+
+                // Draw reload indicator
+                if (isReloading) {
+                    int barW = 200;
+                    int barH = 20;
+                    int barX = screenW / 2 - barW / 2;
+                    int barY = screenH / 2 + 100;
+
+                    WeaponStats* stats = g_WeaponSystem.GetWeaponStats(inventory[BACKPACK_SLOTS].itemId);
+                    float reloadProgress = stats ? 1.0f - (reloadTimer / stats->reloadTime) : 0.0f;
+
+                    DrawRectangle(barX, barY, barW, barH, PIPBOY_DARK);
+                    DrawRectangle(barX, barY, (int)(barW * reloadProgress), barH, PIPBOY_GREEN);
+                    DrawRectangleLines(barX, barY, barW, barH, PIPBOY_GREEN);
+                    DrawText("RELOADING...", barX + 50, barY + 3, 16, PIPBOY_GREEN);
+                }
             }
 
             if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
             if (isCraftingOpen) DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
-            if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
+            if (inventoryOpen) {
+                // Use tabbed interface for inventory
+                int menuW = (int)(screenW * 0.9f);
+                int menuH = (int)(screenH * 0.9f);
+                int menuX = (screenW - menuW) / 2;
+                int menuY = (screenH - menuH) / 2;
+
+                // Draw background
+                DrawRectangle(menuX, menuY, menuW, menuH, PIPBOY_DARK);
+                DrawRectangleLines(menuX, menuY, menuW, menuH, PIPBOY_GREEN);
+
+                // Draw tab bar
+                g_TabManager.DrawTabBar(screenW, screenH, menuX, menuY, menuW);
+
+                // Handle tab input
+                g_TabManager.HandleTabInput(useController);
+
+                // Calculate content area (below tabs)
+                int contentY = menuY + 50;
+                int contentH = menuH - 50;
+
+                // Draw content based on active tab
+                switch (g_TabManager.GetCurrentTab()) {
+                case TAB_INVENTORY:
+                    DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
+                    break;
+                case TAB_CRAFTING:
+                    DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
+                    break;
+                case TAB_MAP:
+                    DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
+                    break;
+                case TAB_SKILLS:
+                    DrawSkillsScreen(screenW, screenH, menuX + 10, contentY, menuW - 20, contentH - 10, useController);
+                    break;
+                case TAB_QUESTS:
+                    DrawQuestsScreen(screenW, screenH, menuX + 10, contentY, menuW - 20, contentH - 10, useController);
+                    break;
+                }
+            }
         }
 
         // Menu rendering
