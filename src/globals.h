@@ -246,6 +246,7 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
 void ApplyGraphicsSettings(const GraphicsSettings& settings);
 void SaveGraphicsSettings(const GraphicsSettings& settings);
 void LoadGraphicsSettings(GraphicsSettings* settings);
+
 // Include other headers after forward declarations
 #include "waypoints.h"
 #include "quest_system.h"

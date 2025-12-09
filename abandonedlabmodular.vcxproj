@@ -107,6 +107,8 @@
     <ClCompile Include="src\ui_tabs.cpp" />
     <ClCompile Include="src\ui_tabs_impl.cpp" />
     <ClCompile Include="src\texture_manager.cpp" />
+    <ClCompile Include="src\sound_manager.cpp" />
+    <ClCompile Include="src\upscaling_manager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\console.h" />
@@ -125,6 +127,9 @@
     <ClInclude Include="src\weapons.h" />
     <ClInclude Include="src\ui_tabs.h" />
     <ClInclude Include="src\texture_manager.h" />
+    <ClInclude Include="src\sound_manager.h" />
+    <ClInclude Include="src\upscaling_manager.h" />
+
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\shaders\lighting.vs" />

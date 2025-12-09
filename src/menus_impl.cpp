@@ -1,11 +1,12 @@
 #include "menus.h"
 #include "fileio.h"
 #include <fstream>
+#include "sound_manager.h"
 
 // Graphics settings menu implementation
 void DrawGraphicsSettingsMenu(int screenW, int screenH, GraphicsSettings* settings, int* selection, GameState* nextState) {
-    int menuW = 700;
-    int menuH = 600;
+    int menuW = 800;
+    int menuH = 700;
     int menuX = (screenW - menuW) / 2;
     int menuY = (screenH - menuH) / 2;
 
@@ -15,12 +16,14 @@ void DrawGraphicsSettingsMenu(int screenW, int screenH, GraphicsSettings* settin
 
     bool useController = isControllerEnabled && IsGamepadAvailable(0);
 
-    // Navigation (8 options)
+    // Navigation (11 options now)
     if (IsKeyPressed(KEY_UP) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_UP))) {
-        *selection = (*selection - 1 + 8) % 8;
+        *selection = (*selection - 1 + 11) % 11;
+        if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.3f);
     }
     if (IsKeyPressed(KEY_DOWN) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_DOWN))) {
-        *selection = (*selection + 1) % 8;
+        *selection = (*selection + 1) % 11;
+        if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.3f);
     }
 
     // Draw current settings info
@@ -43,33 +46,41 @@ void DrawGraphicsSettingsMenu(int screenW, int screenH, GraphicsSettings* settin
         TextFormat("Target FPS: %d", settings->targetFPS),
         TextFormat("Render Scale: %.0f%%", settings->renderScale * 100.0f),
         TextFormat("Show FPS: %s", settings->showFPS ? "ON" : "OFF"),
+        TextFormat("LOD System: %s", settings->enableLOD ? "ON" : "OFF"),
+        TextFormat("Frustum Culling: %s", settings->enableFrustumCulling ? "ON" : "OFF"),
+        TextFormat("Max Draw Calls: %d", settings->maxDrawCalls),
         "Apply Changes",
         "Back"
     };
 
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 11; i++) {
         Color bgColor = (*selection == i) ? PIPBOY_SELECTED : PIPBOY_DARK;
         Color fgColor = (*selection == i) ? PIPBOY_GREEN : PIPBOY_DIM;
 
-        DrawRectangle(menuX + 20, optY, menuW - 40, 50, bgColor);
-        DrawRectangleLines(menuX + 20, optY, menuW - 40, 50, (*selection == i) ? PIPBOY_GREEN : PIPBOY_DIM);
-        DrawText(optionLabels[i].c_str(), menuX + 30, optY + 15, 18, fgColor);
+        DrawRectangle(menuX + 20, optY, menuW - 40, 45, bgColor);
+        DrawRectangleLines(menuX + 20, optY, menuW - 40, 45, (*selection == i) ? PIPBOY_GREEN : PIPBOY_DIM);
+        DrawText(optionLabels[i].c_str(), menuX + 30, optY + 12, 18, fgColor);
 
         // Mouse selection
         Vector2 mousePos = GetMousePosition();
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) &&
             mousePos.x >= menuX + 20 && mousePos.x <= menuX + menuW - 20 &&
-            mousePos.y >= optY && mousePos.y <= optY + 50) {
+            mousePos.y >= optY && mousePos.y <= optY + 45) {
             *selection = i;
+            if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
         }
 
-        optY += 55;
+        optY += 50;
     }
 
     // Handle input for adjusting values
     bool leftPressed = IsKeyPressed(KEY_LEFT) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_LEFT));
     bool rightPressed = IsKeyPressed(KEY_RIGHT) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_RIGHT));
     bool enterPressed = IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN));
+
+    if (leftPressed || rightPressed) {
+        if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.3f);
+    }
 
     switch (*selection) {
     case 0: // Resolution
@@ -111,15 +122,27 @@ void DrawGraphicsSettingsMenu(int screenW, int screenH, GraphicsSettings* settin
     case 5: // Show FPS
         if (leftPressed || rightPressed || enterPressed) settings->showFPS = !settings->showFPS;
         break;
-    case 6: // Apply
+    case 6: // LOD System
+        if (leftPressed || rightPressed || enterPressed) settings->enableLOD = !settings->enableLOD;
+        break;
+    case 7: // Frustum Culling
+        if (leftPressed || rightPressed || enterPressed) settings->enableFrustumCulling = !settings->enableFrustumCulling;
+        break;
+    case 8: // Max Draw Calls
+        if (leftPressed && settings->maxDrawCalls > 100) settings->maxDrawCalls -= 100;
+        if (rightPressed && settings->maxDrawCalls < 5000) settings->maxDrawCalls += 100;
+        break;
+    case 9: // Apply
         if (enterPressed) {
             ApplyGraphicsSettings(*settings);
             SaveGraphicsSettings(*settings);
+            if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.7f);
             TraceLog(LOG_INFO, "Graphics settings applied and saved");
         }
         break;
-    case 7: // Back
+    case 10: // Back
         if (enterPressed) {
+            if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_BACK, 0.5f);
             *nextState = GameState::Settings;
             gameState = GameState::Settings;
         }
@@ -131,10 +154,10 @@ void DrawGraphicsSettingsMenu(int screenW, int screenH, GraphicsSettings* settin
     DrawText("Press ENTER to select | ESC to go back", menuX + 20, menuY + menuH - 35, 16, PIPBOY_DIM);
 }
 
-// Updated DrawSettingsMenu to include Graphics option
+// Updated DrawSettingsMenu with sound support
 void DrawSettingsMenu(int screenW, int screenH, bool* showMinimap, bool* isControllerEnabled, bool* isFullscreen, int* settingsSelection, GameState* nextState) {
     int menuW = 600;
-    int menuH = 500;
+    int menuH = 600;
     int menuX = (screenW - menuW) / 2;
     int menuY = (screenH - menuH) / 2;
 
@@ -144,26 +167,36 @@ void DrawSettingsMenu(int screenW, int screenH, bool* showMinimap, bool* isContr
 
     bool useController = *isControllerEnabled && IsGamepadAvailable(0);
 
-    // Navigation (now 6 options instead of 5)
+    // Navigation (8 options now - added audio settings)
     if (IsKeyPressed(KEY_UP) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_UP))) {
-        *settingsSelection = (*settingsSelection - 1 + 6) % 6;
+        *settingsSelection = (*settingsSelection - 1 + 8) % 8;
+        if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.3f);
     }
     if (IsKeyPressed(KEY_DOWN) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_DOWN))) {
-        *settingsSelection = (*settingsSelection + 1) % 6;
+        *settingsSelection = (*settingsSelection + 1) % 8;
+        if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.3f);
     }
 
     // Draw options
     int optY = menuY + 60;
+
+    float masterVol = g_SoundManager ? g_SoundManager->GetMasterVolume() : 1.0f;
+    float sfxVol = g_SoundManager ? g_SoundManager->GetSFXVolume() : 1.0f;
+    float musicVol = g_SoundManager ? g_SoundManager->GetMusicVolume() : 1.0f;
+
     const char* options[] = {
         TextFormat("Show Minimap: %s", *showMinimap ? "ON" : "OFF"),
         TextFormat("Controller Enabled: %s", *isControllerEnabled ? "ON" : "OFF"),
         TextFormat("Fullscreen: %s", *isFullscreen ? "ON" : "OFF"),
+        TextFormat("Master Volume: %.0f%%", masterVol * 100.0f),
+        TextFormat("SFX Volume: %.0f%%", sfxVol * 100.0f),
+        TextFormat("Music Volume: %.0f%%", musicVol * 100.0f),
         "Graphics Settings",
         "Controller Bindings",
         "Back"
     };
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 9; i++) {
         Color bgColor = (*settingsSelection == i) ? PIPBOY_SELECTED : PIPBOY_DARK;
         Color fgColor = (*settingsSelection == i) ? PIPBOY_GREEN : PIPBOY_DIM;
 
@@ -176,41 +209,100 @@ void DrawSettingsMenu(int screenW, int screenH, bool* showMinimap, bool* isContr
             mousePos.x >= menuX + 20 && mousePos.x <= menuX + menuW - 20 &&
             mousePos.y >= optY && mousePos.y <= optY + 50) {
             *settingsSelection = i;
+            if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
         }
 
-        optY += 60;
+        optY += 55;
     }
 
-    if (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))) {
-        if (*settingsSelection == 0) {
+    bool leftPressed = IsKeyPressed(KEY_LEFT) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_LEFT));
+    bool rightPressed = IsKeyPressed(KEY_RIGHT) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_RIGHT));
+    bool enterPressed = IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN));
+
+    if (leftPressed || rightPressed) {
+        if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.3f);
+    }
+
+    switch (*settingsSelection) {
+    case 0: // Minimap
+        if (enterPressed || leftPressed || rightPressed) {
             *showMinimap = !(*showMinimap);
+            if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
         }
-        else if (*settingsSelection == 1) {
+        break;
+    case 1: // Controller
+        if (enterPressed || leftPressed || rightPressed) {
             *isControllerEnabled = !(*isControllerEnabled);
+            if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
         }
-        else if (*settingsSelection == 2) {
+        break;
+    case 2: // Fullscreen
+        if (enterPressed || leftPressed || rightPressed) {
             *isFullscreen = !(*isFullscreen);
             ToggleFullscreen();
+            if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
         }
-        else if (*settingsSelection == 3) {
+        break;
+    case 3: // Master Volume
+        if (leftPressed && g_SoundManager) {
+            float vol = Clamp(masterVol - 0.1f, 0.0f, 1.0f);
+            g_SoundManager->SetMasterVolume(vol);
+        }
+        if (rightPressed && g_SoundManager) {
+            float vol = Clamp(masterVol + 0.1f, 0.0f, 1.0f);
+            g_SoundManager->SetMasterVolume(vol);
+        }
+        break;
+    case 4: // SFX Volume
+        if (leftPressed && g_SoundManager) {
+            float vol = Clamp(sfxVol - 0.1f, 0.0f, 1.0f);
+            g_SoundManager->SetSFXVolume(vol);
+            g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
+        }
+        if (rightPressed && g_SoundManager) {
+            float vol = Clamp(sfxVol + 0.1f, 0.0f, 1.0f);
+            g_SoundManager->SetSFXVolume(vol);
+            g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
+        }
+        break;
+    case 5: // Music Volume
+        if (leftPressed && g_SoundManager) {
+            float vol = Clamp(musicVol - 0.1f, 0.0f, 1.0f);
+            g_SoundManager->SetMusicVolume(vol);
+        }
+        if (rightPressed && g_SoundManager) {
+            float vol = Clamp(musicVol + 0.1f, 0.0f, 1.0f);
+            g_SoundManager->SetMusicVolume(vol);
+        }
+        break;
+    case 6: // Graphics
+        if (enterPressed) {
             gameState = GameState::GraphicsSettings;
             graphicsSettingsSelection = 0;
+            if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
         }
-        else if (*settingsSelection == 4) {
+        break;
+    case 7: // Controller Bindings
+        if (enterPressed) {
             gameState = GameState::ControllerBindings;
             controllerSettingsSelection = 0;
+            if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
         }
-        else if (*settingsSelection == 5) {
+        break;
+    case 8: // Back
+        if (enterPressed) {
             *nextState = stateBeforeSettings;
             gameState = stateBeforeSettings;
+            if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_BACK, 0.5f);
         }
+        break;
     }
 
     DrawText("Press ENTER to toggle/select", menuX + 20, menuY + menuH - 60, 16, PIPBOY_DIM);
     DrawText("Press ESC to go back", menuX + 20, menuY + menuH - 35, 16, PIPBOY_DIM);
 }
 
-// Graphics settings persistence
+// Graphics settings persistence - UPDATED with all settings
 void SaveGraphicsSettings(const GraphicsSettings& settings) {
     std::ofstream file("graphics_settings.cfg");
     if (file.is_open()) {
@@ -221,6 +313,9 @@ void SaveGraphicsSettings(const GraphicsSettings& settings) {
         file << "target_fps " << settings.targetFPS << "\n";
         file << "render_scale " << settings.renderScale << "\n";
         file << "show_fps " << (settings.showFPS ? 1 : 0) << "\n";
+        file << "enable_lod " << (settings.enableLOD ? 1 : 0) << "\n";
+        file << "enable_frustum_culling " << (settings.enableFrustumCulling ? 1 : 0) << "\n";
+        file << "max_draw_calls " << settings.maxDrawCalls << "\n";
         file.close();
         TraceLog(LOG_INFO, "Graphics settings saved");
     }
@@ -238,6 +333,9 @@ void LoadGraphicsSettings(GraphicsSettings* settings) {
             else if (key == "target_fps") file >> settings->targetFPS;
             else if (key == "render_scale") file >> settings->renderScale;
             else if (key == "show_fps") { int v; file >> v; settings->showFPS = (v != 0); }
+            else if (key == "enable_lod") { int v; file >> v; settings->enableLOD = (v != 0); }
+            else if (key == "enable_frustum_culling") { int v; file >> v; settings->enableFrustumCulling = (v != 0); }
+            else if (key == "max_draw_calls") file >> settings->maxDrawCalls;
         }
         file.close();
         TraceLog(LOG_INFO, "Graphics settings loaded");
@@ -251,6 +349,9 @@ void LoadGraphicsSettings(GraphicsSettings* settings) {
         settings->targetFPS = 60;
         settings->renderScale = 1.0f;
         settings->showFPS = false;
+        settings->enableLOD = true;
+        settings->enableFrustumCulling = true; // DEFAULT TO ON
+        settings->maxDrawCalls = 1000;
     }
 }
 
@@ -275,12 +376,14 @@ void ApplyGraphicsSettings(const GraphicsSettings& settings) {
         SetConfigFlags(FLAG_MSAA_4X_HINT); // Raylib will handle this
     }
 
-    TraceLog(LOG_INFO, TextFormat("Applied graphics: %s, VSync: %s, MSAA: %s, FPS: %d",
+    TraceLog(LOG_INFO, TextFormat("Applied graphics: %s, VSync: %s, MSAA: %s, FPS: %d, Frustum Culling: %s",
         res.label, settings.vsync ? "ON" : "OFF",
         settings.msaa ? TextFormat("%dx", settings.msaaSamples) : "OFF",
-        settings.targetFPS));
+        settings.targetFPS,
+        settings.enableFrustumCulling ? "ON" : "OFF"));
 }
-// Draw the load/save menu
+
+// Draw the load/save menu - UPDATED with sound
 void DrawLoadMenu(int screenW, int screenH, int* selectedSlot, GameState currentState) {
     int menuW = 600;
     int menuH = 400;
@@ -297,9 +400,11 @@ void DrawLoadMenu(int screenW, int screenH, int* selectedSlot, GameState current
     bool useController = isControllerEnabled && IsGamepadAvailable(0);
     if (IsKeyPressed(KEY_UP) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_UP))) {
         *selectedSlot = (*selectedSlot - 1 + MAX_SAVE_SLOTS) % MAX_SAVE_SLOTS;
+        if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.3f);
     }
     if (IsKeyPressed(KEY_DOWN) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_DOWN))) {
         *selectedSlot = (*selectedSlot + 1) % MAX_SAVE_SLOTS;
+        if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.3f);
     }
 
     // Draw slots
@@ -326,6 +431,7 @@ void DrawLoadMenu(int screenW, int screenH, int* selectedSlot, GameState current
             mousePos.x >= menuX + 20 && mousePos.x <= menuX + menuW - 20 &&
             mousePos.y >= slotY && mousePos.y <= slotY + 60) {
             *selectedSlot = i;
+            if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
         }
 
         slotY += 70;
@@ -341,7 +447,7 @@ void DrawLoadMenu(int screenW, int screenH, int* selectedSlot, GameState current
     DrawText("Press ESC to cancel", menuX + 20, menuY + menuH - 35, 18, PIPBOY_DIM);
 }
 
-// Draw the controller bindings menu
+// Draw the controller bindings menu - UPDATED with sound
 void DrawControllerBindings(int screenW, int screenH, int* activeBindingIndex, bool* isBindingMode, int* controllerSettingsSelection, ControllerBinding* currentBindings) {
     int menuW = 700;
     int menuH = 500;
@@ -368,6 +474,7 @@ void DrawControllerBindings(int screenW, int screenH, int* activeBindingIndex, b
                     currentBindings[*activeBindingIndex].threshold = 0.0f;
                     *isBindingMode = false;
                     *activeBindingIndex = -1;
+                    if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.7f);
                     break;
                 }
             }
@@ -376,6 +483,7 @@ void DrawControllerBindings(int screenW, int screenH, int* activeBindingIndex, b
         if (IsKeyPressed(KEY_ESCAPE)) {
             *isBindingMode = false;
             *activeBindingIndex = -1;
+            if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_BACK, 0.5f);
         }
 
         return;
@@ -386,9 +494,11 @@ void DrawControllerBindings(int screenW, int screenH, int* activeBindingIndex, b
     // Navigation
     if (IsKeyPressed(KEY_UP) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_UP))) {
         *controllerSettingsSelection = (*controllerSettingsSelection - 1 + ACTION_COUNT) % ACTION_COUNT;
+        if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.3f);
     }
     if (IsKeyPressed(KEY_DOWN) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_DOWN))) {
         *controllerSettingsSelection = (*controllerSettingsSelection + 1) % ACTION_COUNT;
+        if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.3f);
     }
 
     // Draw bindings

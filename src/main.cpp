@@ -15,6 +15,8 @@
 #include "quest_system.h"
 #include "ui_tabs.h"
 #include "rlgl.h"
+#include "upscaling_manager.h"
+
 
 // --- GLOBAL VARIABLE DEFINITIONS ---
 Camera3D camera = { 0 };
@@ -233,7 +235,7 @@ int main() {
     LoadGraphicsSettings(&graphicsSettings);
 
     const Resolution& initialRes = AVAILABLE_RESOLUTIONS[graphicsSettings.resolutionIndex];
-
+    InitializeUpscalingSystem(initialRes.width, initialRes.height);
     // Set config flags before InitWindow
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     if (graphicsSettings.msaa) {
@@ -507,7 +509,10 @@ int main() {
 
         // Only render 3D when necessary
         if (gameState == GameState::Gameplay || gameState == GameState::Paused) {
-
+            // Begin upscaled rendering
+            if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE) {
+                g_UpscalingManager->BeginUpscaledRender();
+            }
             // Update shader lighting uniforms
             if (g_ShaderManager) {
                 Vector3 sunPos = { MAP_SIZE / 2.0f, 100.0f, MAP_SIZE / 2.0f };
@@ -568,7 +573,10 @@ int main() {
             }
 
             EndMode3D();
-
+            // End upscaled rendering
+            if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE) {
+                g_UpscalingManager->EndUpscaledRender(screenW, screenH);
+            }
             Door* nearDoor = GetNearestDoor(playerPosition, 2.0f);
             if (nearDoor && !isAnyMenuOpen) {
                 const char* doorText = currentFloor < 0 ? "Press E to Enter" : "Press E to Exit";
