@@ -1,6 +1,10 @@
 #include "ui_tabs.h"
 #include "globals.h"
 
+
+// Global TabManager instance definition
+TabManager g_TabManager;
+
 // TabManager::DrawTabBar implementation
 void TabManager::DrawTabBar(int screenW, int screenH, int menuX, int menuY, int menuW) {
     const int tabHeight = 45;
