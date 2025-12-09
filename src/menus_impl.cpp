@@ -316,11 +316,15 @@ void SaveGraphicsSettings(const GraphicsSettings& settings) {
         file << "enable_lod " << (settings.enableLOD ? 1 : 0) << "\n";
         file << "enable_frustum_culling " << (settings.enableFrustumCulling ? 1 : 0) << "\n";
         file << "max_draw_calls " << settings.maxDrawCalls << "\n";
+        file << "upscaling_mode " << settings.upscalingMode << "\n";
+        file << "upscaling_quality " << settings.upscalingQuality << "\n";
         file.close();
         TraceLog(LOG_INFO, "Graphics settings saved");
     }
 }
-
+// In the default settings section (else block):
+settings->upscalingMode = UPSCALING_NONE;
+settings->upscalingQuality = UPSCALE_QUALITY_QUALITY;
 void LoadGraphicsSettings(GraphicsSettings* settings) {
     std::ifstream file("graphics_settings.cfg");
     if (file.is_open()) {
@@ -336,6 +340,8 @@ void LoadGraphicsSettings(GraphicsSettings* settings) {
             else if (key == "enable_lod") { int v; file >> v; settings->enableLOD = (v != 0); }
             else if (key == "enable_frustum_culling") { int v; file >> v; settings->enableFrustumCulling = (v != 0); }
             else if (key == "max_draw_calls") file >> settings->maxDrawCalls;
+            else if (key == "upscaling_mode") { int v; file >> v; settings->upscalingMode = (UpscalingMode)v; }
+            else if (key == "upscaling_quality") { int v; file >> v; settings->upscalingQuality = (UpscalingQuality)v; }
         }
         file.close();
         TraceLog(LOG_INFO, "Graphics settings loaded");
@@ -350,8 +356,10 @@ void LoadGraphicsSettings(GraphicsSettings* settings) {
         settings->renderScale = 1.0f;
         settings->showFPS = false;
         settings->enableLOD = true;
-        settings->enableFrustumCulling = true; // DEFAULT TO ON
+        settings->enableFrustumCulling = true;
         settings->maxDrawCalls = 1000;
+        settings->upscalingMode = UPSCALING_NONE;
+        settings->upscalingQuality = UPSCALE_QUALITY_QUALITY;
     }
 }
 

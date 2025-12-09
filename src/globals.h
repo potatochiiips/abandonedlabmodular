@@ -93,6 +93,25 @@ const int MAX_SAVE_SLOTS = 3;
 #define MAX_COMMAND_LENGTH 100
 
 // ==================================================================================
+// UPSCALING ENUMS (Must be defined before GraphicsSettings)
+// ==================================================================================
+
+enum UpscalingMode {
+    UPSCALING_NONE = 0,
+    UPSCALING_FSR,
+    UPSCALING_DLSS,
+    UPSCALING_MODE_COUNT
+};
+
+enum UpscalingQuality {
+    UPSCALE_QUALITY_PERFORMANCE = 0,
+    UPSCALE_QUALITY_BALANCED,
+    UPSCALE_QUALITY_QUALITY,
+    UPSCALE_QUALITY_ULTRA,
+    UPSCALE_QUALITY_COUNT
+};
+
+// ==================================================================================
 // GRAPHICS SETTINGS STRUCTURES
 // ==================================================================================
 
@@ -113,6 +132,8 @@ struct GraphicsSettings {
     bool enableLOD;
     bool enableFrustumCulling;
     int maxDrawCalls;
+    UpscalingMode upscalingMode;      // Added
+    UpscalingQuality upscalingQuality; // Added
 };
 
 const Resolution AVAILABLE_RESOLUTIONS[] = {
