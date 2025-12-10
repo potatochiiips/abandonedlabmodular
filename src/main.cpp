@@ -16,6 +16,8 @@
 #include "ui_tabs.h"
 #include "rlgl.h"
 #include "upscaling_manager.h"
+#include "model_manager.h"
+
 
 
 // --- GLOBAL VARIABLE DEFINITIONS ---
@@ -235,12 +237,14 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
         "Collect 3 magazines");
 }
 
-int main() {
+
+   int main() {
     // Load graphics settings before window creation
     LoadGraphicsSettings(&graphicsSettings);
 
     const Resolution& initialRes = AVAILABLE_RESOLUTIONS[graphicsSettings.resolutionIndex];
     InitializeUpscalingSystem(initialRes.width, initialRes.height);
+    
     // Set config flags before InitWindow
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     if (graphicsSettings.msaa) {
@@ -257,8 +261,14 @@ int main() {
     // Apply initial graphics settings
     ApplyGraphicsSettings(graphicsSettings);
 
-    // Initialize texture and shader systems
+    // Initialize rendering systems (textures and shaders)
     InitializeRenderingSystems();
+    
+    // *** NEW: Initialize model system ***
+    InitializeModelSystem();
+    
+    // *** NEW: Initialize sound system (if not already done) ***
+    InitializeSoundSystem();
 
     InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov);
 
@@ -736,8 +746,9 @@ int main() {
 
         EndDrawing();
     }
-
     // Cleanup rendering systems
+    CleanupModelSystem();      
+    CleanupSoundSystem();      
     CleanupRenderingSystems();
 
     CloseWindow();

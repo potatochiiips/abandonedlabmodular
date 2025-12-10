@@ -12,7 +12,7 @@
 #include <sstream>
 #include <cmath>
 #include <fstream>
-#include <unordered_map> // <--- ADDED: Fixes C2039 'unordered_map': is not a member of 'std'
+#include <unordered_map>
 
 // ----------------------------------------------------------------------------------
 // COMPATIBILITY FIXES FOR OLDER RAYLIB VERSIONS (Missing constants/functions)
@@ -133,8 +133,8 @@ struct GraphicsSettings {
     bool enableLOD;
     bool enableFrustumCulling;
     int maxDrawCalls;
-    UpscalingMode upscalingMode;      // Added
-    UpscalingQuality upscalingQuality; // Added
+    UpscalingMode upscalingMode;
+    UpscalingQuality upscalingQuality;
 };
 
 const Resolution AVAILABLE_RESOLUTIONS[] = {
@@ -259,7 +259,6 @@ extern GameState gameState;
 extern GameState stateBeforeSettings;
 
 extern GraphicsSettings graphicsSettings;
-
 
 // Prototype for InitNewGame
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov);

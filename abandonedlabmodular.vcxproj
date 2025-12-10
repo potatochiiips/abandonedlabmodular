@@ -99,6 +99,7 @@
     <ClCompile Include="src\menu.cpp" />
     <ClCompile Include="src\menus.cpp" />
     <ClCompile Include="src\menus_impl.cpp" />
+    <ClCompile Include="src\model_manager.cpp" />
     <ClCompile Include="src\player.cpp" />
     <ClCompile Include="src\recipes.cpp" />
     <ClCompile Include="src\waypoints.cpp" />
@@ -120,6 +121,7 @@
     <ClInclude Include="src\items.h" />
     <ClInclude Include="src\map.h" />
     <ClInclude Include="src\menus.h" />
+    <ClInclude Include="src\model_manager.h" />
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\recipes.h" />
     <ClInclude Include="src\waypoints.h" />
@@ -129,7 +131,6 @@
     <ClInclude Include="src\texture_manager.h" />
     <ClInclude Include="src\sound_manager.h" />
     <ClInclude Include="src\upscaling_manager.h" />
-
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\shaders\lighting.vs" />
