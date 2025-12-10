@@ -128,9 +128,13 @@ Sound SoundManager::CreateProceduralSound(SoundID id) {
     switch (id) {
     case SND_PISTOL_SHOT:
     case SND_RIFLE_SHOT:
-        // Sharp bang sound - use noise
-        wave = LoadWaveFromMemory(".wav", (unsigned char*)"", 0);
-        wave = GenImageWhiteNoise(256, 1).data ? LoadWaveFromMemory(".wav", (unsigned char*)"", 0) : LoadWave("");
+        // Sharp bang sound - create silent wave as fallback
+        wave.frameCount = 4410;
+        wave.sampleRate = 44100;
+        wave.sampleSize = 16;
+        wave.channels = 1;
+        wave.data = (short*)MemAlloc(wave.frameCount * sizeof(short));
+        memset(wave.data, 0, wave.frameCount * sizeof(short));
         break;
 
     case SND_RELOAD:
@@ -251,7 +255,7 @@ void SoundManager::Update(float deltaTime) {
             }
         }
 
-        SetMusicVolume(musicTracks[currentMusicTrack], currentMusicVolume);
+        ::SetMusicVolume(musicTracks[currentMusicTrack], currentMusicVolume);
 
         // Stop music if faded out
         if (currentMusicVolume <= 0.0f && targetMusicVolume <= 0.0f) {
@@ -272,7 +276,7 @@ void SoundManager::SetMasterVolume(float volume) {
 
     // Update current music volume
     if (isMusicPlaying) {
-        SetMusicVolume(musicTracks[currentMusicTrack], musicVolume * masterVolume);
+        ::SetMusicVolume(musicTracks[currentMusicTrack], musicVolume * masterVolume);
     }
 }
 

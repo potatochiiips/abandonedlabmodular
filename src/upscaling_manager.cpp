@@ -62,8 +62,7 @@ void UpscalingManager::Initialize(int displayWidth, int displayHeight) {
 bool UpscalingManager::CheckNVIDIAGPU() {
     // Simple heuristic: check OpenGL vendor string
     // In a real implementation, you'd check for NVIDIA DLSS SDK support
-    const char* vendor = (const char*)rlGetVersion();
-    
+    // Note: rlGetVersion returns an int, not a string
     // For now, we'll conservatively return false
     // Real DLSS requires the NVIDIA DLSS SDK which isn't included in raylib
     return false;

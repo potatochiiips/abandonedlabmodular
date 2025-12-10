@@ -322,9 +322,6 @@ void SaveGraphicsSettings(const GraphicsSettings& settings) {
         TraceLog(LOG_INFO, "Graphics settings saved");
     }
 }
-// In the default settings section (else block):
-settings->upscalingMode = UPSCALING_NONE;
-settings->upscalingQuality = UPSCALE_QUALITY_QUALITY;
 void LoadGraphicsSettings(GraphicsSettings* settings) {
     std::ifstream file("graphics_settings.cfg");
     if (file.is_open()) {
