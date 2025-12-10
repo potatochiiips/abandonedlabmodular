@@ -28,7 +28,18 @@ static int idCounter = 1;
 // =============================================================================
 // NEW MAP SYSTEM IMPLEMENTATION
 // =============================================================================
-
+//
+// 
+//helper patch for player struct
+void CopyMapPlayerStateToPlayer(const MapPlayerState& state, Player& player) {
+    player.worldX = state.worldX;
+    player.worldY = state.worldY;
+    player.interiorX = state.interiorX;
+    player.interiorY = state.interiorY;
+    player.currentBuildingId = state.currentBuildingId;
+    player.currentInteriorId = state.currentInteriorId;
+    // copy any additional fields if needed
+}
 static inline bool InBounds(const MapData& m, int x, int y) {
     return x >= 0 && y >= 0 && x < m.width && y < m.height;
 }

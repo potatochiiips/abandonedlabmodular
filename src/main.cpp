@@ -349,10 +349,8 @@ int main() {
                         if (Vector3Distance(playerPosition, buildings[i].position) < 3.0f && buildings[i].floor == 0) {
                             if (!g_MapPlayer.insideInterior) {
                                 // Attempt to enter the interior (assuming building has an ID for EnterInterior)
-                                if (EnterInterior(g_MapData, g_MapPlayer, (int)i)) {
-                                    // Successfully entered, break the loop
-                                    break;
-                                }
+
+                                
                             }
                         }
                         else {

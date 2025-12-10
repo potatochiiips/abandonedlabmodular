@@ -86,7 +86,6 @@ struct Building {
     int entranceX;
     int entranceY;
 };
-
 // Map Data structure
 struct MapData {
     int width;

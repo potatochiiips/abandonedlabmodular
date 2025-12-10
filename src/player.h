@@ -5,7 +5,12 @@ struct Player {
     float yaw;
     float pitch;
     bool insideInterior; // For map logic
-    // Add other essential player members if needed later, but this is the minimum to compile map.h
+    int worldX = 0;
+    int worldY = 0;
+    int interiorX = 0;
+    int interiorY = 0;
+    int currentBuildingId = -1;
+    int currentInteriorId = -1;
 };
 // Core player and controller logic prototypes
 void DrawPlayerHands(Camera3D camera, InventorySlot* inventory, float pistolRecoilPitch, float pistolRecoilYaw);
