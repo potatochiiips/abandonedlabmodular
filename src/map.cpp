@@ -5,13 +5,16 @@
 #include <ctime>
 #include <cmath>
 #include <unordered_map>
-
+#include <rlgl.h> 
+#include <player.h> 
 // Global instances
 MapData g_MapData;
-Player g_MapPlayer;
+MapPlayerState g_MapPlayer; 
 std::vector<Door> doors;
+std::vector<Building> buildings;
 int currentFloor = -1;
 int currentBuildingIndex = -1;
+static int idCounter = 1;
 
 // Tile definitions for legacy system
 #define ROAD_TILE '='
@@ -111,8 +114,6 @@ static Interior MakeLabDetailedInterior(const std::string& id) {
             it.spawns.push_back({ bx + 1, by, "sample_tube" });
         }
     }
-
-    // Additional rooms omitted for brevity - add as needed
 
     return it;
 }

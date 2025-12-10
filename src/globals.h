@@ -12,6 +12,7 @@
 #include <sstream>
 #include <cmath>
 #include <fstream>
+#include <unordered_map> // <--- ADDED: Fixes C2039 'unordered_map': is not a member of 'std'
 
 // ----------------------------------------------------------------------------------
 // COMPATIBILITY FIXES FOR OLDER RAYLIB VERSIONS (Missing constants/functions)

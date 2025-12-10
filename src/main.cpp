@@ -341,17 +341,16 @@ int main() {
                 UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
 
                 // Door interaction
-                if (IsKeyPressed(KEY_E)) {
-                    Door* nearDoor = GetNearestDoor(playerPosition, 2.0f);
-                    if (nearDoor) {
-                        if (currentFloor < 0) {
-                            nearDoor->isOpen = true;
-                            for (size_t i = 0; i < buildingInteriors.size(); i++) {
-                                if (Vector3Distance(nearDoor->position, buildingInteriors[i].worldPos) < 10.0f) {
-                                    currentBuildingIndex = (int)i;
-                                    currentFloor = 0;
-                                    playerPosition = nearDoor->targetPosition;
-                                    camera.position = playerPosition;
+                if (IsKeyPressed(KEY_E) && !inventoryOpen && !isCraftingOpen && !isMapOpen) {
+                    // Check for building entrance/exit
+                    // FIX: Replaced undeclared 'buildingInteriors' with 'buildings' and fixed Vector3Distance call
+                    for (size_t i = 0; i < buildings.size(); ++i) {
+                        // Vector3Distance now correctly takes playerPosition and the building's position
+                        if (Vector3Distance(playerPosition, buildings[i].position) < 3.0f && buildings[i].floor == 0) {
+                            if (!g_MapPlayer.insideInterior) {
+                                // Attempt to enter the interior (assuming building has an ID for EnterInterior)
+                                if (EnterInterior(g_MapData, g_MapPlayer, (int)i)) {
+                                    // Successfully entered, break the loop
                                     break;
                                 }
                             }

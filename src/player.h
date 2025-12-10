@@ -1,6 +1,12 @@
 #pragma once
 #include "globals.h"
-
+struct Player {
+    Vector3 position;
+    float yaw;
+    float pitch;
+    bool insideInterior; // For map logic
+    // Add other essential player members if needed later, but this is the minimum to compile map.h
+};
 // Core player and controller logic prototypes
 void DrawPlayerHands(Camera3D camera, InventorySlot* inventory, float pistolRecoilPitch, float pistolRecoilYaw);
 const char* GetGamepadButtonName(int button);
