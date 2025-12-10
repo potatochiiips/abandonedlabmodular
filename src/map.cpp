@@ -4,8 +4,16 @@
 #include <cstdlib>
 #include <ctime>
 #include <cmath>
+#include <unordered_map>
 
-// Tile definitions
+// Global instances
+MapData g_MapData;
+Player g_MapPlayer;
+std::vector<Door> doors;
+int currentFloor = -1;
+int currentBuildingIndex = -1;
+
+// Tile definitions for legacy system
 #define ROAD_TILE '='
 #define GRASS_TILE '"'
 #define BUILDING_TILE 'B'
@@ -14,413 +22,349 @@
 #define BUSH_TILE 'b'
 #define FLOWER_TILE 'f'
 
-// Building config
-#define ROAD_SPACING 16
-#define ROAD_DEVIATION 8
-#define BUILDING_FOOTPRINT_W 8
-#define BUILDING_FOOTPRINT_H 8
-#define BUILDING_CHANCE 60
+// =============================================================================
+// NEW MAP SYSTEM IMPLEMENTATION
+// =============================================================================
 
-// Global variables for building system
-std::vector<BuildingInterior> buildingInteriors;
-std::vector<Door> doors;
-int currentFloor = -1;
-int currentBuildingIndex = -1;
-
-// Helper function to draw textured cube with shader support
-void DrawTexturedCube(Vector3 position, Vector3 size, Texture2D texture, Color tint = WHITE) {
-    if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-        BeginShaderMode(g_ShaderManager->GetLightingShader());
-    }
-
-    // Use the DrawCubeTexture function from main.cpp
-    extern void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float height, float length, Color color);
-    DrawCubeTexture(texture, position, size.x, size.y, size.z, tint);
-
-    if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-        EndShaderMode();
-    }
+static inline bool InBounds(const MapData& m, int x, int y) {
+    return x >= 0 && y >= 0 && x < m.width && y < m.height;
 }
-bool IsAABBInFrustum(const Camera3D& camera, const AABB& box) {
-    // Simple frustum culling - only render nearby objects
-    float distance = Vector3Distance(camera.position,
-        Vector3{ (box.min.x + box.max.x) * 0.5f,
-                (box.min.y + box.max.y) * 0.5f,
-                (box.min.z + box.max.z) * 0.5f });
 
-    return distance < 100.0f; // Render distance
-}
-// Helper to generate random building interior
-void GenerateBuildingInterior(BuildingInterior& building, int floors) {
-    building.floors = floors;
-
-    for (int f = 0; f < floors; f++) {
-        // Generate walls
-        for (int r = 0; r < 20; r++) {
-            for (int c = 0; c < 20; c++) {
-                if (r == 0 || r == 19 || c == 0 || c == 19) {
-                    building.layout[f][r][c] = TILE_WALL;
-                }
-                else {
-                    building.layout[f][r][c] = TILE_FLOOR;
-                }
-            }
-        }
-
-        // Add some interior walls for rooms
-        if (f == 0) {
-            // Ground floor - rooms
-            for (int r = 5; r < 15; r++) {
-                building.layout[f][r][10] = TILE_WALL;
-            }
-            building.layout[f][10][10] = TILE_DOOR; // Interior door
-
-            // Vertical wall
-            for (int c = 5; c < 15; c++) {
-                if (c != 10) building.layout[f][10][c] = TILE_WALL;
-            }
-        }
-
-        // Entry door on ground floor
-        if (f == 0) {
-            building.layout[f][19][10] = TILE_DOOR;
-        }
-
-        // Stairs to next floor
-        if (f < floors - 1) {
-            building.layout[f][2][2] = 'S'; // Stairs up
-        }
-        if (f > 0) {
-            building.layout[f][2][2] = 's'; // Stairs down
+static inline void FillRectWorld(MapData& m, int x, int y, int w, int h, int tile) {
+    for (int yy = 0; yy < h; yy++) {
+        for (int xx = 0; xx < w; xx++) {
+            int tx = x + xx, ty = y + yy;
+            if (InBounds(m, tx, ty)) m.tiles[ty * m.width + tx] = tile;
         }
     }
 }
 
-// Initialize terrain
-void initialize_terrain(char map[WORLD_SIZE][WORLD_SIZE]) {
-    for (int r = 0; r < WORLD_SIZE; ++r)
-        for (int c = 0; c < WORLD_SIZE; ++c)
-            map[r][c] = GRASS_TILE;
+static int RNG(int lo, int hi) {
+    return lo + (rand() % (hi - lo + 1));
 }
 
-// Generate roads
-void generate_roads(char map[WORLD_SIZE][WORLD_SIZE]) {
-    for (int i = 0; i < WORLD_SIZE; i += ROAD_SPACING)
-        for (int c = 0; c < WORLD_SIZE; ++c) {
-            map[i][c] = ROAD_TILE;
-            map[c][i] = ROAD_TILE;
-        }
-}
+// Create detailed laboratory interior
+static Interior MakeLabDetailedInterior(const std::string& id) {
+    const int W = 36;
+    const int H = 28;
+    Interior it;
+    it.width = W;
+    it.height = H;
+    it.id = id;
+    it.tiles.assign(W * H, IT_FLOOR);
 
-// Place buildings with interiors
-void place_buildings_and_features(char map[WORLD_SIZE][WORLD_SIZE]) {
-    int step_r = BUILDING_FOOTPRINT_H + 2;
-    int step_c = BUILDING_FOOTPRINT_W + 2;
+    // Outer walls
+    for (int x = 0; x < W; x++) {
+        it.tiles[0 * W + x] = IT_WALL;
+        it.tiles[(H - 1) * W + x] = IT_WALL;
+    }
+    for (int y = 0; y < H; y++) {
+        it.tiles[y * W + 0] = IT_WALL;
+        it.tiles[y * W + (W - 1)] = IT_WALL;
+    }
 
-    buildingInteriors.clear();
-    doors.clear();
+    // Main entrance (south center)
+    int doorX = W / 2;
+    it.tiles[(H - 1) * W + doorX] = IT_DOOR;
 
-    for (int r = 1; r < WORLD_SIZE - step_r; r += step_r) {
-        for (int c = 1; c < WORLD_SIZE - step_c; c += step_c) {
-            bool near_road = (r > 0 && map[r - 1][c] == ROAD_TILE) ||
-                (c > 0 && map[r][c - 1] == ROAD_TILE);
+    // Cryo chamber: 12x10 at (2,2)
+    int c_x = 2, c_y = 2, c_w = 12, c_h = 10;
+    for (int x = c_x; x < c_x + c_w; x++) {
+        it.tiles[c_y * W + x] = IT_WALL;
+        it.tiles[(c_y + c_h - 1) * W + x] = IT_WALL;
+    }
+    for (int y = c_y; y < c_y + c_h; y++) {
+        it.tiles[y * W + c_x] = IT_WALL;
+        it.tiles[y * W + (c_x + c_w - 1)] = IT_WALL;
+    }
+    it.tiles[(c_y + c_h / 2) * W + (c_x + c_w - 1)] = IT_DOOR;
 
-            if (near_road && (std::rand() % 100 < BUILDING_CHANCE)) {
-                // Mark building footprint
-                for (int br = r; br < r + BUILDING_FOOTPRINT_H; ++br)
-                    for (int bc = c; bc < c + BUILDING_FOOTPRINT_W; ++bc)
-                        map[br][bc] = BUILDING_TILE;
+    // Cryo props
+    int cryoX = c_x + 4, cryoY = c_y + 3;
+    it.tiles[cryoY * W + cryoX] = IT_CRYOPOD_BROKEN;
+    it.tiles[cryoY * W + (cryoX + 1)] = IT_CONSOLE;
+    it.tiles[(cryoY + 1) * W + cryoX] = IT_COOLANT_PUDDLE;
+    it.tiles[(cryoY + 2) * W + (cryoX + 2)] = IT_BROKEN_GLASS;
 
-                // Create building interior
-                BuildingInterior building;
-                building.worldPos = Vector3{ (float)c + BUILDING_FOOTPRINT_W / 2.0f, 0, (float)r + BUILDING_FOOTPRINT_H / 2.0f };
-                building.width = BUILDING_FOOTPRINT_W;
-                building.depth = BUILDING_FOOTPRINT_H;
-                building.floors = 1 + (std::rand() % 3); // 1-3 floors
+    it.spawns.push_back({ cryoX + 1, cryoY, "terminal_log_cryo" });
+    it.spawns.push_back({ cryoX + 1, cryoY + 1, "small_medkit" });
+    it.playerSpawnX = cryoX + 2;
+    it.playerSpawnY = cryoY + 1;
 
-                GenerateBuildingInterior(building, building.floors);
-                buildingInteriors.push_back(building);
+    // Specimen Analysis area: 14x10 at (15,2)
+    int s_x = 15, s_y = 2, s_w = 14, s_h = 10;
+    for (int x = s_x; x < s_x + s_w; x++) {
+        it.tiles[s_y * W + x] = IT_WALL;
+        it.tiles[(s_y + s_h - 1) * W + x] = IT_WALL;
+    }
+    for (int y = s_y; y < s_y + s_h; y++) {
+        it.tiles[y * W + s_x] = IT_WALL;
+        it.tiles[y * W + (s_x + s_w - 1)] = IT_WALL;
+    }
+    it.tiles[(s_y + s_h - 1) * W + (s_x + s_w / 2)] = IT_DOOR;
 
-                // Create entry door
-                Door entryDoor;
-                entryDoor.position = Vector3{ (float)c + BUILDING_FOOTPRINT_W / 2.0f, 0.5f, (float)(r + BUILDING_FOOTPRINT_H) };
-                entryDoor.isOpen = false;
-                entryDoor.openAmount = 0.0f;
-                entryDoor.targetFloor = 0;
-                entryDoor.targetPosition = Vector3{ 10.0f, 0.5f, 17.0f }; // Inside position
-                entryDoor.isStairs = false;
-                doors.push_back(entryDoor);
-            }
+    for (int bx = s_x + 2; bx < s_x + s_w - 2; bx += 4) {
+        for (int by = s_y + 2; by < s_y + s_h - 2; by += 3) {
+            it.tiles[by * W + bx] = IT_BENCH;
+            it.tiles[by * W + (bx + 1)] = IT_CONSOLE;
+            it.spawns.push_back({ bx, by, "microscope" });
+            it.spawns.push_back({ bx + 1, by, "sample_tube" });
         }
     }
 
-    // Add vegetation near roads/buildings
-    for (int r = 1; r < WORLD_SIZE - 1; ++r) {
-        for (int c = 1; c < WORLD_SIZE - 1; ++c) {
-            if (map[r][c] == GRASS_TILE) {
-                int rand_val = std::rand() % 100;
+    // Additional rooms omitted for brevity - add as needed
 
-                // Trees
-                if (rand_val < 3) {
-                    map[r][c] = TREE_TILE;
-                }
-                // Bushes
-                else if (rand_val < 8) {
-                    map[r][c] = BUSH_TILE;
-                }
-                // Flowers
-                else if (rand_val < 12) {
-                    map[r][c] = FLOWER_TILE;
-                }
+    return it;
+}
+
+// Simple house interior
+static Interior MakeHouseInterior(const std::string& id, int variant = 0) {
+    int w = 10 + (variant % 3), h = 8 + (variant % 2);
+    Interior it;
+    it.width = w;
+    it.height = h;
+    it.id = id;
+    it.tiles.assign(w * h, IT_FLOOR);
+
+    for (int x = 0; x < w; x++) {
+        it.tiles[0 * w + x] = IT_WALL;
+        it.tiles[(h - 1) * w + x] = IT_WALL;
+    }
+    for (int y = 0; y < h; y++) {
+        it.tiles[y * w + 0] = IT_WALL;
+        it.tiles[y * w + (w - 1)] = IT_WALL;
+    }
+
+    it.tiles[(h - 1) * w + (w / 2)] = IT_DOOR;
+    it.tiles[1 * w + 1] = IT_BED;
+    it.spawns.push_back({ 1,1,"pillow" });
+
+    return it;
+}
+
+// Create all interiors
+static void CreateInteriors(MapData& m) {
+    m.interiors.clear();
+    m.interiors["lab_detailed_01"] = MakeLabDetailedInterior("lab_detailed_01");
+    m.interiors["house_small_01"] = MakeHouseInterior("house_small_01", 0);
+    m.interiors["house_small_02"] = MakeHouseInterior("house_small_02", 1);
+}
+
+// Road generators
+static void GenerateRoadGrid(MapData& m, int startY, int endY, int xStart) {
+    for (int y = startY; y < endY; y++) {
+        for (int x = xStart; x < m.width; x++) {
+            if ((x - xStart) % 16 == 0 || (y - startY) % 12 == 0) {
+                if (InBounds(m, x, y)) m.tiles[y * m.width + x] = WT_ROAD;
             }
         }
     }
+}
+
+// Place building helper
+static void PlaceBuilding(MapData& m, int x, int y, int w, int h, BuildingType btype,
+    const std::string& interiorId, int& idCounter) {
+    FillRectWorld(m, x, y, w, h, WT_BUILDING_FOOTPRINT);
+
+    Building b;
+    b.footprint = { x,y,w,h };
+    b.type = btype;
+    b.interiorId = interiorId;
+    b.id = idCounter++;
+
+    int ex = x + w / 2;
+    int ey = y + h - 1;
+    if (!InBounds(m, ex, ey)) {
+        ex = x + w / 2;
+        ey = y;
+    }
+    b.entranceX = ex;
+    b.entranceY = ey;
+
+    if (InBounds(m, ex, ey)) m.tiles[ey * m.width + ex] = WT_ROAD;
+    m.buildings.push_back(b);
 }
 
 // Main map generation
-void GenerateMap(char map[WORLD_SIZE][WORLD_SIZE]) {
-    std::srand((unsigned int)time(NULL));
-    initialize_terrain(map);
-    generate_roads(map);
-    place_buildings_and_features(map);
+void GenerateMapData(MapData& m) {
+    m.width = MAP_WIDTH;
+    m.height = MAP_HEIGHT;
+    m.tiles.assign(m.width * m.height, WT_GRASS);
+    m.buildings.clear();
 
-    // World border
-    for (int i = 0; i < WORLD_SIZE; ++i) {
-        map[0][i] = GRASS_TILE;
-        map[WORLD_SIZE - 1][i] = GRASS_TILE;
-        map[i][0] = GRASS_TILE;
-        map[i][WORLD_SIZE - 1] = GRASS_TILE;
+    CreateInteriors(m);
+
+    // Ocean left (15%)
+    int oceanW = (int)(m.width * 0.15f);
+    for (int y = 0; y < m.height; y++) {
+        for (int x = 0; x < oceanW; x++) {
+            m.tiles[y * m.width + x] = WT_WATER;
+        }
     }
+
+    // Central lake
+    int lakeW = (int)(m.width * 0.10f);
+    int lakeH = (int)(m.height * 0.08f);
+    int lakeX = m.width / 2 - lakeW / 2;
+    int lakeY = m.height / 2 - lakeH / 2;
+    for (int y = lakeY; y < lakeY + lakeH; y++) {
+        for (int x = lakeX; x < lakeX + lakeW; x++) {
+            if (InBounds(m, x, y)) m.tiles[y * m.width + x] = WT_WATER;
+        }
+    }
+
+    // City band (top 35%)
+    int cityY0 = 0, cityY1 = (int)(m.height * 0.35f);
+    for (int y = cityY0; y < cityY1; y++) {
+        for (int x = oceanW; x < m.width; x++) {
+            m.tiles[y * m.width + x] = WT_CONCRETE;
+        }
+    }
+    GenerateRoadGrid(m, cityY0 + 2, cityY1 - 2, oceanW + 2);
+
+    // Place laboratory (north-central)
+    int idCounter = 1;
+    int labW = 34, labH = 26;
+    int labX = oceanW + (int)(m.width * 0.32f);
+    int labY = (int)(m.height * 0.10f);
+    PlaceBuilding(m, labX, labY, labW, labH, BTYPE_LABORATORY, "lab_detailed_01", idCounter);
+
+    // Suburb houses
+    int suburbY0 = cityY1;
+    int hx = oceanW + 20;
+    int hy = suburbY0 + 8;
+    for (int r = 0; r < 2; r++) {
+        for (int c = 0; c < 4; c++) {
+            int px = hx + c * 24;
+            int py = hy + r * 18;
+            PlaceBuilding(m, px, py, 10, 8, BTYPE_HOUSE,
+                (r % 2 == 0 ? "house_small_01" : "house_small_02"), idCounter);
+        }
+    }
+
+    // Set map start state: spawn player inside lab cryo room
+    m.startInsideInterior = true;
+    m.startInteriorId = "lab_detailed_01";
 }
 
-// Draw vegetation with textures
-void DrawVegetation(int x, int z, char tileType) {
-    Vector3 pos = Vector3{ (float)x, 0.0f, (float)z };
+// Initialize player from map start
+void InitializePlayerFromMapStart(MapData& m, Player& p) {
+    if (m.startInsideInterior) {
+        const Interior* inter = GetInterior(m, m.startInteriorId);
+        if (inter) {
+            p.insideInterior = true;
+            p.currentInteriorId = inter->id;
+            p.currentBuildingId = 0;
 
-    if (tileType == TREE_TILE) {
-        // Tree trunk with bark texture
-        Texture2D barkTex = g_TextureManager->GetTexture(TEX_TREE_BARK);
-
-        // Using shader if available
-        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-            BeginShaderMode(g_ShaderManager->GetLightingShader());
-        }
-        DrawCylinderEx(Vector3{ (float)x, 0.0f, (float)z },
-            Vector3{ (float)x, 1.0f, (float)z },
-            0.15f, 0.12f, 8, Color{ 101, 67, 33, 255 });
-        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-            EndShaderMode();
-        }
-
-        // Tree foliage with leaf texture
-        Texture2D leafTex = g_TextureManager->GetTexture(TEX_TREE_LEAVES);
-        Vector3 foliagePos1 = Vector3{ (float)x, 1.5f, (float)z };
-        Vector3 foliagePos2 = Vector3{ (float)x + 0.2f, 1.7f, (float)z };
-        Vector3 foliagePos3 = Vector3{ (float)x - 0.2f, 1.6f, (float)z + 0.1f };
-
-        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-            BeginShaderMode(g_ShaderManager->GetLightingShader());
-        }
-        DrawSphere(foliagePos1, 0.6f, Color{ 34, 139, 34, 255 });
-        DrawSphere(foliagePos2, 0.5f, Color{ 50, 205, 50, 255 });
-        DrawSphere(foliagePos3, 0.5f, Color{ 34, 139, 34, 255 });
-        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-            EndShaderMode();
-        }
-    }
-    else if (tileType == BUSH_TILE) {
-        // Bush with texture
-        Texture2D bushTex = g_TextureManager->GetTexture(TEX_BUSH_LEAVES);
-        Vector3 bushPos = Vector3{ (float)x, 0.2f, (float)z };
-
-        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-            BeginShaderMode(g_ShaderManager->GetLightingShader());
-        }
-        DrawSphere(bushPos, 0.3f, Color{ 46, 125, 50, 255 });
-        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-            EndShaderMode();
-        }
-    }
-    else if (tileType == FLOWER_TILE) {
-        // Flowers with texture
-        Texture2D flowerTex = g_TextureManager->GetTexture(TEX_FLOWER_PETALS);
-        Vector3 flowerPos = Vector3{ (float)x, 0.1f, (float)z };
-        Color colors[] = {
-            Color{255, 20, 147, 255}, // Pink
-            Color{255, 255, 0, 255},  // Yellow
-            Color{138, 43, 226, 255}, // Purple
-            Color{255, 69, 0, 255}    // Red
-        };
-        int colorIdx = (x + z) % 4;
-
-        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-            BeginShaderMode(g_ShaderManager->GetLightingShader());
-        }
-        DrawSphere(flowerPos, 0.08f, colors[colorIdx]);
-        DrawCylinder(Vector3{ (float)x, 0.05f, (float)z }, 0.02f, 0.02f, 0.1f, 4, Color{ 34, 139, 34, 255 });
-        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-            EndShaderMode();
-        }
-    }
-}
-
-// Draw building exterior with textures and windows
-void DrawBuildingExterior(const BuildingInterior& building) {
-    float height = (float)building.floors * 3.0f;
-    Vector3 pos = building.worldPos;
-    pos.y = height / 2.0f;
-
-    // Get textures
-    Texture2D exteriorTex = g_TextureManager->GetTexture(TEX_BUILDING_EXTERIOR);
-    Texture2D windowTex = g_TextureManager->GetTexture(TEX_WINDOW_GLASS);
-    Texture2D roofTex = g_TextureManager->GetTexture(TEX_ROOF_SHINGLES);
-
-    // Main building body with texture
-    Vector3 size = Vector3{ (float)building.width, height, (float)building.depth };
-    DrawTexturedCube(pos, size, exteriorTex, Color{ 255, 255, 255, 255 });
-    DrawCubeWiresV(pos, size, Color{ 80, 80, 90, 255 });
-
-    // Draw windows for each floor
-    for (int floor = 0; floor < building.floors; floor++) {
-        float floorY = floor * 3.0f + 1.5f;
-
-        // Front windows with glass texture
-        for (int i = 1; i < building.width - 1; i += 2) {
-            Vector3 windowPos = Vector3{
-                building.worldPos.x - building.width / 2.0f + i + 0.5f,
-                floorY,
-                building.worldPos.z + building.depth / 2.0f + 0.01f
-            };
-            DrawTexturedCube(windowPos, Vector3{ 0.8f, 1.2f, 0.1f }, windowTex, Color{ 255, 255, 255, 180 });
-        }
-
-        // Side windows
-        for (int i = 1; i < building.depth - 1; i += 2) {
-            Vector3 windowPos = Vector3{
-                building.worldPos.x + building.width / 2.0f + 0.01f,
-                floorY,
-                building.worldPos.z - building.depth / 2.0f + i + 0.5f
-            };
-            DrawTexturedCube(windowPos, Vector3{ 0.1f, 1.2f, 0.8f }, windowTex, Color{ 255, 255, 255, 180 });
-        }
-    }
-
-    // Roof with shingles texture
-    Vector3 roofPos = Vector3{ pos.x, height + 0.2f, pos.z };
-    DrawTexturedCube(roofPos, Vector3{ (float)building.width + 0.5f, 0.3f, (float)building.depth + 0.5f }, roofTex);
-}
-
-// Draw building interior with textures
-void DrawBuildingInterior(const BuildingInterior& building, int floor) {
-    if (floor < 0 || floor >= building.floors) return;
-
-    // Get interior textures
-    Texture2D wallTex = g_TextureManager->GetTexture(TEX_WALL_CONCRETE);
-    Texture2D floorTex = g_TextureManager->GetTexture(TEX_FLOOR_TILE);
-    Texture2D ceilingTex = g_TextureManager->GetTexture(TEX_CEILING_TILE);
-    Texture2D doorTex = g_TextureManager->GetTexture(TEX_DOOR_WOOD);
-
-    for (int r = 0; r < 20; r++) {
-        for (int c = 0; c < 20; c++) {
-            Vector3 pos = Vector3{ (float)c, (float)floor * 3.0f + 0.5f, (float)r };
-            char tile = building.layout[floor][r][c];
-
-            if (tile == TILE_WALL) {
-                DrawTexturedCube(pos, Vector3{ 1.0f, 3.0f, 1.0f }, wallTex);
-                DrawCubeWiresV(pos, Vector3{ 1.0f, 3.0f, 1.0f }, Color{ 100, 100, 105, 255 });
-            }
-            else if (tile == TILE_FLOOR || tile == 'S' || tile == 's') {
-                // Floor with texture
-                DrawTexturedCube(Vector3{ (float)c, (float)floor * 3.0f, (float)r },
-                    Vector3{ 1.0f, 0.1f, 1.0f }, floorTex);
-
-                // Ceiling with texture
-                DrawTexturedCube(Vector3{ (float)c, (float)floor * 3.0f + 2.9f, (float)r },
-                    Vector3{ 1.0f, 0.1f, 1.0f }, ceilingTex);
-
-                // Stairs marker
-                if (tile == 'S' || tile == 's') {
-                    if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-                        BeginShaderMode(g_ShaderManager->GetLightingShader());
-                    }
-                    DrawCube(pos, 0.8f, 0.3f, 0.8f, Color{ 139, 90, 43, 255 });
-                    if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-                        EndShaderMode();
-                    }
+            for (const Building& b : m.buildings) {
+                if (b.interiorId == inter->id) {
+                    p.currentBuildingId = b.id;
+                    break;
                 }
             }
-            else if (tile == TILE_DOOR) {
-                // Door with texture
-                DrawTexturedCube(pos, Vector3{ 1.0f, 2.0f, 0.1f }, doorTex);
+
+            if (inter->playerSpawnX >= 0 && inter->playerSpawnY >= 0) {
+                p.interiorX = inter->playerSpawnX;
+                p.interiorY = inter->playerSpawnY;
+            }
+            else {
+                p.interiorX = 2;
+                p.interiorY = 2;
+            }
+            return;
+        }
+    }
+
+    // Fallback world spawn
+    p.insideInterior = false;
+    p.worldX = m.width / 2;
+    p.worldY = m.height / 2;
+}
+
+// Get interior by ID
+const Interior* GetInterior(const MapData& m, const std::string& id) {
+    auto f = m.interiors.find(id);
+    if (f == m.interiors.end()) return nullptr;
+    return &f->second;
+}
+
+// Enter interior
+bool EnterInterior(MapData& m, Player& p, int buildingId) {
+    auto it = std::find_if(m.buildings.begin(), m.buildings.end(),
+        [&](const Building& b) { return b.id == buildingId; });
+    if (it == m.buildings.end()) return false;
+
+    auto f = m.interiors.find(it->interiorId);
+    if (f == m.interiors.end()) return false;
+
+    const Interior& inter = f->second;
+    p.insideInterior = true;
+    p.currentInteriorId = inter.id;
+    p.currentBuildingId = it->id;
+
+    if (inter.playerSpawnX >= 0 && inter.playerSpawnY >= 0) {
+        p.interiorX = inter.playerSpawnX;
+        p.interiorY = inter.playerSpawnY;
+    }
+    else {
+        p.interiorX = 2;
+        p.interiorY = 2;
+    }
+    return true;
+}
+
+// Exit interior
+bool ExitInterior(MapData& m, Player& p) {
+    if (!p.insideInterior) return false;
+
+    auto it = std::find_if(m.buildings.begin(), m.buildings.end(),
+        [&](const Building& b) { return b.id == p.currentBuildingId; });
+    if (it == m.buildings.end()) return false;
+
+    p.worldX = it->entranceX;
+    p.worldY = it->entranceY;
+    p.insideInterior = false;
+    p.currentInteriorId.clear();
+    p.currentBuildingId = 0;
+    return true;
+}
+
+// =============================================================================
+// LEGACY COMPATIBILITY LAYER
+// =============================================================================
+
+void GenerateMap(char map[MAP_SIZE][MAP_SIZE]) {
+    // Generate new map data
+    GenerateMapData(g_MapData);
+    InitializePlayerFromMapStart(g_MapData, g_MapPlayer);
+
+    // Convert to legacy format for minimap display
+    for (int y = 0; y < MAP_SIZE && y < g_MapData.height; y++) {
+        for (int x = 0; x < MAP_SIZE && x < g_MapData.width; x++) {
+            int idx = y * g_MapData.width + x;
+            int tile = g_MapData.tiles[idx];
+
+            switch (tile) {
+            case WT_WATER: map[y][x] = '~'; break;
+            case WT_GRASS: map[y][x] = GRASS_TILE; break;
+            case WT_ROAD: map[y][x] = ROAD_TILE; break;
+            case WT_CONCRETE: map[y][x] = '.'; break;
+            case WT_BUILDING_FOOTPRINT: map[y][x] = BUILDING_TILE; break;
+            case WT_SUBURB: map[y][x] = GRASS_TILE; break;
+            case WT_FARMLAND: map[y][x] = GRASS_TILE; break;
+            default: map[y][x] = GRASS_TILE; break;
             }
         }
     }
 }
 
-// Draw door with texture
-void DrawDoor(const Door& door) {
-    float openAngle = door.openAmount * 90.0f;
+// =============================================================================
+// MINIMAP DRAWING (Enhanced to show interior/exterior state)
+// =============================================================================
 
-    Vector3 hingePos = door.position;
-    hingePos.x -= 0.4f;
-
-    Texture2D doorTex = g_TextureManager->GetTexture(TEX_DOOR_WOOD);
-
-    // Draw door frame
-    DrawTexturedCube(door.position, Vector3{ 1.0f, 2.0f, 0.15f }, doorTex, Color{ 101, 67, 33, 255 });
-
-    // Draw door panel (rotates when opening)
-    if (!door.isOpen || door.openAmount < 0.99f) {
-        Vector3 doorPos = door.position;
-        doorPos.x -= door.openAmount * 0.8f;
-        DrawTexturedCube(doorPos, Vector3{ 0.8f, 1.8f, 0.1f }, doorTex, Color{ 139, 90, 43, 255 });
-
-        // Door handle
-        Vector3 handlePos = doorPos;
-        handlePos.x += 0.3f;
-
-        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-            BeginShaderMode(g_ShaderManager->GetLightingShader());
-        }
-        DrawSphere(handlePos, 0.05f, Color{ 212, 175, 55, 255 });
-        if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-            EndShaderMode();
-        }
-    }
-}
-
-// Update door animations
-void UpdateDoors(float deltaTime) {
-    for (auto& door : doors) {
-        if (door.isOpen && door.openAmount < 1.0f) {
-            door.openAmount += deltaTime * 2.0f;
-            if (door.openAmount > 1.0f) door.openAmount = 1.0f;
-        }
-        else if (!door.isOpen && door.openAmount > 0.0f) {
-            door.openAmount -= deltaTime * 2.0f;
-            if (door.openAmount < 0.0f) door.openAmount = 0.0f;
-        }
-    }
-}
-
-// Get nearest door to player
-Door* GetNearestDoor(Vector3 playerPos, float maxDistance) {
-    Door* nearest = nullptr;
-    float nearestDist = maxDistance;
-
-    for (auto& door : doors) {
-        float dist = Vector3Distance(playerPos, door.position);
-        if (dist < nearestDist) {
-            nearestDist = dist;
-            nearest = &door;
-        }
-    }
-
-    return nearest;
-}
-
-// Draw minimap with interior support
-void DrawMinimap(char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw, int minimapX, int minimapY, int minimapW, int minimapH, bool largeMap, int screenH) {
+void DrawMinimap(char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw,
+    int minimapX, int minimapY, int minimapW, int minimapH,
+    bool largeMap, int screenH) {
     DrawRectangle(minimapX, minimapY, minimapW, minimapH, Color{ 0, 0, 0, 180 });
     DrawRectangleLines(minimapX, minimapY, minimapW, minimapH, PIPBOY_GREEN);
 
@@ -428,37 +372,42 @@ void DrawMinimap(char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw, int
     float cellSize = (float)minimapW / (viewRange * 2);
 
     // Inside building - show interior layout
-    if (currentFloor >= 0 && currentBuildingIndex >= 0) {
-        const BuildingInterior& building = buildingInteriors[currentBuildingIndex];
+    if (g_MapPlayer.insideInterior) {
+        const Interior* interior = GetInterior(g_MapData, g_MapPlayer.currentInteriorId);
+        if (interior) {
+            DrawText("INTERIOR", minimapX + 5, minimapY + 5, 12, PIPBOY_GREEN);
 
-        for (int r = 0; r < 20; r++) {
-            for (int c = 0; c < 20; c++) {
-                char tile = building.layout[currentFloor][r][c];
-                Color col = PIPBOY_DIM;
+            // Draw interior tiles
+            for (int y = 0; y < interior->height; y++) {
+                for (int x = 0; x < interior->width; x++) {
+                    int tile = interior->tiles[y * interior->width + x];
+                    Color col = PIPBOY_DIM;
 
-                switch (tile) {
-                case TILE_WALL: col = Color{ 90, 90, 90, 255 }; break;
-                case TILE_DOOR: col = Color{ 200, 170, 60, 255 }; break;
-                case TILE_FLOOR: col = Color{ 100, 100, 100, 255 }; break;
-                case 'S': col = Color{ 0, 255, 0, 255 }; break; // Stairs up
-                case 's': col = Color{ 255, 0, 0, 255 }; break; // Stairs down
+                    switch (tile) {
+                    case IT_WALL: col = Color{ 90, 90, 90, 255 }; break;
+                    case IT_DOOR: col = Color{ 200, 170, 60, 255 }; break;
+                    case IT_FLOOR: col = Color{ 100, 100, 100, 255 }; break;
+                    case IT_CRYOPOD_BROKEN: col = Color{ 255, 100, 100, 255 }; break;
+                    case IT_CONSOLE: col = Color{ 100, 200, 255, 255 }; break;
+                    }
+
+                    int drawX = minimapX + (int)(x * cellSize);
+                    int drawY = minimapY + 20 + (int)(y * cellSize);
+
+                    if (drawX >= minimapX && drawX < minimapX + minimapW &&
+                        drawY >= minimapY && drawY < minimapY + minimapH) {
+                        DrawRectangle(drawX, drawY, (int)ceilf(cellSize), (int)ceilf(cellSize), col);
+                    }
                 }
-
-                int drawX = minimapX + (int)(c * cellSize);
-                int drawY = minimapY + (int)(r * cellSize);
-                DrawRectangle(drawX, drawY, (int)ceilf(cellSize), (int)ceilf(cellSize), col);
             }
+
+            // Draw player position in interior
+            Vector2 playerMapPos = {
+                minimapX + (int)(g_MapPlayer.interiorX * cellSize),
+                minimapY + 20 + (int)(g_MapPlayer.interiorY * cellSize)
+            };
+            DrawCircleV(playerMapPos, fmaxf(3.0f, cellSize * 0.8f), Color{ 255, 50, 50, 255 });
         }
-
-        // Draw player at their position in interior
-        Vector2 playerMapPos = {
-            minimapX + (int)(playerPos.x * cellSize),
-            minimapY + (int)(playerPos.z * cellSize)
-        };
-        DrawCircleV(playerMapPos, fmaxf(3.0f, cellSize * 0.8f), Color{ 255, 50, 50, 255 });
-
-        DrawText(TextFormat("Floor %d/%d", currentFloor + 1, building.floors),
-            minimapX + 5, minimapY + 5, 12, PIPBOY_GREEN);
     }
     // Outside - show world map
     else {
@@ -474,15 +423,11 @@ void DrawMinimap(char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw, int
 
                 Color col = PIPBOY_DIM;
                 switch (map[worldZ][worldX]) {
-                case TILE_WALL: col = Color{ 90, 90, 90, 255 }; break;
-                case TILE_DOOR: col = Color{ 200, 170, 60, 255 }; break;
+                case '~': col = Color{ 30, 60, 120, 255 }; break; // Water
                 case BUILDING_TILE: col = Color{ 100, 100, 120, 255 }; break;
                 case ROAD_TILE: col = Color{ 80, 80, 80, 255 }; break;
-                case TREE_TILE: col = Color{ 10, 80, 10, 255 }; break;
-                case BUSH_TILE: col = Color{ 46, 125, 50, 255 }; break;
-                case FLOWER_TILE: col = Color{ 255, 105, 180, 255 }; break;
-                case LIGHT_TILE: col = Color{ 255, 255, 180, 255 }; break;
                 case GRASS_TILE: col = Color{ 30, 120, 30, 200 }; break;
+                case '.': col = Color{ 90, 90, 95, 255 }; break; // Concrete
                 }
 
                 int drawX = minimapX + (int)((c + viewRange) * cellSize);
@@ -496,7 +441,7 @@ void DrawMinimap(char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw, int
     }
 }
 
-// Draw 2D map menu
+// Placeholder implementations for other legacy functions
 void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3 cameraPos, float zoom) {
     const int menuW = screenW - 200;
     const int menuH = screenH - 120;
@@ -510,57 +455,47 @@ void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3
     DrawMinimap(map, cameraPos, 0, menuX + 20, menuY + 60, menuW - 40, menuH - 80, true, screenH);
 }
 
-// Draw 3D map geometry with textures and shaders
 void DrawMapGeometry(char map[MAP_SIZE][MAP_SIZE]) {
-    // Update shader lighting before drawing (if available)
-    if (g_ShaderManager) {
-        // This is handled in main.cpp before calling this function
-        // Just draw the geometry here
-    }
-    // Draw outside world
-    if (currentFloor < 0) {
-        Texture2D grassTex = g_TextureManager->GetTexture(TEX_GRASS);
-        Texture2D roadTex = g_TextureManager->GetTexture(TEX_ROAD_ASPHALT);
+    // Simplified - draw basic geometry based on legacy map
+    Texture2D grassTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_GRASS) : Texture2D{ 0 };
+    Texture2D roadTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_ROAD_ASPHALT) : Texture2D{ 0 };
 
-        for (int r = 0; r < MAP_SIZE; ++r) {
-            for (int c = 0; c < MAP_SIZE; ++c) {
-                Vector3 pos = Vector3{ (float)c, 0.5f, (float)r };
+    for (int r = 0; r < MAP_SIZE; ++r) {
+        for (int c = 0; c < MAP_SIZE; ++c) {
+            Vector3 pos = Vector3{ (float)c, 0.0f, (float)r };
 
-                if (map[r][c] == BUILDING_TILE) {
-                    // Buildings are drawn separately
-                    continue;
-                }
-                else if (map[r][c] == TILE_FLOOR || map[r][c] == GRASS_TILE || map[r][c] == ROAD_TILE) {
-                    Texture2D floorTex;
-                    if (map[r][c] == ROAD_TILE) floorTex = roadTex;
-                    else if (map[r][c] == GRASS_TILE) floorTex = grassTex;
-                    else floorTex = g_TextureManager->GetTexture(TEX_FLOOR_CONCRETE);
+            if (map[r][c] == BUILDING_TILE) continue;
 
-                    DrawTexturedCube(Vector3{ (float)c, 0.0f, (float)r },
-                        Vector3{ 1.0f, 0.05f, 1.0f }, floorTex);
-                }
-                else if (map[r][c] == TREE_TILE || map[r][c] == BUSH_TILE || map[r][c] == FLOWER_TILE) {
-                    // Draw grass underneath vegetation
-                    DrawTexturedCube(Vector3{ (float)c, 0.0f, (float)r },
-                        Vector3{ 1.0f, 0.05f, 1.0f }, grassTex);
-                    // Draw vegetation
-                    DrawVegetation(c, r, map[r][c]);
-                }
+            Texture2D floorTex = grassTex;
+            if (map[r][c] == ROAD_TILE) floorTex = roadTex;
+
+            if (floorTex.id > 0) {
+                DrawCubeTexture(floorTex, Vector3{ (float)c, 0.0f, (float)r },
+                    1.0f, 0.05f, 1.0f, WHITE);
             }
         }
-
-        // Draw building exteriors
-        for (const auto& building : buildingInteriors) {
-            DrawBuildingExterior(building);
-        }
-
-        // Draw doors
-        for (const auto& door : doors) {
-            DrawDoor(door);
-        }
-    }
-    // Draw interior
-    else if (currentBuildingIndex >= 0) {
-        DrawBuildingInterior(buildingInteriors[currentBuildingIndex], currentFloor);
     }
 }
+
+void DrawDoor(const Door& door) {
+    // Placeholder
+}
+
+void UpdateDoors(float deltaTime) {
+    // Placeholder
+}
+
+Door* GetNearestDoor(Vector3 playerPos, float maxDistance) {
+    return nullptr;
+}
+
+bool IsAABBInFrustum(const Camera3D& camera, const AABB& box) {
+    float distance = Vector3Distance(camera.position,
+        Vector3{ (box.min.x + box.max.x) * 0.5f,
+                (box.min.y + box.max.y) * 0.5f,
+                (box.min.z + box.max.z) * 0.5f });
+    return distance < 100.0f;
+}
+
+// Helper to draw textured cube
+extern void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float height, float length, Color color);

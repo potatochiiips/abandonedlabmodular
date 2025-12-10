@@ -614,7 +614,7 @@ int main() {
                 DrawHUD(screenW, screenH, health, stamina, hunger, thirst, fov, flashlightBattery, isFlashlightOn, inventory);
 
                 // Draw quest tracker
-                g_QuestManager.DrawQuestTracker(screenW, screenH);
+                g_QuestManager.DrawQuestTrackerCompact(screenW, screenH);
 
                 // Draw reload indicator
                 if (isReloading) {
