@@ -347,40 +347,38 @@ int main() {
 
                 // Door interaction - FIXED: Check nearDoor before using it
                 if (IsKeyPressed(KEY_E) && !inventoryOpen && !isCraftingOpen && !isMapOpen) {
-                    Door* nearDoor = GetNearestDoor(playerPosition, 3.0f);
+                    Door* nearDoor = GetNearestDoor(playerPosition, 2.5f);
 
                     if (nearDoor) {
-                        // Check for building entrance/exit using the global buildings vector
-                        for (size_t i = 0; i < g_MapData.buildings.size(); ++i) {
-                            const Building& building = g_MapData.buildings[i];
-
-                            if (Vector3Distance(playerPosition, building.position) < 3.0f) {
-                                if (!g_MapPlayer.insideInterior) {
-                                    // Attempt to enter the interior
-                                    if (EnterInterior(g_MapData, g_MapPlayer, building.id)) {
-                                        // Teleport player to interior spawn position
-                                        playerPosition = Vector3{
-                                            (float)g_MapPlayer.interiorX,
-                                            playerHeight,
-                                            (float)g_MapPlayer.interiorY
-                                        };
-                                        camera.position = playerPosition;
-                                        TraceLog(LOG_INFO, "Entered building interior");
-                                    }
+                        if (g_MapPlayer.insideInterior) {
+                            // Inside a building - check if this is the exit door
+                            if (nearDoor->isInteriorDoor && nearDoor->buildingId == g_MapPlayer.currentBuildingId) {
+                                // Exit to exterior
+                                if (ExitInterior(g_MapData, g_MapPlayer)) {
+                                    playerPosition = Vector3{
+                                        (float)g_MapPlayer.worldX,
+                                        playerHeight,
+                                        (float)g_MapPlayer.worldY
+                                    };
+                                    camera.position = playerPosition;
+                                    TraceLog(LOG_INFO, "Exited to exterior");
                                 }
-                                else {
-                                    // Exit to exterior
-                                    if (ExitInterior(g_MapData, g_MapPlayer)) {
-                                        playerPosition = Vector3{
-                                            (float)g_MapPlayer.worldX,
-                                            playerHeight,
-                                            (float)g_MapPlayer.worldY
-                                        };
-                                        camera.position = playerPosition;
-                                        TraceLog(LOG_INFO, "Exited to exterior");
-                                    }
+                            }
+                        }
+                        else {
+                            // Outside - check if this is an entrance door
+                            if (!nearDoor->isInteriorDoor) {
+                                // Try to enter the building
+                                if (EnterInterior(g_MapData, g_MapPlayer, nearDoor->buildingId)) {
+                                    // Teleport player to interior spawn position
+                                    playerPosition = Vector3{
+                                        (float)g_MapPlayer.interiorX,
+                                        playerHeight,
+                                        (float)g_MapPlayer.interiorY
+                                    };
+                                    camera.position = playerPosition;
+                                    TraceLog(LOG_INFO, "Entered building interior");
                                 }
-                                break;
                             }
                         }
                     }
@@ -545,8 +543,8 @@ int main() {
 
             BeginMode3D(camera);
 
-            // Optimized grid drawing (only when needed)
-            if (currentFloor < 0) {
+            // Draw grid ONLY when outside
+            if (!g_MapPlayer.insideInterior) {
                 if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
                     BeginShaderMode(g_ShaderManager->GetLightingShader());
                 }
@@ -555,7 +553,6 @@ int main() {
                     EndShaderMode();
                 }
             }
-
             DrawMapGeometry(map);
 
             // Draw waypoints in 3D
@@ -597,15 +594,13 @@ int main() {
             if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE) {
                 g_UpscalingManager->EndUpscaledRender(screenW, screenH);
             }
-
-            // FIXED: Check nearDoor before using it
-            Door* nearDoor = GetNearestDoor(playerPosition, 2.0f);
+            // Check for nearby door and show prompt
+            Door* nearDoor = GetNearestDoor(playerPosition, 2.5f);
             if (nearDoor && !isAnyMenuOpen) {
                 const char* doorText = g_MapPlayer.insideInterior ? "Press E to Exit" : "Press E to Enter";
                 int textWidth = MeasureText(doorText, 20);
                 DrawText(doorText, screenW / 2 - textWidth / 2, screenH - 100, 20, PIPBOY_GREEN);
             }
-
             // Post-processing effects
             if (graphicsSettings.renderScale >= 0.9f) {
                 DrawRectangleGradientV(0, 0, screenW, screenH / 5, Color{ 0, 0, 0, 120 }, Color{ 0, 0, 0, 0 });

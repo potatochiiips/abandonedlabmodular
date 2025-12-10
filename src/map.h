@@ -13,6 +13,11 @@ struct Player;
 #define MAP_WIDTH MAP_SIZE
 #define MAP_HEIGHT MAP_SIZE
 
+// Wall heights
+#define WALL_HEIGHT 3.0f
+#define DOOR_HEIGHT 2.5f
+#define CEILING_HEIGHT 3.0f
+
 // Building Type enum
 enum BuildingType {
     BTYPE_UNKNOWN = 0,
@@ -80,13 +85,32 @@ struct Interior {
     std::vector<ItemSpawn> spawns;
     int playerSpawnX;
     int playerSpawnY;
+    int doorX; // Door position in interior coordinates
+    int doorY;
 
-    Interior() : width(0), height(0), playerSpawnX(-1), playerSpawnY(-1) {}
+    Interior() : width(0), height(0), playerSpawnX(-1), playerSpawnY(-1), doorX(-1), doorY(-1) {}
 };
 
 // Building footprint rect
 struct BuildingRect {
     int x, y, w, h;
+};
+
+// Door structure
+struct Door {
+    Vector3 position;
+    Vector3 normal; // Direction door faces
+    bool isOpen;
+    float openProgress;
+    bool isLocked;
+    int requiredKeyId;
+    int buildingId; // Which building this door belongs to (-1 for none)
+    bool isInteriorDoor; // True if this is the exit door inside a building
+
+    Door() : isOpen(false), openProgress(0.0f), isLocked(false), requiredKeyId(0), buildingId(-1), isInteriorDoor(false) {
+        position = Vector3{ 0, 0, 0 };
+        normal = Vector3{ 0, 0, 1 };
+    }
 };
 
 // Building structure
@@ -138,19 +162,6 @@ struct MapPlayerState {
     }
 };
 
-// Door structure
-struct Door {
-    Vector3 position;
-    bool isOpen;
-    float openProgress;
-    bool isLocked;
-    int requiredKeyId;
-
-    Door() : isOpen(false), openProgress(0.0f), isLocked(false), requiredKeyId(0) {
-        position = Vector3{ 0, 0, 0 };
-    }
-};
-
 // Global map data
 extern MapData g_MapData;
 extern MapPlayerState g_MapPlayer;
@@ -174,10 +185,15 @@ void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3
 void DrawMinimap(char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw, int minimapX, int minimapY, int minimapW, int minimapH, bool largeMap, int screenH);
 void DrawMapGeometry(char map[MAP_SIZE][MAP_SIZE]);
 
-// Enhanced world functions
+// Enhanced world functions - NEW 3D DRAWING
+void Draw3DWorld(const MapData& mapData, const MapPlayerState& playerState);
+void Draw3DInterior(const Interior& interior);
 void DrawDoor(const Door& door);
 void UpdateDoors(float deltaTime);
 Door* GetNearestDoor(Vector3 playerPos, float maxDistance);
+
+// Collision detection
+bool CheckWallCollision(Vector3 position, float radius, const MapData& mapData, const MapPlayerState& playerState);
 
 // Frustum culling helper
 struct AABB {

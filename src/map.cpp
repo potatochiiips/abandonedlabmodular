@@ -16,15 +16,6 @@ int currentFloor = -1;
 int currentBuildingIndex = -1;
 static int idCounter = 1;
 
-// Tile definitions for legacy system
-#define ROAD_TILE '='
-#define GRASS_TILE '"'
-#define BUILDING_TILE 'B'
-#define TREE_TILE 'T'
-#define LIGHT_TILE 'L'
-#define BUSH_TILE 'b'
-#define FLOWER_TILE 'f'
-
 // Helper to draw textured cubes (forward declaration)
 void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float height, float length, Color color);
 
@@ -69,9 +60,11 @@ static Interior MakeLabDetailedInterior(const std::string& id) {
         it.tiles[y * W + (W - 1)] = IT_WALL;
     }
 
-    // Main entrance (south center)
+    // Main entrance (south center) - EXIT DOOR
     int doorX = W / 2;
     it.tiles[(H - 1) * W + doorX] = IT_DOOR;
+    it.doorX = doorX;
+    it.doorY = H - 1;
 
     // Cryo chamber: 12x10 at (2,2)
     int c_x = 2, c_y = 2, c_w = 12, c_h = 10;
@@ -139,9 +132,16 @@ static Interior MakeHouseInterior(const std::string& id, int variant = 0) {
         it.tiles[y * w + (w - 1)] = IT_WALL;
     }
 
+    // Exit door at south center
     it.tiles[(h - 1) * w + (w / 2)] = IT_DOOR;
+    it.doorX = w / 2;
+    it.doorY = h - 1;
+
     it.tiles[1 * w + 1] = IT_BED;
     it.spawns.push_back({ 1, 1, "pillow" });
+
+    it.playerSpawnX = w / 2;
+    it.playerSpawnY = h / 2;
 
     return it;
 }
@@ -189,6 +189,14 @@ static void PlaceBuilding(MapData& m, int x, int y, int w, int h, BuildingType b
 
     if (InBounds(m, ex, ey)) m.tiles[ey * m.width + ex] = WT_ROAD;
     m.buildings.push_back(b);
+
+    // Create entrance door for this building
+    Door entranceDoor;
+    entranceDoor.position = Vector3{ (float)ex, 0.0f, (float)ey };
+    entranceDoor.normal = Vector3{ 0, 0, -1 }; // Faces inward
+    entranceDoor.buildingId = b.id;
+    entranceDoor.isInteriorDoor = false;
+    doors.push_back(entranceDoor);
 }
 
 // Main map generation
@@ -197,6 +205,7 @@ void GenerateMapData(MapData& m) {
     m.height = MAP_HEIGHT;
     m.tiles.assign(m.width * m.height, WT_GRASS);
     m.buildings.clear();
+    doors.clear(); // Clear existing doors
 
     CreateInteriors(m);
 
@@ -245,6 +254,19 @@ void GenerateMapData(MapData& m) {
             int py = hy + r * 18;
             PlaceBuilding(m, px, py, 10, 8, BTYPE_HOUSE,
                 (r % 2 == 0 ? "house_small_01" : "house_small_02"), idCounter);
+        }
+    }
+
+    // Create interior exit doors
+    for (const auto& building : m.buildings) {
+        const Interior* interior = GetInterior(m, building.interiorId);
+        if (interior && interior->doorX >= 0 && interior->doorY >= 0) {
+            Door exitDoor;
+            exitDoor.position = Vector3{ (float)interior->doorX, 0.0f, (float)interior->doorY };
+            exitDoor.normal = Vector3{ 0, 0, 1 }; // Faces outward
+            exitDoor.buildingId = building.id;
+            exitDoor.isInteriorDoor = true;
+            doors.push_back(exitDoor);
         }
     }
 
@@ -307,6 +329,8 @@ bool EnterInterior(MapData& m, MapPlayerState& p, int buildingId) {
     p.insideInterior = true;
     p.currentInteriorId = inter.id;
     p.currentBuildingId = it->id;
+    p.worldX = it->entranceX;
+    p.worldY = it->entranceY;
 
     if (inter.playerSpawnX >= 0 && inter.playerSpawnY >= 0) {
         p.interiorX = inter.playerSpawnX;
@@ -328,11 +352,301 @@ bool ExitInterior(MapData& m, MapPlayerState& p) {
     if (it == m.buildings.end()) return false;
 
     p.worldX = it->entranceX;
-    p.worldY = it->entranceY;
+    p.worldY = it->entranceY + 1; // Spawn just outside door
     p.insideInterior = false;
     p.currentInteriorId.clear();
     p.currentBuildingId = 0;
     return true;
+}
+
+// =============================================================================
+// 3D RENDERING - NEW IMPLEMENTATION
+// =============================================================================
+
+void Draw3DWorld(const MapData& mapData, const MapPlayerState& playerState) {
+    if (playerState.insideInterior) {
+        // Draw interior
+        const Interior* interior = GetInterior(mapData, playerState.currentInteriorId);
+        if (interior) {
+            Draw3DInterior(*interior);
+        }
+    }
+    else {
+        // Draw exterior world
+        Texture2D grassTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_GRASS) : Texture2D{ 0 };
+        Texture2D roadTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_ROAD_ASPHALT) : Texture2D{ 0 };
+        Texture2D buildingTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_BUILDING_EXTERIOR) : Texture2D{ 0 };
+        Texture2D waterTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_GRASS) : Texture2D{ 0 };
+
+        // Draw ground tiles
+        for (int z = 0; z < mapData.height; z++) {
+            for (int x = 0; x < mapData.width; x++) {
+                int tile = mapData.tiles[z * mapData.width + x];
+
+                Texture2D floorTex = grassTex;
+                if (tile == WT_ROAD || tile == WT_CONCRETE) floorTex = roadTex;
+                else if (tile == WT_WATER) floorTex = waterTex;
+
+                if (floorTex.id > 0) {
+                    DrawCubeTexture(floorTex, Vector3{ (float)x, 0.0f, (float)z },
+                        1.0f, 0.05f, 1.0f, WHITE);
+                }
+            }
+        }
+
+        // Draw buildings
+        for (const auto& building : mapData.buildings) {
+            // Draw building walls
+            for (int z = building.footprint.y; z < building.footprint.y + building.footprint.h; z++) {
+                for (int x = building.footprint.x; x < building.footprint.x + building.footprint.w; x++) {
+                    // Draw outer walls only on perimeter
+                    bool isPerimeter = (x == building.footprint.x || x == building.footprint.x + building.footprint.w - 1 ||
+                        z == building.footprint.y || z == building.footprint.y + building.footprint.h - 1);
+
+                    // Don't draw wall at entrance
+                    bool isEntrance = (x == building.entranceX && z == building.entranceY);
+
+                    if (isPerimeter && !isEntrance) {
+                        if (buildingTex.id > 0) {
+                            DrawCubeTexture(buildingTex, Vector3{ (float)x, WALL_HEIGHT / 2.0f, (float)z },
+                                1.0f, WALL_HEIGHT, 1.0f, WHITE);
+                        }
+                        else {
+                            DrawCube(Vector3{ (float)x, WALL_HEIGHT / 2.0f, (float)z },
+                                1.0f, WALL_HEIGHT, 1.0f, Color{ 120, 120, 130, 255 });
+                        }
+                    }
+                }
+            }
+
+            // Draw roof
+            Vector3 roofCenter = Vector3{
+                building.footprint.x + building.footprint.w / 2.0f,
+                CEILING_HEIGHT,
+                building.footprint.y + building.footprint.h / 2.0f
+            };
+            DrawCube(roofCenter, (float)building.footprint.w, 0.2f, (float)building.footprint.h, Color{ 80, 50, 50, 255 });
+        }
+
+        // Draw exterior doors
+        for (const auto& door : doors) {
+            if (!door.isInteriorDoor) {
+                DrawDoor(door);
+            }
+        }
+    }
+}
+
+void Draw3DInterior(const Interior& interior) {
+    Texture2D wallTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_WALL_CONCRETE) : Texture2D{ 0 };
+    Texture2D floorTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_FLOOR_TILE) : Texture2D{ 0 };
+    Texture2D doorTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_DOOR_METAL) : Texture2D{ 0 };
+
+    for (int y = 0; y < interior.height; y++) {
+        for (int x = 0; x < interior.width; x++) {
+            int tile = interior.tiles[y * interior.width + x];
+            Vector3 pos = Vector3{ (float)x, 0.0f, (float)y };
+
+            // Draw floor for all non-empty tiles
+            if (tile != IT_EMPTY && floorTex.id > 0) {
+                DrawCubeTexture(floorTex, Vector3{ (float)x, 0.0f, (float)y },
+                    1.0f, 0.05f, 1.0f, WHITE);
+            }
+
+            // Draw walls
+            if (tile == IT_WALL) {
+                if (wallTex.id > 0) {
+                    DrawCubeTexture(wallTex, Vector3{ (float)x, WALL_HEIGHT / 2.0f, (float)y },
+                        1.0f, WALL_HEIGHT, 1.0f, WHITE);
+                }
+                else {
+                    DrawCube(Vector3{ (float)x, WALL_HEIGHT / 2.0f, (float)y },
+                        1.0f, WALL_HEIGHT, 1.0f, Color{ 180, 180, 185, 255 });
+                }
+            }
+
+            // Draw props
+            switch (tile) {
+            case IT_CRYOPOD_BROKEN:
+                DrawCube(Vector3{ (float)x, 0.5f, (float)y }, 0.8f, 1.0f, 0.8f, Color{ 100, 150, 200, 255 });
+                break;
+            case IT_CONSOLE:
+                DrawCube(Vector3{ (float)x, 0.4f, (float)y }, 0.6f, 0.8f, 0.6f, Color{ 80, 120, 160, 255 });
+                break;
+            case IT_BENCH:
+                DrawCube(Vector3{ (float)x, 0.4f, (float)y }, 0.8f, 0.8f, 0.4f, Color{ 140, 120, 100, 255 });
+                break;
+            case IT_BED:
+                DrawCube(Vector3{ (float)x, 0.3f, (float)y }, 0.9f, 0.6f, 0.9f, Color{ 180, 160, 140, 255 });
+                break;
+            }
+        }
+    }
+
+    // Draw ceiling
+    Vector3 ceilingCenter = Vector3{
+        interior.width / 2.0f,
+        CEILING_HEIGHT,
+        interior.height / 2.0f
+    };
+    DrawCube(ceilingCenter, (float)interior.width, 0.1f, (float)interior.height, Color{ 240, 240, 240, 255 });
+
+    // Draw interior doors
+    for (const auto& door : doors) {
+        if (door.isInteriorDoor) {
+            DrawDoor(door);
+        }
+    }
+}
+
+void DrawDoor(const Door& door) {
+    Texture2D doorTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_DOOR_METAL) : Texture2D{ 0 };
+
+    Color doorColor = door.isLocked ? Color{ 150, 50, 50, 255 } : Color{ 100, 100, 110, 255 };
+
+    if (!door.isOpen) {
+        if (doorTex.id > 0) {
+            DrawCubeTexture(doorTex, Vector3{ door.position.x, DOOR_HEIGHT / 2.0f, door.position.z },
+                0.2f, DOOR_HEIGHT, 1.0f, doorColor);
+        }
+        else {
+            DrawCube(Vector3{ door.position.x, DOOR_HEIGHT / 2.0f, door.position.z },
+                0.2f, DOOR_HEIGHT, 1.0f, doorColor);
+        }
+
+        // Draw door frame
+        DrawCube(Vector3{ door.position.x, DOOR_HEIGHT + 0.1f, door.position.z },
+            0.3f, 0.2f, 1.2f, Color{ 80, 80, 85, 255 });
+    }
+}
+
+void UpdateDoors(float deltaTime) {
+    for (auto& door : doors) {
+        if (door.isOpen && door.openProgress < 1.0f) {
+            door.openProgress += deltaTime * 2.0f;
+            if (door.openProgress >= 1.0f) {
+                door.openProgress = 1.0f;
+            }
+        }
+        else if (!door.isOpen && door.openProgress > 0.0f) {
+            door.openProgress -= deltaTime * 2.0f;
+            if (door.openProgress <= 0.0f) {
+                door.openProgress = 0.0f;
+            }
+        }
+    }
+}
+
+Door* GetNearestDoor(Vector3 playerPos, float maxDistance) {
+    Door* nearest = nullptr;
+    float minDist = maxDistance;
+
+    for (auto& door : doors) {
+        // Calculate door position based on whether player is inside
+        Vector3 doorPos = door.position;
+        if (g_MapPlayer.insideInterior && door.isInteriorDoor) {
+            // Use interior coordinates for interior doors
+            doorPos = Vector3{ door.position.x, playerPos.y, door.position.z };
+        }
+        else if (!g_MapPlayer.insideInterior && !door.isInteriorDoor) {
+            // Use world coordinates for exterior doors
+            doorPos = Vector3{ door.position.x, playerPos.y, door.position.z };
+        }
+        else {
+            continue; // Skip doors not in current context
+        }
+
+        float dist = Vector3Distance(playerPos, doorPos);
+        if (dist < minDist) {
+            minDist = dist;
+            nearest = &door;
+        }
+    }
+
+    return nearest;
+}
+
+// Wall collision detection
+bool CheckWallCollision(Vector3 position, float radius, const MapData& mapData, const MapPlayerState& playerState) {
+    if (playerState.insideInterior) {
+        const Interior* interior = GetInterior(mapData, playerState.currentInteriorId);
+        if (!interior) return false;
+
+        int gridX = (int)floorf(position.x);
+        int gridZ = (int)floorf(position.z);
+ 
+        // Check 3x3 area around player
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int checkX = gridX + dx;
+                int checkZ = gridZ + dz;
+
+                if (checkX >= 0 && checkX < interior->width &&
+                    checkZ >= 0 && checkZ < interior->height) {
+                    int tile = interior->tiles[checkZ * interior->width + checkX];
+
+                    if (tile == IT_WALL) {
+                        Vector3 tileCenter = Vector3{ (float)checkX + 0.5f, position.y, (float)checkZ + 0.5f };
+                        float dist = Vector3Distance(
+                            Vector3{ position.x, position.y, position.z },
+                            Vector3{ tileCenter.x, position.y, tileCenter.z }
+                        );
+                        if (dist < radius + 0.5f) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    else {
+        // Check world collisions
+        int gridX = (int)floorf(position.x);
+        int gridZ = (int)floorf(position.z);
+
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int checkX = gridX + dx;
+                int checkZ = gridZ + dz;
+
+                if (checkX >= 0 && checkX < mapData.width &&
+                    checkZ >= 0 && checkZ < mapData.height) {
+
+                    // Check if position is inside a building footprint
+                    for (const auto& building : mapData.buildings) {
+                        bool insideBuilding = checkX >= building.footprint.x &&
+                            checkX < building.footprint.x + building.footprint.w &&
+                            checkZ >= building.footprint.y &&
+                            checkZ < building.footprint.y + building.footprint.h;
+
+                        if (insideBuilding) {
+                            // Only collide with perimeter walls, not entrance
+                            bool isPerimeter = (checkX == building.footprint.x ||
+                                checkX == building.footprint.x + building.footprint.w - 1 ||
+                                checkZ == building.footprint.y ||
+                                checkZ == building.footprint.y + building.footprint.h - 1);
+
+                            bool isEntrance = (checkX == building.entranceX && checkZ == building.entranceY);
+
+                            if (isPerimeter && !isEntrance) {
+                                Vector3 tileCenter = Vector3{ (float)checkX + 0.5f, position.y, (float)checkZ + 0.5f };
+                                float dist = Vector3Distance(
+                                    Vector3{ position.x, position.y, position.z },
+                                    Vector3{ tileCenter.x, position.y, tileCenter.z }
+                                );
+
+                                if (dist < radius + 0.5f) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return false;
 }
 
 // =============================================================================
@@ -352,21 +666,17 @@ void GenerateMap(char map[MAP_SIZE][MAP_SIZE]) {
 
             switch (tile) {
             case WT_WATER: map[y][x] = '~'; break;
-            case WT_GRASS: map[y][x] = GRASS_TILE; break;
-            case WT_ROAD: map[y][x] = ROAD_TILE; break;
+            case WT_GRASS: map[y][x] = '"'; break;
+            case WT_ROAD: map[y][x] = '='; break;
             case WT_CONCRETE: map[y][x] = '.'; break;
-            case WT_BUILDING_FOOTPRINT: map[y][x] = BUILDING_TILE; break;
-            case WT_SUBURB: map[y][x] = GRASS_TILE; break;
-            case WT_FARMLAND: map[y][x] = GRASS_TILE; break;
-            default: map[y][x] = GRASS_TILE; break;
+            case WT_BUILDING_FOOTPRINT: map[y][x] = 'B'; break;
+            case WT_SUBURB: map[y][x] = '"'; break;
+            case WT_FARMLAND: map[y][x] = '"'; break;
+            default: map[y][x] = '"'; break;
             }
         }
     }
 }
-
-// =============================================================================
-// MINIMAP DRAWING (Enhanced to show interior/exterior state)
-// =============================================================================
 
 void DrawMinimap(char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw,
     int minimapX, int minimapY, int minimapW, int minimapH,
@@ -430,9 +740,9 @@ void DrawMinimap(char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw,
                 Color col = PIPBOY_DIM;
                 switch (map[worldZ][worldX]) {
                 case '~': col = Color{ 30, 60, 120, 255 }; break;
-                case BUILDING_TILE: col = Color{ 100, 100, 120, 255 }; break;
-                case ROAD_TILE: col = Color{ 80, 80, 80, 255 }; break;
-                case GRASS_TILE: col = Color{ 30, 120, 30, 200 }; break;
+                case 'B': col = Color{ 100, 100, 120, 255 }; break;
+                case '=': col = Color{ 80, 80, 80, 255 }; break;
+                case '"': col = Color{ 30, 120, 30, 200 }; break;
                 case '.': col = Color{ 90, 90, 95, 255 }; break;
                 }
 
@@ -461,48 +771,8 @@ void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3
 }
 
 void DrawMapGeometry(char map[MAP_SIZE][MAP_SIZE]) {
-    Texture2D grassTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_GRASS) : Texture2D{ 0 };
-    Texture2D roadTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_ROAD_ASPHALT) : Texture2D{ 0 };
-
-    for (int r = 0; r < MAP_SIZE; ++r) {
-        for (int c = 0; c < MAP_SIZE; ++c) {
-            Vector3 pos = Vector3{ (float)c, 0.0f, (float)r };
-
-            if (map[r][c] == BUILDING_TILE) continue;
-
-            Texture2D floorTex = grassTex;
-            if (map[r][c] == ROAD_TILE) floorTex = roadTex;
-
-            if (floorTex.id > 0) {
-                DrawCubeTexture(floorTex, Vector3{ (float)c, 0.0f, (float)r },
-                    1.0f, 0.05f, 1.0f, WHITE);
-            }
-        }
-    }
-}
-
-void DrawDoor(const Door& door) {
-    // Placeholder
-}
-
-void UpdateDoors(float deltaTime) {
-    // Placeholder
-}
-
-Door* GetNearestDoor(Vector3 playerPos, float maxDistance) {
-    // Search in door list
-    Door* nearest = nullptr;
-    float minDist = maxDistance;
-
-    for (auto& door : doors) {
-        float dist = Vector3Distance(playerPos, door.position);
-        if (dist < minDist) {
-            minDist = dist;
-            nearest = &door;
-        }
-    }
-
-    return nearest;
+    // Use new 3D drawing system
+    Draw3DWorld(g_MapData, g_MapPlayer);
 }
 
 bool IsAABBInFrustum(const Camera3D& camera, const AABB& box) {
