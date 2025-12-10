@@ -1,4 +1,4 @@
-// Complete updated main.cpp with texture, shader, and weapon system integration
+// Complete updated main.cpp with fixes for build errors
 
 #include "globals.h"
 #include "hud.h"
@@ -77,7 +77,12 @@ GraphicsSettings graphicsSettings = {
     4,      // msaaSamples
     60,     // targetFPS
     1.0f,   // renderScale
-    false   // showFPS
+    false,  // showFPS
+    true,   // enableLOD
+    true,   // enableFrustumCulling
+    1000,   // maxDrawCalls
+    UPSCALING_NONE,        // upscalingMode
+    UPSCALE_QUALITY_QUALITY // upscalingQuality
 };
 
 // Performance optimization: Frame time tracking
@@ -340,24 +345,43 @@ int main() {
             if (!isAnyMenuOpen) {
                 UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
 
-                // Door interaction
+                // Door interaction - FIXED: Check nearDoor before using it
                 if (IsKeyPressed(KEY_E) && !inventoryOpen && !isCraftingOpen && !isMapOpen) {
-                    // Check for building entrance/exit
-                    // FIX: Replaced undeclared 'buildingInteriors' with 'buildings' and fixed Vector3Distance call
-                    for (size_t i = 0; i < buildings.size(); ++i) {
-                        // Vector3Distance now correctly takes playerPosition and the building's position
-                        if (Vector3Distance(playerPosition, buildings[i].position) < 3.0f && buildings[i].floor == 0) {
-                            if (!g_MapPlayer.insideInterior) {
-                                // Attempt to enter the interior (assuming building has an ID for EnterInterior)
+                    Door* nearDoor = GetNearestDoor(playerPosition, 3.0f);
 
-                                
+                    if (nearDoor) {
+                        // Check for building entrance/exit using the global buildings vector
+                        for (size_t i = 0; i < g_MapData.buildings.size(); ++i) {
+                            const Building& building = g_MapData.buildings[i];
+
+                            if (Vector3Distance(playerPosition, building.position) < 3.0f) {
+                                if (!g_MapPlayer.insideInterior) {
+                                    // Attempt to enter the interior
+                                    if (EnterInterior(g_MapData, g_MapPlayer, building.id)) {
+                                        // Teleport player to interior spawn position
+                                        playerPosition = Vector3{
+                                            (float)g_MapPlayer.interiorX,
+                                            playerHeight,
+                                            (float)g_MapPlayer.interiorY
+                                        };
+                                        camera.position = playerPosition;
+                                        TraceLog(LOG_INFO, "Entered building interior");
+                                    }
+                                }
+                                else {
+                                    // Exit to exterior
+                                    if (ExitInterior(g_MapData, g_MapPlayer)) {
+                                        playerPosition = Vector3{
+                                            (float)g_MapPlayer.worldX,
+                                            playerHeight,
+                                            (float)g_MapPlayer.worldY
+                                        };
+                                        camera.position = playerPosition;
+                                        TraceLog(LOG_INFO, "Exited to exterior");
+                                    }
+                                }
+                                break;
                             }
-                        }
-                        else {
-                            currentFloor = -1;
-                            currentBuildingIndex = -1;
-                            playerPosition = Vector3Add(nearDoor->position, Vector3{ 0, 0, 2.0f });
-                            camera.position = playerPosition;
                         }
                     }
                 }
@@ -455,7 +479,6 @@ int main() {
                 shotTimer = fmaxf(0.0f, shotTimer - deltaTime);
             }
         }
-
         // Menu state handling
         if (gameState == GameState::MainMenu) {
             if (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))) {
@@ -574,9 +597,11 @@ int main() {
             if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE) {
                 g_UpscalingManager->EndUpscaledRender(screenW, screenH);
             }
+
+            // FIXED: Check nearDoor before using it
             Door* nearDoor = GetNearestDoor(playerPosition, 2.0f);
             if (nearDoor && !isAnyMenuOpen) {
-                const char* doorText = currentFloor < 0 ? "Press E to Enter" : "Press E to Exit";
+                const char* doorText = g_MapPlayer.insideInterior ? "Press E to Exit" : "Press E to Enter";
                 int textWidth = MeasureText(doorText, 20);
                 DrawText(doorText, screenW / 2 - textWidth / 2, screenH - 100, 20, PIPBOY_GREEN);
             }

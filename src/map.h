@@ -1,7 +1,9 @@
 #pragma once
 #include "globals.h"
 #include <unordered_map>
-#include <player.h>
+
+// Forward declaration
+struct Player;
 
 // New map system constants
 #define WORLD_TILE_PIXELS 8
@@ -11,11 +13,11 @@
 #define MAP_WIDTH MAP_SIZE
 #define MAP_HEIGHT MAP_SIZE
 
-// Building Type enum (Needed for map.cpp)
+// Building Type enum
 enum BuildingType {
     BTYPE_UNKNOWN = 0,
-    BTYPE_LABORATORY, // ADDED: Used in map.cpp
-    BTYPE_HOUSE       // ADDED: Used in map.cpp
+    BTYPE_LABORATORY,
+    BTYPE_HOUSE
 };
 
 // World tile enums
@@ -23,9 +25,9 @@ enum WorldTile : int {
     WT_EMPTY = 0,
     WT_WATER,
     WT_GRASS,
-    WT_ROAD, // ADDED: Used in map.cpp
+    WT_ROAD,
     WT_CONCRETE,
-    WT_BUILDING_FOOTPRINT, // ADDED: Used in map.cpp
+    WT_BUILDING_FOOTPRINT,
     WT_SUBURB,
     WT_FARMLAND
 };
@@ -33,11 +35,11 @@ enum WorldTile : int {
 // Interior tile enums
 enum InteriorTile : int {
     IT_EMPTY = 0,
-    IT_FLOOR, // ADDED: Used in map.cpp
-    IT_WALL,  // ADDED: Used in map.cpp
-    IT_DOOR,  // ADDED: Used in map.cpp
+    IT_FLOOR,
+    IT_WALL,
+    IT_DOOR,
     IT_WINDOW,
-    IT_BED,   // ADDED: Used in map.cpp
+    IT_BED,
     IT_DESK,
     IT_SHELF,
     IT_CRATE,
@@ -48,44 +50,63 @@ enum InteriorTile : int {
     IT_ARMORRACK,
     IT_TABLE,
     IT_CHAIR,
-    IT_CONSOLE, // ADDED: Used in map.cpp
+    IT_CONSOLE,
     IT_PIPE,
-    IT_CRYOPOD_BROKEN, // ADDED: Used in map.cpp
+    IT_CRYOPOD_BROKEN,
     IT_CRYOPOD_INTACT,
     IT_VENT,
     IT_SERVER_RACK,
     IT_FRIDGE,
     IT_CABINET,
-    IT_BENCH, // ADDED: Used in map.cpp
-    IT_BROKEN_GLASS, // ADDED: Used in map.cpp
+    IT_BENCH,
+    IT_BROKEN_GLASS,
     IT_WARNING_LIGHT,
-    IT_COOLANT_PUDDLE // ADDED: Used in map.cpp
+    IT_COOLANT_PUDDLE
+};
+
+// Item spawn structure
+struct ItemSpawn {
+    int x;
+    int y;
+    std::string itemType;
 };
 
 // Interior structure
 struct Interior {
-    // ADDED MISSING MEMBERS: Fixes errors like 'width' is not a member of 'Interior'
     int width;
     int height;
     std::string id;
     std::vector<int> tiles;
-    std::vector<Vector3> spawns;
-    float playerSpawnX;
-    float playerSpawnY;
+    std::vector<ItemSpawn> spawns;
+    int playerSpawnX;
+    int playerSpawnY;
+
+    Interior() : width(0), height(0), playerSpawnX(-1), playerSpawnY(-1) {}
 };
 
-// Building structure for main.cpp logic
+// Building footprint rect
+struct BuildingRect {
+    int x, y, w, h;
+};
+
+// Building structure
 struct Building {
-    Vector3 position; // Entrance position (used for Vector3Distance)
-    int floor;        // Ground floor = 0
-    std::string interiorId;
-    // ADDED MISSING MEMBERS: Fixes errors like 'footprint' is not a member of 'Building'
-    std::vector<Vector3> footprint;
+    BuildingRect footprint;
     BuildingType type;
+    std::string interiorId;
     int id;
     int entranceX;
     int entranceY;
+
+    // For compatibility with main.cpp
+    Vector3 position;
+    int floor;
+
+    Building() : id(0), entranceX(0), entranceY(0), floor(0) {
+        position = Vector3{ 0, 0, 0 };
+    }
 };
+
 // Map Data structure
 struct MapData {
     int width;
@@ -93,48 +114,59 @@ struct MapData {
     std::vector<int> tiles;
     Texture2D tileset;
     std::unordered_map<std::string, Interior> interiors;
-    bool insideInterior = false;
-    std::string currentInteriorId;
-    int currentBuildingId = 0;
-    // ADDED MISSING MEMBERS: Fixes errors like 'startInsideInterior' is not a member of 'MapData'
-    bool startInsideInterior = false;
-    std::string startInteriorId = "";
-    // ADDED MISSING MEMBERS: Fixes errors like 'buildings' is not a member of 'MapData'
     std::vector<Building> buildings;
+    bool startInsideInterior;
+    std::string startInteriorId;
+
+    MapData() : width(0), height(0), startInsideInterior(false) {
+        tileset = { 0 };
+    }
 };
+
+// Player state in map system
 struct MapPlayerState {
-    Vector3 worldPos;
-    Vector3 interiorPos;
-    int currentFloor;
-    bool insideInterior = false;
+    bool insideInterior;
     std::string currentInteriorId;
-    int currentBuildingId = 0;
+    int currentBuildingId;
+    int worldX;
+    int worldY;
+    int interiorX;
+    int interiorY;
+
+    MapPlayerState() : insideInterior(false), currentBuildingId(0),
+        worldX(0), worldY(0), interiorX(0), interiorY(0) {
+    }
+};
+
+// Door structure
+struct Door {
+    Vector3 position;
+    bool isOpen;
+    float openProgress;
+    bool isLocked;
+    int requiredKeyId;
+
+    Door() : isOpen(false), openProgress(0.0f), isLocked(false), requiredKeyId(0) {
+        position = Vector3{ 0, 0, 0 };
+    }
 };
 
 // Global map data
 extern MapData g_MapData;
 extern MapPlayerState g_MapPlayer;
-// Door structure
-struct Door {
-    // ... (rest of Door struct) ...
-};
 
 // Global building and door management
 extern std::vector<Door> doors;
-extern std::vector<Building> buildings; // Now declared in map.h
+extern std::vector<Building> buildings;
 extern int currentFloor;
 extern int currentBuildingIndex;
 
 // Map generation functions
 void GenerateMapData(MapData& m);
-// FIX: Replaced Player& p with the concrete struct name now that it's defined
-void InitializePlayerFromMapStart(MapData& m, Player& p);
-// FIX: Replaced Player& p with the concrete struct name now that it's defined
-bool EnterInterior(MapData& m, Player& p, int buildingId);
-// FIX: Replaced Player& p with the concrete struct name now that it's defined
-bool ExitInterior(MapData& m, Player& p);
+void InitializePlayerFromMapStart(MapData& m, MapPlayerState& p);
+bool EnterInterior(MapData& m, MapPlayerState& p, int buildingId);
+bool ExitInterior(MapData& m, MapPlayerState& p);
 const Interior* GetInterior(const MapData& m, const std::string& id);
-
 
 // Legacy compatibility functions
 void GenerateMap(char map[MAP_SIZE][MAP_SIZE]);

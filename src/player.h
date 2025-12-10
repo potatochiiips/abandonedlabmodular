@@ -1,17 +1,26 @@
 #pragma once
 #include "globals.h"
+
+// Player structure for map system compatibility
 struct Player {
     Vector3 position;
     float yaw;
     float pitch;
-    bool insideInterior; // For map logic
-    int worldX = 0;
-    int worldY = 0;
-    int interiorX = 0;
-    int interiorY = 0;
-    int currentBuildingId = -1;
-    int currentInteriorId = -1;
+    bool insideInterior;
+    int worldX;
+    int worldY;
+    int interiorX;
+    int interiorY;
+    int currentBuildingId;
+    std::string currentInteriorId;
+
+    Player() : yaw(0), pitch(0), insideInterior(false),
+        worldX(0), worldY(0), interiorX(0), interiorY(0),
+        currentBuildingId(-1) {
+        position = Vector3{ 0, 0, 0 };
+    }
 };
+
 // Core player and controller logic prototypes
 void DrawPlayerHands(Camera3D camera, InventorySlot* inventory, float pistolRecoilPitch, float pistolRecoilYaw);
 const char* GetGamepadButtonName(int button);

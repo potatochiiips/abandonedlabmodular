@@ -5,11 +5,11 @@
 #include <ctime>
 #include <cmath>
 #include <unordered_map>
-#include <rlgl.h> 
-#include <player.h> 
+#include <rlgl.h>
+
 // Global instances
 MapData g_MapData;
-MapPlayerState g_MapPlayer; 
+MapPlayerState g_MapPlayer;
 std::vector<Door> doors;
 std::vector<Building> buildings;
 int currentFloor = -1;
@@ -25,21 +25,13 @@ static int idCounter = 1;
 #define BUSH_TILE 'b'
 #define FLOWER_TILE 'f'
 
+// Helper to draw textured cubes (forward declaration)
+void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float height, float length, Color color);
+
 // =============================================================================
 // NEW MAP SYSTEM IMPLEMENTATION
 // =============================================================================
-//
-// 
-//helper patch for player struct
-void CopyMapPlayerStateToPlayer(const MapPlayerState& state, Player& player) {
-    player.worldX = state.worldX;
-    player.worldY = state.worldY;
-    player.interiorX = state.interiorX;
-    player.interiorY = state.interiorY;
-    player.currentBuildingId = state.currentBuildingId;
-    player.currentInteriorId = state.currentInteriorId;
-    // copy any additional fields if needed
-}
+
 static inline bool InBounds(const MapData& m, int x, int y) {
     return x >= 0 && y >= 0 && x < m.width && y < m.height;
 }
@@ -149,7 +141,7 @@ static Interior MakeHouseInterior(const std::string& id, int variant = 0) {
 
     it.tiles[(h - 1) * w + (w / 2)] = IT_DOOR;
     it.tiles[1 * w + 1] = IT_BED;
-    it.spawns.push_back({ 1,1,"pillow" });
+    it.spawns.push_back({ 1, 1, "pillow" });
 
     return it;
 }
@@ -179,7 +171,7 @@ static void PlaceBuilding(MapData& m, int x, int y, int w, int h, BuildingType b
     FillRectWorld(m, x, y, w, h, WT_BUILDING_FOOTPRINT);
 
     Building b;
-    b.footprint = { x,y,w,h };
+    b.footprint = { x, y, w, h };
     b.type = btype;
     b.interiorId = interiorId;
     b.id = idCounter++;
@@ -192,6 +184,8 @@ static void PlaceBuilding(MapData& m, int x, int y, int w, int h, BuildingType b
     }
     b.entranceX = ex;
     b.entranceY = ey;
+    b.position = Vector3{ (float)ex, 0.0f, (float)ey };
+    b.floor = 0;
 
     if (InBounds(m, ex, ey)) m.tiles[ey * m.width + ex] = WT_ROAD;
     m.buildings.push_back(b);
@@ -260,7 +254,7 @@ void GenerateMapData(MapData& m) {
 }
 
 // Initialize player from map start
-void InitializePlayerFromMapStart(MapData& m, Player& p) {
+void InitializePlayerFromMapStart(MapData& m, MapPlayerState& p) {
     if (m.startInsideInterior) {
         const Interior* inter = GetInterior(m, m.startInteriorId);
         if (inter) {
@@ -301,7 +295,7 @@ const Interior* GetInterior(const MapData& m, const std::string& id) {
 }
 
 // Enter interior
-bool EnterInterior(MapData& m, Player& p, int buildingId) {
+bool EnterInterior(MapData& m, MapPlayerState& p, int buildingId) {
     auto it = std::find_if(m.buildings.begin(), m.buildings.end(),
         [&](const Building& b) { return b.id == buildingId; });
     if (it == m.buildings.end()) return false;
@@ -326,7 +320,7 @@ bool EnterInterior(MapData& m, Player& p, int buildingId) {
 }
 
 // Exit interior
-bool ExitInterior(MapData& m, Player& p) {
+bool ExitInterior(MapData& m, MapPlayerState& p) {
     if (!p.insideInterior) return false;
 
     auto it = std::find_if(m.buildings.begin(), m.buildings.end(),
@@ -415,8 +409,8 @@ void DrawMinimap(char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw,
 
             // Draw player position in interior
             Vector2 playerMapPos = {
-                minimapX + (int)(g_MapPlayer.interiorX * cellSize),
-                minimapY + 20 + (int)(g_MapPlayer.interiorY * cellSize)
+                minimapX + (float)(g_MapPlayer.interiorX * cellSize),
+                minimapY + 20 + (float)(g_MapPlayer.interiorY * cellSize)
             };
             DrawCircleV(playerMapPos, fmaxf(3.0f, cellSize * 0.8f), Color{ 255, 50, 50, 255 });
         }
@@ -435,11 +429,11 @@ void DrawMinimap(char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw,
 
                 Color col = PIPBOY_DIM;
                 switch (map[worldZ][worldX]) {
-                case '~': col = Color{ 30, 60, 120, 255 }; break; // Water
+                case '~': col = Color{ 30, 60, 120, 255 }; break;
                 case BUILDING_TILE: col = Color{ 100, 100, 120, 255 }; break;
                 case ROAD_TILE: col = Color{ 80, 80, 80, 255 }; break;
                 case GRASS_TILE: col = Color{ 30, 120, 30, 200 }; break;
-                case '.': col = Color{ 90, 90, 95, 255 }; break; // Concrete
+                case '.': col = Color{ 90, 90, 95, 255 }; break;
                 }
 
                 int drawX = minimapX + (int)((c + viewRange) * cellSize);
@@ -453,7 +447,6 @@ void DrawMinimap(char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw,
     }
 }
 
-// Placeholder implementations for other legacy functions
 void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3 cameraPos, float zoom) {
     const int menuW = screenW - 200;
     const int menuH = screenH - 120;
@@ -468,7 +461,6 @@ void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3
 }
 
 void DrawMapGeometry(char map[MAP_SIZE][MAP_SIZE]) {
-    // Simplified - draw basic geometry based on legacy map
     Texture2D grassTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_GRASS) : Texture2D{ 0 };
     Texture2D roadTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_ROAD_ASPHALT) : Texture2D{ 0 };
 
@@ -498,7 +490,19 @@ void UpdateDoors(float deltaTime) {
 }
 
 Door* GetNearestDoor(Vector3 playerPos, float maxDistance) {
-    return nullptr;
+    // Search in door list
+    Door* nearest = nullptr;
+    float minDist = maxDistance;
+
+    for (auto& door : doors) {
+        float dist = Vector3Distance(playerPos, door.position);
+        if (dist < minDist) {
+            minDist = dist;
+            nearest = &door;
+        }
+    }
+
+    return nearest;
 }
 
 bool IsAABBInFrustum(const Camera3D& camera, const AABB& box) {
@@ -508,6 +512,3 @@ bool IsAABBInFrustum(const Camera3D& camera, const AABB& box) {
                 (box.min.z + box.max.z) * 0.5f });
     return distance < 100.0f;
 }
-
-// Helper to draw textured cube
-extern void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float height, float length, Color color);
