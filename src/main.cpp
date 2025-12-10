@@ -267,8 +267,7 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     // *** NEW: Initialize model system ***
     InitializeModelSystem();
     
-    // *** NEW: Initialize sound system (if not already done) ***
-    InitializeSoundSystem();
+    // *** NEW: Initialize sound system
 
     InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov);
 
@@ -747,8 +746,8 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
         EndDrawing();
     }
     // Cleanup rendering systems
-    CleanupModelSystem();      
-    CleanupSoundSystem();      
+    CleanupModelSystem();  
+	//close sound system      
     CleanupRenderingSystems();
 
     CloseWindow();

@@ -56,17 +56,17 @@ bool IsActionDown(int actionIndex, const ControllerBinding* currentBindings) {
 // Get ModelID from item ID
 ModelID GetModelIDFromItem(int itemId) {
     switch (itemId) {
-        case ITEM_PISTOL: return MODEL_PISTOL;
-        case ITEM_M16: return MODEL_M16;
-        case ITEM_FLASHLIGHT: return MODEL_FLASHLIGHT;
-        case ITEM_WATER_BOTTLE: return MODEL_WATER_BOTTLE;
-        case ITEM_LAB_KEY: return MODEL_LAB_KEY;
-        case ITEM_WOOD: return MODEL_WOOD;
-        case ITEM_STONE: return MODEL_STONE;
-        case ITEM_POTATO_CHIPS: return MODEL_POTATO_CHIPS;
-        case ITEM_MAG: return MODEL_MAGAZINE;
-        case ITEM_M16_MAG: return MODEL_M16_MAGAZINE;
-        default: return MODEL_PISTOL; // Fallback
+    case ITEM_PISTOL: return MODEL_PISTOL;
+    case ITEM_M16: return MODEL_M16;
+    case ITEM_FLASHLIGHT: return MODEL_FLASHLIGHT;
+    case ITEM_WATER_BOTTLE: return MODEL_WATER_BOTTLE;
+    case ITEM_LAB_KEY: return MODEL_LAB_KEY;
+    case ITEM_WOOD: return MODEL_WOOD;
+    case ITEM_STONE: return MODEL_STONE;
+    case ITEM_POTATO_CHIPS: return MODEL_POTATO_CHIPS;
+    case ITEM_MAG: return MODEL_MAGAZINE;
+    case ITEM_M16_MAG: return MODEL_M16_MAGAZINE;
+    default: return MODEL_PISTOL; // Fallback
     }
 }
 
@@ -106,7 +106,7 @@ void DrawPlayerHands(Camera3D camera, InventorySlot* inventory, float pistolReco
     if (g_ModelManager) {
         ModelID modelId = GetModelIDFromItem(itemId);
         g_ModelManager->DrawModel(modelId, basePos, forward, right, up, WHITE);
-        
+
         // Add glow effect for flashlight when on
         if (itemId == ITEM_FLASHLIGHT && isFlashlightOn) {
             Vector3 glowPos = Vector3Add(basePos, Vector3Scale(forward, 0.08f));
@@ -114,14 +114,16 @@ void DrawPlayerHands(Camera3D camera, InventorySlot* inventory, float pistolReco
             DrawSphere(glowPos, 0.03f, Color{ 255, 255, 200, 150 });
             DrawSphere(glowPos, 0.02f, Color{ 255, 255, 180, 200 });
         }
-    } else {
+    }
+    else {
         // Fallback to simple cube if model manager not available
         DrawCube(basePos, 0.05f, 0.05f, 0.05f, GRAY);
     }
 }
 
 void UpdatePlayer(float deltaTime, Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* yaw, float* pitch, bool* onGround, float playerSpeed, float playerHeight, float gravity, float jumpForce, float* stamina, bool isNoclip, bool useController) {
-    extern ControllerBinding* bindings;
+    // FIX: Declare bindings as external (defined in controller_bindings.cpp)
+    extern ControllerBinding bindings[ACTION_COUNT];
 
     Vector2 mouseDelta = GetMouseDelta();
     if (useController) {
