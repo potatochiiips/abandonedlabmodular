@@ -326,8 +326,8 @@ void DrawInventory(int screenW, int screenH, InventorySlot* inventory, int* sele
                 Vector3 right = Vector3{ -sinf(rotation * DEG2RAD), 0.0f, cosf(rotation * DEG2RAD) };
                 Vector3 up = Vector3{ 0.0f, 1.0f, 0.0f };
 
-              //  ModelID modelId = GetModelIDFromItem(item.itemId);
-              //  g_ModelManager->DrawModel(modelId, itemPos, forward, right, up, WHITE);
+                ModelID modelId = GetModelIDFromItem(item.itemId);
+                g_ModelManager->DrawModel(modelId, itemPos, forward, right, up, WHITE);
 
                 EndMode3D();
                 EndScissorMode();
