@@ -14,6 +14,7 @@
 #include <fstream>
 #include <unordered_map>
 
+
 // ----------------------------------------------------------------------------------
 // COMPATIBILITY FIXES FOR OLDER RAYLIB VERSIONS (Missing constants/functions)
 // ----------------------------------------------------------------------------------
@@ -53,7 +54,8 @@ enum class GameState {
     LoadMenu,
     Console,
     ControllerBindings,
-    GraphicsSettings
+    GraphicsSettings,
+    AudioSettings
 };
 
 // --- ITEM DEFINITIONS ---
@@ -244,7 +246,7 @@ extern bool isFullscreen;
 extern int settingsSelection;
 extern int controllerSettingsSelection;
 extern int graphicsSettingsSelection;
-
+extern int audioSettingsSelection;
 extern bool isBindingMode;
 extern int activeBindingIndex;
 extern int saveSlotSelection;
@@ -257,6 +259,7 @@ extern bool cursorHidden;
 
 extern GameState gameState;
 extern GameState stateBeforeSettings;
+
 
 extern GraphicsSettings graphicsSettings;
 

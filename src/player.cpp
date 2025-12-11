@@ -54,6 +54,7 @@ bool IsActionDown(int actionIndex, const ControllerBinding* currentBindings) {
 }
 
 // Get ModelID from item ID
+
 ModelID GetModelIDFromItem(int itemId) {
     switch (itemId) {
     case ITEM_PISTOL: return MODEL_PISTOL;

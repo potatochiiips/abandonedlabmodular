@@ -21,6 +21,8 @@ struct Player {
     }
 };
 
+
+
 // Core player and controller logic prototypes
 void DrawPlayerHands(Camera3D camera, InventorySlot* inventory, float pistolRecoilPitch, float pistolRecoilYaw);
 const char* GetGamepadButtonName(int button);
@@ -32,3 +34,4 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
 
 // Player movement update (used in main loop)
 void UpdatePlayer(float deltaTime, Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* yaw, float* pitch, bool* onGround, float playerSpeed, float playerHeight, float gravity, float jumpForce, float* stamina, bool isNoclip, bool useController);
+

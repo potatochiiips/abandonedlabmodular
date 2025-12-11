@@ -60,6 +60,7 @@ bool isFullscreen = false;
 int settingsSelection = 0;
 int controllerSettingsSelection = 0;
 int graphicsSettingsSelection = 0;
+int audioSettingsSelection = 0;
 bool isBindingMode = false;
 int activeBindingIndex = -1;
 int saveSlotSelection = 0;
@@ -238,38 +239,50 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
 }
 
 
-   int main() {
-    // Load graphics settings before window creation
+int main() {
     LoadGraphicsSettings(&graphicsSettings);
+    const Resolution& initialRes = AVAILABLE_RESOLUTIONS[graphicsSettings.resolutionIndex];
 
-    const Resolution& initialRes = AVAILABLE_RESOLUTIONS[graphicsSettings.resolutionIndex];;
-    InitializeUpscalingSystem(initialRes.width, initialRes.height);
-    
-    // Set config flags before InitWindow
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    // Set fullscreen flag BEFORE InitWindow
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_FULLSCREEN_MODE);
     if (graphicsSettings.msaa) {
         if (graphicsSettings.msaaSamples == 2) SetConfigFlags(FLAG_MSAA_4X_HINT);
         else if (graphicsSettings.msaaSamples == 4) SetConfigFlags(FLAG_MSAA_4X_HINT);
     }
 
-    InitWindow(initialRes.width, initialRes.height, "Echoes of Time");
+    // Initialize window in fullscreen
+    int monitorWidth = GetMonitorWidth(0);
+    int monitorHeight = GetMonitorHeight(0);
+    InitWindow(monitorWidth, monitorHeight, "Echoes of Time");
     SetExitKey(KEY_NULL);
-    EnableCursor();
-    cursorHidden = false;
+    BeginDrawing();
 
-    // Apply initial graphics settings
+    // Load splash screen FIRST (before other assets)
+    Texture2D splashTexture = LoadTexture("assets/splash.png");
+
+    // Draw splash screen while loading
+    BeginDrawing();
+    ClearBackground(BLACK);
+    if (splashTexture.id > 0) {
+        // Center splash on screen
+        int splashX = (monitorWidth - splashTexture.width) / 2;
+        int splashY = (monitorHeight - splashTexture.height) / 2;
+        DrawTexture(splashTexture, splashX, splashY, WHITE);
+    }
+    DrawText("LOADING...", monitorWidth / - 60, monitorHeight - 50, 20, WHITE);
+    EndDrawing();
+
+    InitializeUpscalingSystem(initialRes.width, initialRes.height);
     ApplyGraphicsSettings(graphicsSettings);
-   
-    // Load the splash screen image (this should be small and load quickly)
-     Texture2D splashTexture = LoadTexture("assets/splash.png"); 
-    
-    // Initialize rendering systems (textures and shaders)
+
+    // Initialize all systems (this takes time - splash is visible during this)
     InitializeRenderingSystems();
-    
-    // *** NEW: Initialize model system ***
     InitializeModelSystem();
-    
-    // *** NEW: Initialize sound system
+
+    // Unload splash after everything loaded
+    if (splashTexture.id > 0) {
+        UnloadTexture(splashTexture);
+    }
 
     InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov);
 
@@ -324,6 +337,9 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
                 gameState = GameState::Paused;
             }
             else if (gameState == GameState::GraphicsSettings) {
+                gameState = GameState::Settings;
+            }
+            else if (gameState == GameState::AudioSettings) {
                 gameState = GameState::Settings;
             }
             else if (gameState == GameState::ControllerBindings) {
@@ -727,6 +743,10 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
         else if (gameState == GameState::Settings) {
             GameState tempState = stateBeforeSettings;
             DrawSettingsMenu(screenW, screenH, &showMinimap, &isControllerEnabled, &isFullscreen, &settingsSelection, &tempState);
+        }
+        else if (gameState == GameState::AudioSettings) {
+            GameState tempState = GameState::Settings;
+            DrawAudioSettingsMenu(screenW, screenH, &audioSettingsSelection, &tempState);
         }
         else if (gameState == GameState::GraphicsSettings) {
             GameState tempState = GameState::Settings;
