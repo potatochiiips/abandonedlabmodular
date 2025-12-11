@@ -1,7 +1,7 @@
 #include "inventory.h"
 #include "items.h"
 #include "model_manager.h"
-#include "player.h" // For GetModelIDFromItem
+#include "player.h" // For GetModelIDFromItem - this is the correct header
 
 // Static variables for drag and drop
 static bool isDragging = false;
@@ -296,7 +296,7 @@ void DrawInventory(int screenW, int screenH, InventorySlot* inventory, int* sele
         if (item.itemId != ITEM_NONE) {
             int detailY = invY + 90;
 
-            // === NEW: 3D ITEM PREVIEW ===
+            // === 3D ITEM PREVIEW ===
             if (g_ModelManager) {
                 // Create a small 3D viewport for item preview
                 int previewSize = 120;
@@ -334,7 +334,7 @@ void DrawInventory(int screenW, int screenH, InventorySlot* inventory, int* sele
 
                 detailY += previewSize + 10;
             }
-            // === END 3D PREVIEW ===
+
             // Text details below preview
             DrawText(TextFormat("Name: %s", GetItemName(item.itemId)), detailPanelX + 10, detailY, 15, PIPBOY_GREEN);
             DrawText(TextFormat("Qty: %d", item.quantity), detailPanelX + 10, detailY + 20, 15, PIPBOY_GREEN);

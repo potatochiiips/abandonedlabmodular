@@ -1,5 +1,3 @@
-// Complete updated main.cpp with fixes for build errors
-
 #include "globals.h"
 #include "hud.h"
 #include "menus.h"
@@ -243,34 +241,73 @@ int main() {
     LoadGraphicsSettings(&graphicsSettings);
     const Resolution& initialRes = AVAILABLE_RESOLUTIONS[graphicsSettings.resolutionIndex];
 
+    // Get monitor resolution for fullscreen
+    int monitorWidth = GetMonitorWidth(0);
+    int monitorHeight = GetMonitorHeight(0);
+
     // Set fullscreen flag BEFORE InitWindow
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_FULLSCREEN_MODE);
     if (graphicsSettings.msaa) {
         if (graphicsSettings.msaaSamples == 2) SetConfigFlags(FLAG_MSAA_4X_HINT);
         else if (graphicsSettings.msaaSamples == 4) SetConfigFlags(FLAG_MSAA_4X_HINT);
     }
-    
+
     // Initialize window in fullscreen
-    int monitorWidth = GetMonitorWidth(0);
-    int monitorHeight = GetMonitorHeight(0);
     InitWindow(monitorWidth, monitorHeight, "Echoes of Time");
     SetExitKey(KEY_NULL);
-    BeginDrawing();
+
+    // ==============================================================
+    // FIXED SPLASH SCREEN RENDERING
+    // ==============================================================
 
     // Load splash screen FIRST (before other assets)
     Texture2D splashTexture = LoadTexture("assets/splash.png");
 
-    // Draw splash screen while loading
+    // Draw fullscreen splash while loading
     BeginDrawing();
     ClearBackground(BLACK);
     if (splashTexture.id > 0) {
-        // Center splash on screen
-        int splashX = (monitorWidth - splashTexture.width) / 2;
-        int splashY = (monitorHeight - splashTexture.height) / 2;
-        DrawTexture(splashTexture, splashX, splashY, WHITE);
+        // Calculate aspect-preserving dimensions to fill screen
+        float splashAspect = (float)splashTexture.width / (float)splashTexture.height;
+        float screenAspect = (float)monitorWidth / (float)monitorHeight;
+
+        int drawWidth, drawHeight, drawX, drawY;
+
+        if (screenAspect > splashAspect) {
+            // Screen is wider - fit to height
+            drawHeight = monitorHeight;
+            drawWidth = (int)(drawHeight * splashAspect);
+            drawX = (monitorWidth - drawWidth) / 2;
+            drawY = 0;
+        }
+        else {
+            // Screen is taller - fit to width
+            drawWidth = monitorWidth;
+            drawHeight = (int)(drawWidth / splashAspect);
+            drawX = 0;
+            drawY = (monitorHeight - drawHeight) / 2;
+        }
+
+        // Draw splash centered and scaled
+        DrawTexturePro(
+            splashTexture,
+            Rectangle{ 0, 0, (float)splashTexture.width, (float)splashTexture.height },
+            Rectangle{ (float)drawX, (float)drawY, (float)drawWidth, (float)drawHeight },
+            Vector2{ 0, 0 },
+            0.0f,
+            WHITE
+        );
     }
-    DrawText("LOADING...", monitorWidth / 2 - 60, monitorHeight - 50, 20, WHITE);
+
+    // Draw loading text at bottom center
+    const char* loadingText = "LOADING...";
+    int textWidth = MeasureText(loadingText, 40);
+    DrawText(loadingText, monitorWidth / 2 - textWidth / 2, monitorHeight - 80, 40, WHITE);
+
     EndDrawing();
+    // ==============================================================
+    // END SPLASH SCREEN FIX
+    // ==============================================================
 
     InitializeUpscalingSystem(initialRes.width, initialRes.height);
     ApplyGraphicsSettings(graphicsSettings);

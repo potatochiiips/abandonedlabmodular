@@ -19,25 +19,8 @@ static const char* MODEL_PATHS[MODEL_COUNT] = {
     "assets/models/m16_magazine.glb"
 };
 
-// Model scales and offsets for proper display
-struct ModelTransform {
-    Vector3 scale;
-    Vector3 offset;
-    Vector3 rotation;
-};
-
-static const ModelTransform MODEL_TRANSFORMS[MODEL_COUNT] = {
-    {{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}},    // Pistol
-    {{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}},    // M16
-    {{0.8f, 0.8f, 0.8f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}},    // Flashlight
-    {{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}},    // Water bottle
-    {{0.3f, 0.3f, 0.3f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}},    // Lab key
-    {{0.6f, 0.6f, 0.6f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}},    // Wood
-    {{0.4f, 0.4f, 0.4f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}},    // Stone
-    {{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}},    // Potato chips
-    {{0.6f, 0.6f, 0.6f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}},    // Magazine
-    {{0.6f, 0.6f, 0.6f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}}     // M16 magazine
-};
+// Auto-calculated scales - models will be sized to fit in a 0.15 unit cube
+static const float TARGET_SIZE = 0.15f;
 
 ModelManager::ModelManager() {
     fallbackModel = { 0 };
@@ -58,10 +41,7 @@ void ModelManager::Initialize() {
         ModelID id = (ModelID)i;
 
         // Try to load from glTF/glb file
-        if (!LoadModelFile(id, MODEL_PATHS[i],
-            MODEL_TRANSFORMS[i].scale,
-            MODEL_TRANSFORMS[i].offset,
-            MODEL_TRANSFORMS[i].rotation)) {
+        if (!LoadModelFile(id, MODEL_PATHS[i])) {
             TraceLog(LOG_WARNING, "Failed to load model: %s - Using procedural fallback", MODEL_PATHS[i]);
 
             // Create procedural model as fallback
@@ -69,9 +49,9 @@ void ModelManager::Initialize() {
             ModelData data;
             data.model = procModel;
             data.loaded = true;
-            data.scale = MODEL_TRANSFORMS[i].scale;
-            data.offset = MODEL_TRANSFORMS[i].offset;
-            data.rotation = MODEL_TRANSFORMS[i].rotation;
+            data.scale = CalculateAutoScale(procModel);
+            data.offset = Vector3{ 0.0f, 0.0f, 0.0f };
+            data.rotation = Vector3{ 0.0f, 0.0f, 0.0f };
             data.filename = MODEL_PATHS[i];
             models[id] = data;
         }
@@ -81,7 +61,30 @@ void ModelManager::Initialize() {
         (int)models.size(), MODEL_COUNT);
 }
 
-bool ModelManager::LoadModelFile(ModelID id, const char* filename, Vector3 scale, Vector3 offset, Vector3 rotation) {
+Vector3 ModelManager::CalculateAutoScale(const Model& model) {
+    if (model.meshCount == 0) return Vector3{ 1.0f, 1.0f, 1.0f };
+
+    // Get bounding box of first mesh
+    BoundingBox bbox = GetMeshBoundingBox(model.meshes[0]);
+
+    // Calculate dimensions
+    float width = bbox.max.x - bbox.min.x;
+    float height = bbox.max.y - bbox.min.y;
+    float depth = bbox.max.z - bbox.min.z;
+
+    // Find largest dimension
+    float maxDim = fmaxf(fmaxf(width, height), depth);
+
+    // Calculate uniform scale to fit target size
+    float scale = TARGET_SIZE / maxDim;
+
+    TraceLog(LOG_INFO, "Auto-scale calculated: %.3f (dimensions: %.3f x %.3f x %.3f)",
+        scale, width, height, depth);
+
+    return Vector3{ scale, scale, scale };
+}
+
+bool ModelManager::LoadModelFile(ModelID id, const char* filename) {
     if (FileExists(filename)) {
         Model model = LoadModel(filename);
         if (model.meshCount > 0) {
@@ -91,13 +94,14 @@ bool ModelManager::LoadModelFile(ModelID id, const char* filename, Vector3 scale
             ModelData data;
             data.model = model;
             data.loaded = true;
-            data.scale = scale;
-            data.offset = offset;
-            data.rotation = rotation;
+            data.scale = CalculateAutoScale(model); // AUTO-SCALE!
+            data.offset = Vector3{ 0.0f, 0.0f, 0.0f };
+            data.rotation = Vector3{ 0.0f, 0.0f, 0.0f };
             data.filename = filename;
 
             models[id] = data;
-            TraceLog(LOG_INFO, "Loaded model: %s", filename);
+            TraceLog(LOG_INFO, "Loaded model: %s (auto-scaled to %.3f)",
+                filename, data.scale.x);
             return true;
         }
         else {
@@ -181,12 +185,10 @@ Model ModelManager::CreateProceduralModel(ModelID id) {
         break;
 
     case MODEL_FLASHLIGHT:
-        // FIX: GenMeshCylinder takes 3 parameters (radius, height, slices)
         mesh = GenMeshCylinder(0.015f, 0.12f, 16);
         break;
 
     case MODEL_WATER_BOTTLE:
-        // FIX: GenMeshCylinder takes 3 parameters
         mesh = GenMeshCylinder(0.03f, 0.15f, 12);
         break;
 
@@ -276,10 +278,8 @@ void ModelManager::DrawModel(ModelID id, Vector3 position, Vector3 forward, Vect
     // Apply translation
     transform = MatrixMultiply(transform, MatrixTranslate(scaledPos.x, scaledPos.y, scaledPos.z));
 
-    // FIX: Use raylib's DrawModel with proper parameters
     rlPushMatrix();
     rlMultMatrixf(MatrixToFloat(transform));
-    // Draw using raylib's standard DrawModel (no position offset since we handle transform)
     ::DrawModel(data->model, Vector3Zero(), 1.0f, tint);
     rlPopMatrix();
 }

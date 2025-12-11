@@ -33,42 +33,44 @@ class ModelManager {
 public:
     ModelManager();
     ~ModelManager();
-    
+
     // Initialize and load all models
     void Initialize();
-    
+
     // Get a model by ID (returns fallback if missing)
     Model GetModel(ModelID id);
-    
+
     // Get model data (includes transform info)
     const ModelData* GetModelData(ModelID id);
-    
+
     // Check if a model is loaded
     bool IsLoaded(ModelID id);
-    
+
     // Reload all models
     void Reload();
-    
+
     // Unload all models
     void Unload();
-    
+
     // Draw a model with proper transforms
     void DrawModel(ModelID id, Vector3 position, Vector3 forward, Vector3 right, Vector3 up, Color tint = WHITE);
-    
+
 private:
     std::map<ModelID, ModelData> models;
     Model fallbackModel;
-    
+
     // Create fallback model (simple cube)
     void CreateFallbackModel();
-    
+
+    // Calculate automatic uniform scale for model to fit target size
+    Vector3 CalculateAutoScale(const Model& model);
+
     // Load individual model with error handling
-    bool LoadModelFile(ModelID id, const char* filename, Vector3 scale = {1.0f, 1.0f, 1.0f}, 
-                       Vector3 offset = {0.0f, 0.0f, 0.0f}, Vector3 rotation = {0.0f, 0.0f, 0.0f});
-    
+    bool LoadModelFile(ModelID id, const char* filename);
+
     // Create simple procedural model as fallback
     Model CreateProceduralModel(ModelID id);
-    
+
     // Apply textures from texture manager
     void ApplyTexturesToModel(Model& model, ModelID id);
 };

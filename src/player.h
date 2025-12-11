@@ -1,6 +1,9 @@
 #pragma once
 #include "globals.h"
 
+// Forward declare ModelID from model_manager.h
+enum ModelID;
+
 // Player structure for map system compatibility
 struct Player {
     Vector3 position;
@@ -21,7 +24,8 @@ struct Player {
     }
 };
 
-
+// Get ModelID from item ID - DECLARED HERE
+ModelID GetModelIDFromItem(int itemId);
 
 // Core player and controller logic prototypes
 void DrawPlayerHands(Camera3D camera, InventorySlot* inventory, float pistolRecoilPitch, float pistolRecoilYaw);
@@ -34,4 +38,3 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
 
 // Player movement update (used in main loop)
 void UpdatePlayer(float deltaTime, Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* yaw, float* pitch, bool* onGround, float playerSpeed, float playerHeight, float gravity, float jumpForce, float* stamina, bool isNoclip, bool useController);
-
