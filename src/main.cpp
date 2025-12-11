@@ -249,7 +249,7 @@ int main() {
         if (graphicsSettings.msaaSamples == 2) SetConfigFlags(FLAG_MSAA_4X_HINT);
         else if (graphicsSettings.msaaSamples == 4) SetConfigFlags(FLAG_MSAA_4X_HINT);
     }
-
+    
     // Initialize window in fullscreen
     int monitorWidth = GetMonitorWidth(0);
     int monitorHeight = GetMonitorHeight(0);
@@ -269,7 +269,7 @@ int main() {
         int splashY = (monitorHeight - splashTexture.height) / 2;
         DrawTexture(splashTexture, splashX, splashY, WHITE);
     }
-    DrawText("LOADING...", monitorWidth / - 60, monitorHeight - 50, 20, WHITE);
+    DrawText("LOADING...", monitorWidth / 2 - 60, monitorHeight - 50, 20, WHITE);
     EndDrawing();
 
     InitializeUpscalingSystem(initialRes.width, initialRes.height);
