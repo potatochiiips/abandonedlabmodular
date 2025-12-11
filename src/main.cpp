@@ -242,7 +242,7 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     // Load graphics settings before window creation
     LoadGraphicsSettings(&graphicsSettings);
 
-    const Resolution& initialRes = AVAILABLE_RESOLUTIONS[graphicsSettings.resolutionIndex];
+    const Resolution& initialRes = AVAILABLE_RESOLUTIONS[graphicsSettings.resolutionIndex];;
     InitializeUpscalingSystem(initialRes.width, initialRes.height);
     
     // Set config flags before InitWindow
@@ -252,15 +252,17 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
         else if (graphicsSettings.msaaSamples == 4) SetConfigFlags(FLAG_MSAA_4X_HINT);
     }
 
-    InitWindow(initialRes.width, initialRes.height, "Echoes of Time - Enhanced Edition");
+    InitWindow(initialRes.width, initialRes.height, "Echoes of Time");
     SetExitKey(KEY_NULL);
-
     EnableCursor();
     cursorHidden = false;
 
     // Apply initial graphics settings
     ApplyGraphicsSettings(graphicsSettings);
-
+   
+    // Load the splash screen image (this should be small and load quickly)
+     Texture2D splashTexture = LoadTexture("assets/splash.png"); 
+    
     // Initialize rendering systems (textures and shaders)
     InitializeRenderingSystems();
     
