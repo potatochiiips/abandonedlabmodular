@@ -315,6 +315,9 @@ int main() {
     // Initialize all systems (this takes time - splash is visible during this)
     InitializeRenderingSystems();
     InitializeModelSystem();
+    InitializeSkyboxSystem();
+    InitializeVehicleSystem();
+    InitializeAnimationSystem();
 
     // Unload splash after everything loaded
     if (splashTexture.id > 0) {
@@ -808,6 +811,9 @@ int main() {
     CleanupModelSystem();  
 	//close sound system      
     CleanupRenderingSystems();
+    CleanupAnimationSystem();
+    CleanupVehicleSystem();
+    CleanupSkyboxSystem();
 
     CloseWindow();
     return 0;

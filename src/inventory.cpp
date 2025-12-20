@@ -115,6 +115,12 @@ bool ReloadWeapon(InventorySlot* inventory) {
     }
 
     TraceLog(LOG_INFO, TextFormat("Reloaded! Ammo: %d/%d", equippedSlot->ammo, maxAmmo));
+    // Play reload animation
+    if (g_AnimationManager) {
+        AnimationType anim = (weaponId == ITEM_PISTOL) ?
+            ANIM_TYPE_RELOAD_PISTOL : ANIM_TYPE_RELOAD_RIFLE;
+        g_AnimationManager->PlayAnimation(anim, false);
+    }
     return true;
 }
 

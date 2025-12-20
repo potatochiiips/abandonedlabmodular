@@ -14,9 +14,8 @@
 #include <fstream>
 #include <unordered_map>
 
-
 // ----------------------------------------------------------------------------------
-// COMPATIBILITY FIXES FOR OLDER RAYLIB VERSIONS (Missing constants/functions)
+// COMPATIBILITY FIXES FOR OLDER RAYLIB VERSIONS
 // ----------------------------------------------------------------------------------
 #ifndef GAMEPAD_BUTTON_DPAD_UP
 #define GAMEPAD_BUTTON_DPAD_UP 12
@@ -33,17 +32,25 @@
 #endif
 
 // ----------------------------------------------------------------------------------
-// DATA STRUCTURES & DEFINITIONS
+// WORLD SIZE - DOUBLED
 // ----------------------------------------------------------------------------------
-
-// --- MAP DEFINITIONS ---
-#define WORLD_SIZE 128
+#define WORLD_SIZE 256  // DOUBLED from 128
 #define MAP_SIZE WORLD_SIZE
 #define TILE_WALL 0
 #define TILE_FLOOR 1
 #define TILE_DOOR 2
 #define GRID_SIZE 1.0f
-// -----------------------
+
+// Terrain constants
+#define TERRAIN_CHUNK_SIZE 16
+#define TERRAIN_CHUNKS_X (WORLD_SIZE / TERRAIN_CHUNK_SIZE)
+#define TERRAIN_CHUNKS_Z (WORLD_SIZE / TERRAIN_CHUNK_SIZE)
+#define TERRAIN_HEIGHT_SCALE 50.0f
+#define TERRAIN_BASE_HEIGHT 0.0f
+
+// ----------------------------------------------------------------------------------
+// DATA STRUCTURES & DEFINITIONS
+// ----------------------------------------------------------------------------------
 
 enum class GameState {
     MainMenu,
@@ -96,7 +103,86 @@ const int MAX_SAVE_SLOTS = 3;
 #define MAX_COMMAND_LENGTH 100
 
 // ==================================================================================
-// UPSCALING ENUMS (Must be defined before GraphicsSettings)
+// TERRAIN SYSTEM
+// ==================================================================================
+
+struct TerrainChunk {
+    Vector3 position;
+    Mesh mesh;
+    Model model;
+    float heights[TERRAIN_CHUNK_SIZE + 1][TERRAIN_CHUNK_SIZE + 1];
+    bool loaded;
+    bool visible;
+    int chunkX;
+    int chunkZ;
+};
+
+struct BiomeData {
+    float temperature;  // -1.0 to 1.0
+    float moisture;     // 0.0 to 1.0
+    float elevation;    // 0.0 to 1.0
+    Color groundColor;
+    float treeDensity;
+    float rockDensity;
+};
+
+// ==================================================================================
+// VEGETATION SYSTEM
+// ==================================================================================
+
+enum VegetationType {
+    VEG_GRASS_TUFT,
+    VEG_BUSH_SMALL,
+    VEG_BUSH_LARGE,
+    VEG_TREE_OAK,
+    VEG_TREE_PINE,
+    VEG_TREE_DEAD,
+    VEG_TREE_BURNT,
+    VEG_FLOWERS,
+    VEG_WEEDS,
+    VEG_IVY,
+    VEG_TYPE_COUNT
+};
+
+struct VegetationInstance {
+    VegetationType type;
+    Vector3 position;
+    float scale;
+    float rotation;
+    Color tint;
+};
+
+// ==================================================================================
+// DESTROYED CITY SYSTEM
+// ==================================================================================
+
+enum BuildingDamageLevel {
+    DAMAGE_NONE,
+    DAMAGE_LIGHT,      // Broken windows, graffiti
+    DAMAGE_MODERATE,   // Collapsed sections, holes
+    DAMAGE_HEAVY,      // Barely standing
+    DAMAGE_RUBBLE      // Just debris pile
+};
+
+enum DebrisType {
+    DEBRIS_CONCRETE,
+    DEBRIS_METAL,
+    DEBRIS_WOOD,
+    DEBRIS_GLASS,
+    DEBRIS_CAR_WRECK,
+    DEBRIS_FURNITURE,
+    DEBRIS_TYPE_COUNT
+};
+
+struct DebrisInstance {
+    DebrisType type;
+    Vector3 position;
+    Vector3 rotation;
+    float scale;
+};
+
+// ==================================================================================
+// UPSCALING ENUMS
 // ==================================================================================
 
 enum UpscalingMode {
@@ -137,6 +223,8 @@ struct GraphicsSettings {
     int maxDrawCalls;
     UpscalingMode upscalingMode;
     UpscalingQuality upscalingQuality;
+    float vegetationDensity;  // NEW: 0.0 to 1.0
+    float viewDistance;       // NEW: in meters
 };
 
 const Resolution AVAILABLE_RESOLUTIONS[] = {
@@ -168,7 +256,7 @@ struct CraftingRecipe {
 };
 
 // ==================================================================================
-// CONTROLLER BINDING STRUCTURES AND HELPERS 
+// CONTROLLER BINDING STRUCTURES
 // ==================================================================================
 
 #define GAMEPAD_PLAYER_MOVE_AXIS_X GAMEPAD_AXIS_LEFT_X
@@ -197,8 +285,49 @@ struct ControllerBinding {
 
 extern ControllerBinding bindings[ACTION_COUNT];
 
+// ==================================================================================
+// VEHICLE STRUCTURES
+// ==================================================================================
+
+struct Vehicle {
+    int id;
+    Vector3 position;
+    Vector3 velocity;
+    float rotation;
+    float speed;
+    float maxSpeed;
+    float acceleration;
+    float braking;
+    float handling;
+    int modelId;
+    bool isPlayerInside;
+    float wheelRotation;
+    float steeringAngle;
+};
+
+// ==================================================================================
+// ANIMATION SYSTEM
+// ==================================================================================
+
+enum AnimationType {
+    ANIM_TYPE_NONE,
+    ANIM_TYPE_DRINK,
+    ANIM_TYPE_RELOAD_PISTOL,
+    ANIM_TYPE_RELOAD_RIFLE,
+    ANIM_TYPE_IDLE,
+    ANIM_TYPE_DRAW_WEAPON
+};
+
+struct AnimationState {
+    AnimationType currentAnimation;
+    float animationTime;
+    float animationDuration;
+    bool isPlaying;
+    bool loop;
+};
+
 // ----------------------------------------------------------------------------------
-// Externs for globals used across translation units
+// Externs for globals
 // ----------------------------------------------------------------------------------
 extern Camera3D camera;
 extern Vector3 playerPosition;
@@ -260,8 +389,14 @@ extern bool cursorHidden;
 extern GameState gameState;
 extern GameState stateBeforeSettings;
 
-
 extern GraphicsSettings graphicsSettings;
+
+// Animation state
+extern AnimationState playerAnimState;
+
+// Vehicle state
+extern std::vector<Vehicle> vehicles;
+extern Vehicle* playerVehicle;
 
 // Prototype for InitNewGame
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov);
