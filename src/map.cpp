@@ -393,7 +393,26 @@ void Draw3DInterior(const Interior& interior) {
             // Draw props
             switch (tile) {
             case IT_CRYOPOD_BROKEN:
-                DrawCube(Vector3{ (float)x, 0.5f, (float)y }, 0.8f, 1.0f, 0.8f, Color{ 100, 150, 200, 255 });
+                // Use glTF model if available
+                if (g_ModelManager && g_ModelManager->IsLoaded(MODEL_CRYOPOD)) {
+                    Vector3 cryoPos = Vector3{ (float)x, 0.0f, (float)y };
+                    Vector3 forward = Vector3{ 0.0f, 0.0f, 1.0f };
+                    Vector3 right = Vector3{ 1.0f, 0.0f, 0.0f };
+                    Vector3 up = Vector3{ 0.0f, 1.0f, 0.0f };
+
+                    // Scale up the cryopod to be larger
+                    g_ModelManager->DrawModel(MODEL_CRYOPOD, cryoPos, forward, right, up,
+                        Color{ 100, 150, 200, 255 });
+
+                    // Add broken glass effect
+                    DrawSphere(Vector3Add(cryoPos, Vector3{ 0.0f, 1.0f, 0.3f }), 0.1f,
+                        Color{ 200, 220, 255, 100 });
+                }
+                else {
+                    // Fallback cube
+                    DrawCube(Vector3{ (float)x, 0.5f, (float)y },
+                        0.8f, 1.0f, 0.8f, Color{ 100, 150, 200, 255 });
+                }
                 break;
             case IT_CONSOLE:
                 DrawCube(Vector3{ (float)x, 0.4f, (float)y }, 0.6f, 0.8f, 0.6f, Color{ 80, 120, 160, 255 });
@@ -815,7 +834,6 @@ void DrawMinimap(char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw,
         DrawCircleV(centerPos, fmaxf(3.0f, cellSize * 0.8f), Color{ 255, 50, 50, 255 });
     }
 }
-
 void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3 cameraPos, float zoom) {
     const int menuW = screenW - 200;
     const int menuH = screenH - 120;
@@ -826,9 +844,144 @@ void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3
     DrawRectangleLines(menuX, menuY, menuW, menuH, PIPBOY_GREEN);
     DrawText("MAP", menuX + 20, menuY + 10, 30, PIPBOY_GREEN);
 
-    DrawMinimap(map, cameraPos, 0, menuX + 20, menuY + 60, menuW - 40, menuH - 80, true, screenH);
-}
+    // Instructions
+    DrawText("Left Click: Add Waypoint | Right Click: Remove Waypoint | ESC: Close",
+        menuX + 20, menuY + menuH - 30, 14, PIPBOY_DIM);
 
+    // Draw large minimap with waypoint support
+    int minimapX = menuX + 20;
+    int minimapY = menuY + 60;
+    int minimapW = menuW - 40;
+    int minimapH = menuH - 100;
+
+    // Calculate map scale
+    int viewRange = 50; // Show larger area on map menu
+    float cellSize = (float)minimapW / (viewRange * 2);
+
+    int playerX = (int)cameraPos.x;
+    int playerZ = (int)cameraPos.z;
+
+    // Draw map tiles
+    for (int r = -viewRange; r < viewRange; ++r) {
+        for (int c = -viewRange; c < viewRange; ++c) {
+            int worldX = playerX + c;
+            int worldZ = playerZ + r;
+
+            if (worldX < 0 || worldX >= MAP_SIZE || worldZ < 0 || worldZ >= MAP_SIZE) continue;
+
+            Color col = PIPBOY_DIM;
+
+            // Check if inside interior
+            if (g_MapPlayer.insideInterior) {
+                const Interior* interior = GetInterior(g_MapData, g_MapPlayer.currentInteriorId);
+                if (interior) {
+                    int localX = worldX - g_MapPlayer.interiorX + interior->width / 2;
+                    int localZ = worldZ - g_MapPlayer.interiorY + interior->height / 2;
+
+                    if (localX >= 0 && localX < interior->width && localZ >= 0 && localZ < interior->height) {
+                        int tile = interior->tiles[localZ * interior->width + localX];
+                        switch (tile) {
+                        case IT_WALL: col = Color{ 90, 90, 90, 255 }; break;
+                        case IT_DOOR: col = Color{ 200, 170, 60, 255 }; break;
+                        case IT_FLOOR: col = Color{ 100, 100, 100, 255 }; break;
+                        case IT_CRYOPOD_BROKEN: col = Color{ 255, 100, 100, 255 }; break;
+                        case IT_CONSOLE: col = Color{ 100, 200, 255, 255 }; break;
+                        default: col = Color{ 100, 100, 100, 255 }; break;
+                        }
+                    }
+                }
+            }
+            else {
+                // Outside - use world map
+                switch (map[worldZ][worldX]) {
+                case '~': col = Color{ 30, 60, 120, 255 }; break;
+                case 'B': col = Color{ 100, 100, 120, 255 }; break;
+                case '=': col = Color{ 80, 80, 80, 255 }; break;
+                case '"': col = Color{ 30, 120, 30, 200 }; break;
+                case '.': col = Color{ 90, 90, 95, 255 }; break;
+                }
+            }
+
+            int drawX = minimapX + (int)((c + viewRange) * cellSize);
+            int drawY = minimapY + (int)((r + viewRange) * cellSize);
+
+            if (drawX >= minimapX && drawX < minimapX + minimapW &&
+                drawY >= minimapY && drawY < minimapY + minimapH) {
+                DrawRectangle(drawX, drawY, (int)ceilf(cellSize), (int)ceilf(cellSize), col);
+            }
+        }
+    }
+
+    // Draw waypoints
+    for (const auto& wp : g_WaypointManager.GetWaypoints()) {
+        if (!wp.isActive) continue;
+
+        int wpX = (int)wp.position.x - playerX;
+        int wpZ = (int)wp.position.z - playerZ;
+
+        if (abs(wpX) < viewRange && abs(wpZ) < viewRange) {
+            int drawX = minimapX + (int)((wpX + viewRange) * cellSize);
+            int drawY = minimapY + (int)((wpZ + viewRange) * cellSize);
+
+            if (drawX >= minimapX && drawX < minimapX + minimapW &&
+                drawY >= minimapY && drawY < minimapY + minimapH) {
+
+                // Draw waypoint marker
+                DrawCircle(drawX, drawY, 8, BLACK);
+                DrawCircle(drawX, drawY, 6, wp.color);
+
+                // Draw waypoint name on hover
+                Vector2 mousePos = GetMousePosition();
+                float dist = Vector2Distance(mousePos, Vector2{ (float)drawX, (float)drawY });
+                if (dist < 12.0f) {
+                    int textW = MeasureText(wp.name.c_str(), 14);
+                    DrawRectangle(drawX - textW / 2 - 4, drawY - 30, textW + 8, 20, PIPBOY_DARK);
+                    DrawText(wp.name.c_str(), drawX - textW / 2, drawY - 26, 14, PIPBOY_GREEN);
+                }
+
+                // Right click to remove waypoint
+                if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) && dist < 12.0f) {
+                    g_WaypointManager.RemoveWaypoint(wp.id);
+                    TraceLog(LOG_INFO, "Removed waypoint: %s", wp.name.c_str());
+                }
+            }
+        }
+    }
+
+    // Draw player position
+    int playerDrawX = minimapX + minimapW / 2;
+    int playerDrawY = minimapY + minimapH / 2;
+    DrawCircle(playerDrawX, playerDrawY, 8, Color{ 255, 50, 50, 255 });
+    DrawCircle(playerDrawX, playerDrawY, 6, Color{ 255, 100, 100, 255 });
+
+    // Handle left click to add waypoint
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        Vector2 mousePos = GetMousePosition();
+
+        // Check if click is within minimap bounds
+        if (mousePos.x >= minimapX && mousePos.x <= minimapX + minimapW &&
+            mousePos.y >= minimapY && mousePos.y <= minimapY + minimapH) {
+
+            // Calculate world position from click
+            float relX = (mousePos.x - minimapX) / cellSize - viewRange;
+            float relZ = (mousePos.y - minimapY) / cellSize - viewRange;
+
+            Vector3 waypointPos = {
+                cameraPos.x + relX,
+                cameraPos.y,
+                cameraPos.z + relZ
+            };
+
+            // Add waypoint
+            static int waypointCounter = 1;
+            char waypointName[32];
+            snprintf(waypointName, sizeof(waypointName), "Waypoint %d", waypointCounter++);
+            g_WaypointManager.AddWaypoint(waypointPos, waypointName, YELLOW);
+            TraceLog(LOG_INFO, "Added waypoint at (%.1f, %.1f, %.1f)",
+                waypointPos.x, waypointPos.y, waypointPos.z);
+        }
+    }
+}
 void DrawMapGeometry(char map[MAP_SIZE][MAP_SIZE]) {
     // Use new 3D drawing system
     Draw3DWorld(g_MapData, g_MapPlayer);

@@ -53,8 +53,6 @@ bool IsActionDown(int actionIndex, const ControllerBinding* currentBindings) {
     return false;
 }
 
-// Get ModelID from item ID
-
 ModelID GetModelIDFromItem(int itemId) {
     switch (itemId) {
     case ITEM_PISTOL: return MODEL_PISTOL;
@@ -67,16 +65,15 @@ ModelID GetModelIDFromItem(int itemId) {
     case ITEM_POTATO_CHIPS: return MODEL_POTATO_CHIPS;
     case ITEM_MAG: return MODEL_MAGAZINE;
     case ITEM_M16_MAG: return MODEL_M16_MAGAZINE;
-    default: return MODEL_PISTOL; // Fallback
+    case ITEM_KNIFE: return MODEL_KNIFE;
+    default: return MODEL_PISTOL;
     }
 }
 
-// Enhanced player hands with glTF model rendering
 void DrawPlayerHands(Camera3D camera, InventorySlot* inventory, float pistolRecoilPitch, float pistolRecoilYaw) {
     int itemId = inventory[BACKPACK_SLOTS].itemId;
     if (itemId == ITEM_NONE) return;
 
-    // External variable
     extern bool isFlashlightOn;
 
     Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
@@ -92,7 +89,6 @@ void DrawPlayerHands(Camera3D camera, InventorySlot* inventory, float pistolReco
     basePos = Vector3Add(basePos, Vector3Scale(right, handRightOffset));
     basePos = Vector3Add(basePos, Vector3Scale(up, handDownOffset));
 
-    // Apply recoil with smooth decay
     if (pistolRecoilPitch > 0.01f || pistolRecoilYaw > 0.01f) {
         Vector3 recoilOffset = Vector3Scale(forward, -pistolRecoilPitch * 0.002f);
         Vector3 recoilUp = Vector3Scale(up, pistolRecoilPitch * 0.003f);
@@ -103,12 +99,10 @@ void DrawPlayerHands(Camera3D camera, InventorySlot* inventory, float pistolReco
         basePos = Vector3Add(basePos, recoilRight);
     }
 
-    // Draw item using model manager
     if (g_ModelManager) {
         ModelID modelId = GetModelIDFromItem(itemId);
         g_ModelManager->DrawModel(modelId, basePos, forward, right, up, WHITE);
 
-        // Add glow effect for flashlight when on
         if (itemId == ITEM_FLASHLIGHT && isFlashlightOn) {
             Vector3 glowPos = Vector3Add(basePos, Vector3Scale(forward, 0.08f));
             DrawSphere(glowPos, 0.04f, Color{ 255, 255, 220, 100 });
@@ -117,13 +111,11 @@ void DrawPlayerHands(Camera3D camera, InventorySlot* inventory, float pistolReco
         }
     }
     else {
-        // Fallback to simple cube if model manager not available
         DrawCube(basePos, 0.05f, 0.05f, 0.05f, GRAY);
     }
 }
 
 void UpdatePlayer(float deltaTime, Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* yaw, float* pitch, bool* onGround, float playerSpeed, float playerHeight, float gravity, float jumpForce, float* stamina, bool isNoclip, bool useController) {
-    // FIX: Declare bindings as external (defined in controller_bindings.cpp)
     extern ControllerBinding bindings[ACTION_COUNT];
 
     Vector2 mouseDelta = GetMouseDelta();

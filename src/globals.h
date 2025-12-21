@@ -17,7 +17,7 @@
 // ----------------------------------------------------------------------------------
 // FORWARD DECLARATIONS
 // ----------------------------------------------------------------------------------
-class AnimationManager;  // Forward declaration to fix compilation error
+class AnimationManager;
 
 // ----------------------------------------------------------------------------------
 // COMPATIBILITY FIXES FOR OLDER RAYLIB VERSIONS
@@ -39,7 +39,7 @@ class AnimationManager;  // Forward declaration to fix compilation error
 // ----------------------------------------------------------------------------------
 // WORLD SIZE - DOUBLED
 // ----------------------------------------------------------------------------------
-#define WORLD_SIZE 256  // DOUBLED from 128
+#define WORLD_SIZE 256
 #define MAP_SIZE WORLD_SIZE
 #define TILE_WALL 0
 #define TILE_FLOOR 1
@@ -52,7 +52,6 @@ class AnimationManager;  // Forward declaration to fix compilation error
 #define TERRAIN_CHUNKS_Z (WORLD_SIZE / TERRAIN_CHUNK_SIZE)
 #define TERRAIN_HEIGHT_SCALE 50.0f
 #define TERRAIN_BASE_HEIGHT 0.0f
-
 
 // ----------------------------------------------------------------------------------
 // DATA STRUCTURES & DEFINITIONS
@@ -83,6 +82,7 @@ enum class GameState {
 #define ITEM_MAG 8
 #define ITEM_M16 9
 #define ITEM_M16_MAG 10
+#define ITEM_KNIFE 11
 // ------------------------
 
 // --- FALLOUT 4 (PIP-BOY) STYLE COLORS ---
@@ -124,9 +124,9 @@ struct TerrainChunk {
 };
 
 struct BiomeData {
-    float temperature;  // -1.0 to 1.0
-    float moisture;     // 0.0 to 1.0
-    float elevation;    // 0.0 to 1.0
+    float temperature;
+    float moisture;
+    float elevation;
     Color groundColor;
     float treeDensity;
     float rockDensity;
@@ -164,10 +164,10 @@ struct VegetationInstance {
 
 enum BuildingDamageLevel {
     DAMAGE_NONE,
-    DAMAGE_LIGHT,      // Broken windows, graffiti
-    DAMAGE_MODERATE,   // Collapsed sections, holes
-    DAMAGE_HEAVY,      // Barely standing
-    DAMAGE_RUBBLE      // Just debris pile
+    DAMAGE_LIGHT,
+    DAMAGE_MODERATE,
+    DAMAGE_HEAVY,
+    DAMAGE_RUBBLE
 };
 
 enum DebrisType {
@@ -397,25 +397,17 @@ extern GameState stateBeforeSettings;
 
 extern GraphicsSettings graphicsSettings;
 
-// Animation state
 extern AnimationState playerAnimState;
-
-// Vehicle state
 extern std::vector<Vehicle> vehicles;
 extern Vehicle* playerVehicle;
-
-// Global animation manager pointer (now properly declared as pointer)
 extern AnimationManager* g_AnimationManager;
 
-// Prototype for InitNewGame
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov);
 
-// Graphics functions
 void ApplyGraphicsSettings(const GraphicsSettings& settings);
 void SaveGraphicsSettings(const GraphicsSettings& settings);
 void LoadGraphicsSettings(GraphicsSettings* settings);
 
-// Include other headers after forward declarations
 #include "waypoints.h"
 #include "quest_system.h"
 #include "weapons.h"

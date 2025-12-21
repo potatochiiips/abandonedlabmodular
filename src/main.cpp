@@ -208,6 +208,7 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     inventory[3] = { ITEM_MAG, 2, 0 };
     inventory[4] = { ITEM_M16, 1, 25 };
     inventory[5] = { ITEM_M16_MAG, 3, 0 };
+    inventory[6] = { ITEM_KNIFE, 1, 0 };
 
     GenerateMap(map);
 
@@ -467,9 +468,17 @@ int main() {
             if (gameState == GameState::Gameplay) {
                 DrawHUD(screenW, screenH, health, stamina, hunger, thirst, fov, flashlightBattery, isFlashlightOn, inventory);
                 g_QuestManager.DrawQuestTrackerCompact(screenW, screenH);
-                if (showMinimap) DrawMinimap(map, playerPosition, yaw, screenW - 160, 10, 150, 150, true, 0);
-            }
 
+                // Draw round minimap in top-right corner
+                if (showMinimap) {
+                    int minimapRadius = 75;
+                    int minimapX = screenW - minimapRadius - 20;
+                    int minimapY = minimapRadius + 20;
+                    int viewRange = 15;
+
+                    DrawRoundMinimap(map, playerPosition, yaw, minimapX, minimapY, minimapRadius, viewRange);
+                }
+            }
             if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
             if (isCraftingOpen) DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
             if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
