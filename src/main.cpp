@@ -140,7 +140,7 @@ void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float hei
     rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
 
     // Bottom Face
-    rlNormal3f(0.0f, -1.0f, 0.0f);
+    rlNormal3f(-1.0f, -1.0f, 0.0f);
     rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
     rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
     rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
@@ -171,16 +171,10 @@ void CloseInGameMenus() {
 }
 
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov) {
-    // Generate map data (player will spawn inside lab)
     GenerateMapData(g_MapData);
     InitializePlayerFromMapStart(g_MapData, g_MapPlayer);
 
-    // Set player position from spawn point (inside lab cryo room)
-    *playerPosition = Vector3{
-        (float)g_MapPlayer.interiorX,
-        playerHeight,
-        (float)g_MapPlayer.interiorY
-    };
+    *playerPosition = Vector3{ (float)g_MapPlayer.interiorX, playerHeight, (float)g_MapPlayer.interiorY };
     *playerVelocity = Vector3{ 0.0f, 0.0f, 0.0f };
     camera->position = *playerPosition;
 
@@ -215,10 +209,8 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     inventory[4] = { ITEM_M16, 1, 25 };
     inventory[5] = { ITEM_M16_MAG, 3, 0 };
 
-    // Convert to legacy map format for minimap
     GenerateMap(map);
 
-    // Reset weapon state
     g_CurrentWeaponState.animState = ANIM_IDLE;
     g_CurrentWeaponState.animTimer = 0.0f;
     g_CurrentWeaponState.isADS = false;
@@ -237,29 +229,10 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     };
     for (int i = 0; i < ACTION_COUNT; i++) bindings[i] = defaultBindings[i];
 
-    // Initialize quests
-    int quest1 = g_QuestManager.AddQuest(
-        "Welcome to the Lab",
-        "Get familiar with your surroundings and find basic supplies",
-        100
-    );
-    g_QuestManager.AddObjective(quest1, QUEST_OBJ_COLLECT, ITEM_WATER_BOTTLE, 2,
-        "Collect 2 water bottles");
-    g_QuestManager.AddObjective(quest1, QUEST_OBJ_COLLECT, ITEM_FLASHLIGHT, 1,
-        "Find a flashlight");
+    int quest1 = g_QuestManager.AddQuest("Welcome to the Lab", "Get familiar with your surroundings", 100);
+    g_QuestManager.AddObjective(quest1, QUEST_OBJ_COLLECT, ITEM_WATER_BOTTLE, 2, "Collect 2 water bottles");
 
-    int quest2 = g_QuestManager.AddQuest(
-        "Armed and Ready",
-        "Equip yourself with weapons and ammunition",
-        150
-    );
-    g_QuestManager.AddObjective(quest2, QUEST_OBJ_COLLECT, ITEM_PISTOL, 1,
-        "Find a pistol");
-    g_QuestManager.AddObjective(quest2, QUEST_OBJ_COLLECT, ITEM_MAG, 3,
-        "Collect 3 magazines");
-
-    TraceLog(LOG_INFO, "Player spawned inside lab at position: %.1f, %.1f, %.1f",
-        playerPosition->x, playerPosition->y, playerPosition->z);
+    TraceLog(LOG_INFO, "Player spawned inside lab at position: %.1f, %.1f, %.1f", playerPosition->x, playerPosition->y, playerPosition->z);
 }
 
 int main() {
@@ -275,69 +248,57 @@ int main() {
         else if (graphicsSettings.msaaSamples == 4) SetConfigFlags(FLAG_MSAA_4X_HINT);
     }
 
+    // 1. Init Window FIRST
     InitWindow(monitorWidth, monitorHeight, "Echoes of Time");
     SetExitKey(KEY_NULL);
 
-    // Load splash screen
+    // 2. Load splash screen AFTER InitWindow
     Texture2D splashTexture = LoadTexture("assets/splash.png");
 
-    BeginDrawing();
-    ClearBackground(BLACK);
-    if (splashTexture.id > 0) {
-        float splashAspect = (float)splashTexture.width / (float)splashTexture.height;
-        float screenAspect = (float)monitorWidth / (float)monitorHeight;
+    // 3. Splash Screen Display Loop (2.5 seconds)
+    float splashTime = 2.5f;
+    while (splashTime > 0 && !WindowShouldClose()) {
+        float dt = GetFrameTime();
+        splashTime -= dt;
 
-        int drawWidth, drawHeight, drawX, drawY;
+        BeginDrawing();
+        ClearBackground(BLACK);
 
-        if (screenAspect > splashAspect) {
-            drawHeight = monitorHeight;
-            drawWidth = (int)(drawHeight * splashAspect);
-            drawX = (monitorWidth - drawWidth) / 2;
-            drawY = 0;
+        if (splashTexture.id > 0) {
+            // Stretch the texture to fill the entire screen dimensions
+            DrawTexturePro(
+                splashTexture,
+                Rectangle{ 0, 0, (float)splashTexture.width, (float)splashTexture.height }, // Source (entire image)
+                Rectangle{ 0, 0, (float)GetScreenWidth(), (float)GetScreenHeight() },      // Destination (entire screen)
+                Vector2{ 0, 0 },
+                0.0f,
+                WHITE
+            );
         }
-        else {
-            drawWidth = monitorWidth;
-            drawHeight = (int)(drawWidth / splashAspect);
-            drawX = 0;
-            drawY = (monitorHeight - drawHeight) / 2;
-        }
 
-        DrawTexturePro(
-            splashTexture,
-            Rectangle{ 0, 0, (float)splashTexture.width, (float)splashTexture.height },
-            Rectangle{ (float)drawX, (float)drawY, (float)drawWidth, (float)drawHeight },
-            Vector2{ 0, 0 },
-            0.0f,
-            WHITE
-        );
+        const char* loadingText = "LOADING...";
+        int textWidth = MeasureText(loadingText, 40);
+        DrawText(loadingText, GetScreenWidth() / 2 - textWidth / 2, GetScreenHeight() - 80, 40, WHITE);
+        EndDrawing();
     }
 
-    const char* loadingText = "LOADING...";
-    int textWidth = MeasureText(loadingText, 40);
-    DrawText(loadingText, monitorWidth / 2 - textWidth / 2, monitorHeight - 80, 40, WHITE);
-    EndDrawing();
+    // 4. Cleanup Splash and Initialize Rest of Systems
+    if (splashTexture.id > 0) UnloadTexture(splashTexture);
 
     InitializeUpscalingSystem(initialRes.width, initialRes.height);
     ApplyGraphicsSettings(graphicsSettings);
-
-    // Initialize all systems
     InitializeRenderingSystems();
     InitializeModelSystem();
     InitializeSkyboxSystem();
     InitializeVehicleSystem();
     InitializeAnimationSystem();
 
-    if (splashTexture.id > 0) {
-        UnloadTexture(splashTexture);
-    }
-
     InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov);
-
-    int screenW = GetScreenWidth();
-    int screenH = GetScreenHeight();
 
     while (!WindowShouldClose()) {
         float deltaTime = GetFrameTime();
+        int screenW = GetScreenWidth();
+        int screenH = GetScreenHeight();
 
         // Performance monitoring
         frameTimeAccumulator += deltaTime;
@@ -351,13 +312,12 @@ int main() {
         bool isAnyMenuOpen = (inventoryOpen || isCraftingOpen || isMapOpen);
         bool useController = isControllerEnabled && IsGamepadAvailable(0);
 
+        // Cursor Handling
         bool shouldCaptureCursor = (gameState == GameState::Gameplay && !isAnyMenuOpen && !isBindingMode) || isBindingMode;
-
         static bool prevCursorCaptured = false;
         if (shouldCaptureCursor != prevCursorCaptured) {
             if (shouldCaptureCursor) {
-                Vector2 center = { (float)(screenW / 2), (float)(screenH / 2) };
-                SetMousePosition((int)center.x, (int)center.y);
+                SetMousePosition(screenW / 2, screenH / 2);
                 DisableCursor();
             }
             else {
@@ -376,26 +336,11 @@ int main() {
             else if (gameState == GameState::Paused) {
                 gameState = GameState::Gameplay;
             }
-            else if (gameState == GameState::LoadMenu) {
-                gameState = stateBeforeSettings;
-            }
-            else if (gameState == GameState::Settings) {
-                gameState = GameState::Paused;
-            }
-            else if (gameState == GameState::GraphicsSettings) {
-                gameState = GameState::Settings;
-            }
-            else if (gameState == GameState::AudioSettings) {
-                gameState = GameState::Settings;
-            }
-            else if (gameState == GameState::ControllerBindings) {
-                gameState = GameState::Settings;
-            }
-            else if (gameState == GameState::Console) {
-                gameState = GameState::Gameplay;
-            }
             else if (isAnyMenuOpen) {
                 CloseInGameMenus();
+            }
+            else if (gameState != GameState::MainMenu) {
+                gameState = stateBeforeSettings;
             }
         }
 
@@ -404,459 +349,154 @@ int main() {
             else if (gameState == GameState::Console) gameState = GameState::Gameplay;
         }
 
-        // --- Gameplay Input & Logic ---
+        // --- Gameplay Logic ---
         if (gameState == GameState::Gameplay) {
-            bool inventoryTogglePressed = IsKeyPressed(KEY_I) || (useController && IsActionPressed(ACTION_INVENTORY, bindings));
-            if (inventoryTogglePressed) { CloseInGameMenus(); inventoryOpen = !inventoryOpen; }
-
-            bool craftingTogglePressed = IsKeyPressed(KEY_C) || (useController && IsActionPressed(ACTION_CRAFTING, bindings));
-            if (craftingTogglePressed) { CloseInGameMenus(); isCraftingOpen = !isCraftingOpen; if (isCraftingOpen) selectedRecipeIndex = 0; }
-
-            bool mapTogglePressed = IsKeyPressed(KEY_M) || (useController && IsActionPressed(ACTION_MAP, bindings));
-            if (mapTogglePressed) { CloseInGameMenus(); isMapOpen = !isMapOpen; }
+            // Menu Toggles
+            if (IsKeyPressed(KEY_I) || (useController && IsActionPressed(ACTION_INVENTORY, bindings))) { CloseInGameMenus(); inventoryOpen = !inventoryOpen; }
+            if (IsKeyPressed(KEY_C) || (useController && IsActionPressed(ACTION_CRAFTING, bindings))) { CloseInGameMenus(); isCraftingOpen = !isCraftingOpen; selectedRecipeIndex = 0; }
+            if (IsKeyPressed(KEY_M) || (useController && IsActionPressed(ACTION_MAP, bindings))) { CloseInGameMenus(); isMapOpen = !isMapOpen; }
 
             if (!isAnyMenuOpen) {
-                // Check if player is in vehicle
                 if (g_VehicleManager && g_VehicleManager->IsPlayerInVehicle()) {
-                    // Vehicle controls
                     g_VehicleManager->HandleVehicleInput(deltaTime, useController);
-
-                    // Update camera to follow vehicle
-                    Vehicle* vehicle = g_VehicleManager->GetPlayerVehicle();
-                    if (vehicle) {
-                        camera.position = Vector3{
-                            vehicle->position.x,
-                            vehicle->position.y + 3.0f,
-                            vehicle->position.z - 5.0f
-                        };
-                        camera.target = vehicle->position;
+                    Vehicle* v = g_VehicleManager->GetPlayerVehicle();
+                    if (v) {
+                        camera.position = Vector3{ v->position.x, v->position.y + 3.0f, v->position.z - 5.0f };
+                        camera.target = v->position;
                     }
-
-                    // Exit vehicle
-                    bool exitPressed = IsKeyPressed(KEY_F) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT));
-                    if (exitPressed) {
+                    if (IsKeyPressed(KEY_F) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT))) {
                         g_VehicleManager->ExitVehicle();
-                        playerPosition = vehicle->position;
-                        camera.position = playerPosition;
+                        playerPosition = v->position;
                     }
                 }
                 else {
-                    // Normal player movement
                     UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
                 }
 
-                // Door interaction
-                if (IsKeyPressed(KEY_E) && !inventoryOpen && !isCraftingOpen && !isMapOpen) {
-                    // First check for vehicle entry
-                    if (g_VehicleManager && !g_VehicleManager->IsPlayerInVehicle()) {
-                        if (g_VehicleManager->TryEnterVehicle(playerPosition)) {
-                            TraceLog(LOG_INFO, "Entered vehicle");
-                        }
-                        else {
-                            // Try door interaction
-                            Door* nearDoor = GetNearestDoor(playerPosition, 2.5f);
-                            if (nearDoor) {
-                                if (g_MapPlayer.insideInterior) {
-                                    if (nearDoor->isInteriorDoor && nearDoor->buildingId == g_MapPlayer.currentBuildingId) {
-                                        if (ExitInterior(g_MapData, g_MapPlayer)) {
-                                            playerPosition = Vector3{
-                                                (float)g_MapPlayer.worldX,
-                                                playerHeight,
-                                                (float)g_MapPlayer.worldY
-                                            };
-                                            camera.position = playerPosition;
-                                            TraceLog(LOG_INFO, "Exited to exterior");
-                                        }
-                                    }
-                                }
-                                else {
-                                    if (!nearDoor->isInteriorDoor) {
-                                        if (EnterInterior(g_MapData, g_MapPlayer, nearDoor->buildingId)) {
-                                            playerPosition = Vector3{
-                                                (float)g_MapPlayer.interiorX,
-                                                playerHeight,
-                                                (float)g_MapPlayer.interiorY
-                                            };
-                                            camera.position = playerPosition;
-                                            TraceLog(LOG_INFO, "Entered building interior");
-                                        }
-                                    }
-                                }
-                            }
+                // Interactions
+                if (IsKeyPressed(KEY_E)) {
+                    if (g_VehicleManager && !g_VehicleManager->TryEnterVehicle(playerPosition)) {
+                        Door* nearDoor = GetNearestDoor(playerPosition, 2.5f);
+                        if (nearDoor) {
+                            if (g_MapPlayer.insideInterior) ExitInterior(g_MapData, g_MapPlayer);
+                            else EnterInterior(g_MapData, g_MapPlayer, nearDoor->buildingId);
+                            playerPosition = g_MapPlayer.insideInterior ? Vector3{ (float)g_MapPlayer.interiorX, playerHeight, (float)g_MapPlayer.interiorY } : Vector3{ (float)g_MapPlayer.worldX, playerHeight, (float)g_MapPlayer.worldY };
+                            camera.position = playerPosition;
                         }
                     }
                 }
 
                 UpdateDoors(deltaTime);
+                if (IsKeyPressed(KEY_F) && !g_VehicleManager->IsPlayerInVehicle()) isFlashlightOn = !isFlashlightOn;
 
-                // Flashlight toggle
-                bool flashlightPressed = useController ? IsActionPressed(ACTION_FLASHLIGHT, bindings) : IsKeyPressed(KEY_F);
-                if (flashlightPressed && !g_VehicleManager->IsPlayerInVehicle()) isFlashlightOn = !isFlashlightOn;
-
-                if (isFlashlightOn && flashlightBattery > 0.0f) {
-                    flashlightBattery -= 5.0f * deltaTime;
-                }
-                else if (flashlightBattery <= 0.0f) {
-                    isFlashlightOn = false;
-                    flashlightBattery = 0.0f;
+                // Combat logic
+                int eq = inventory[BACKPACK_SLOTS].itemId;
+                if (eq == ITEM_PISTOL || eq == ITEM_M16) {
+                    g_CurrentWeaponState.isADS = IsMouseButtonDown(MOUSE_RIGHT_BUTTON) || (useController && IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_TRIGGER_2));
                 }
 
-                // Use item
-                bool useItemPressed = useController ? IsActionPressed(ACTION_USE_ITEM, bindings) : IsMouseButtonPressed(MOUSE_RIGHT_BUTTON);
-                if (useItemPressed) {
-                    UseEquippedItem(inventory, &health, &stamina, &hunger, &thirst);
-                }
-
-                // ADS toggle
-                int equippedWeapon = inventory[BACKPACK_SLOTS].itemId;
-                if (equippedWeapon == ITEM_PISTOL || equippedWeapon == ITEM_M16) {
-                    bool adsPressed = IsMouseButtonDown(MOUSE_RIGHT_BUTTON) ||
-                        (useController && IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_TRIGGER_2));
-                    g_CurrentWeaponState.isADS = adsPressed;
-                }
-
-                // Reload weapon
-                bool reloadPressed = IsKeyPressed(KEY_R) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT));
-                if (reloadPressed && !isReloading) {
-                    if (ReloadWeapon(inventory)) {
-                        isReloading = true;
-                        WeaponStats* stats = g_WeaponSystem.GetWeaponStats(inventory[BACKPACK_SLOTS].itemId);
-                        reloadTimer = stats ? stats->reloadTime : 1.5f;
-                        g_CurrentWeaponState.animState = ANIM_RELOAD;
-                        g_CurrentWeaponState.animTimer = reloadTimer;
-                    }
+                if (IsKeyPressed(KEY_R) && !isReloading && ReloadWeapon(inventory)) {
+                    isReloading = true;
+                    WeaponStats* s = g_WeaponSystem.GetWeaponStats(inventory[BACKPACK_SLOTS].itemId);
+                    reloadTimer = s ? s->reloadTime : 1.5f;
                 }
 
                 if (isReloading) {
                     reloadTimer -= deltaTime;
-                    if (reloadTimer <= 0.0f) {
-                        isReloading = false;
-                        reloadTimer = 0.0f;
-                    }
+                    if (reloadTimer <= 0) isReloading = false;
                 }
 
-                // Weapon shooting
-                bool shootPressed = useController ? IsActionPressed(ACTION_SHOOT, bindings) : IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
-                if (shootPressed && shotTimer <= 0.0f && !isReloading) {
-                    int weaponId = inventory[BACKPACK_SLOTS].itemId;
-                    WeaponStats* stats = g_WeaponSystem.GetWeaponStats(weaponId);
-
-                    if (stats && inventory[BACKPACK_SLOTS].ammo > 0) {
-                        shotTimer = stats->fireRate;
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && shotTimer <= 0 && !isReloading) {
+                    WeaponStats* s = g_WeaponSystem.GetWeaponStats(eq);
+                    if (s && inventory[BACKPACK_SLOTS].ammo > 0) {
+                        shotTimer = s->fireRate;
                         inventory[BACKPACK_SLOTS].ammo--;
-
-                        pistolRecoilPitch = stats->recoilPitch;
-                        pistolRecoilYaw = stats->recoilYaw;
-
-                        g_CurrentWeaponState.recoilOffset.y = -0.02f;
-                        g_CurrentWeaponState.recoilOffset.z = -0.05f;
-
                         g_CurrentWeaponState.animState = ANIM_SHOOT;
                         g_CurrentWeaponState.animTimer = 0.2f;
-
-                        TraceLog(LOG_INFO, TextFormat("%s fired! Damage: %.0f",
-                            GetItemName(weaponId), stats->damage));
                     }
                 }
 
-                // Stat draining
-                float drainRate = 1.0f * deltaTime;
-                hunger = fmaxf(0.0f, hunger - drainRate);
-                thirst = fmaxf(0.0f, thirst - drainRate * 1.5f);
-                stamina = fminf(100.0f, stamina + drainRate * 2.0f);
-
-                if (health <= 0.0f) gameState = GameState::GameOver;
-
-                g_WeaponSystem.UpdateWeapon(g_CurrentWeaponState, deltaTime);
-
-                pistolRecoilPitch = fmaxf(0.0f, pistolRecoilPitch - RECOIL_DECAY_RATE * deltaTime * 60.0f);
-                pistolRecoilYaw = fmaxf(0.0f, pistolRecoilYaw - RECOIL_DECAY_RATE * deltaTime * 60.0f);
-
-                shotTimer = fmaxf(0.0f, shotTimer - deltaTime);
+                // Stats
+                hunger = fmaxf(0, hunger - 0.5f * deltaTime);
+                thirst = fmaxf(0, thirst - 0.7f * deltaTime);
+                if (health <= 0) gameState = GameState::GameOver;
+                shotTimer = fmaxf(0, shotTimer - deltaTime);
             }
-
-            // Update vehicle system
-            if (g_VehicleManager) {
-                g_VehicleManager->Update(deltaTime);
-            }
-
-            // Update animation system
-            if (g_AnimationManager) {
-                g_AnimationManager->UpdateAll(deltaTime);
-            }
+            if (g_VehicleManager) g_VehicleManager->Update(deltaTime);
+            if (g_AnimationManager) g_AnimationManager->UpdateAll(deltaTime);
         }
 
-        // Menu state handling
+        // Menu Logic
         if (gameState == GameState::MainMenu) {
             if (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))) {
                 if (mainMenuSelection == 0) { InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov); gameState = GameState::Gameplay; }
-                if (mainMenuSelection == 1) { stateBeforeSettings = GameState::MainMenu; saveSlotSelection = 0; gameState = GameState::LoadMenu; }
-                if (mainMenuSelection == 2) { stateBeforeSettings = GameState::MainMenu; settingsSelection = 0; gameState = GameState::Settings; }
+                if (mainMenuSelection == 2) { stateBeforeSettings = GameState::MainMenu; gameState = GameState::Settings; }
                 if (mainMenuSelection == 3) break;
             }
-        }
-        else if (gameState == GameState::Paused) {
-            if (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))) {
-                if (pauseMenuSelection == 0) gameState = GameState::Gameplay;
-                if (pauseMenuSelection == 1) { stateBeforeSettings = GameState::Paused; saveSlotSelection = 0; gameState = GameState::LoadMenu; }
-                if (pauseMenuSelection == 2) { stateBeforeSettings = GameState::Paused; settingsSelection = 0; gameState = GameState::Settings; }
-                if (pauseMenuSelection == 3) gameState = GameState::MainMenu;
-            }
-        }
-        else if (gameState == GameState::LoadMenu) {
-            if ((IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)))) {
-                bool fileExists = SaveFileExists(saveSlotSelection + 1);
-                if (stateBeforeSettings == GameState::Paused) {
-                    SaveGame(saveSlotSelection + 1, playerPosition, yaw, pitch, health, stamina, hunger, thirst, inventory, flashlightBattery, isFlashlightOn, map, fov);
-                    gameState = GameState::Paused;
-                }
-                else if (stateBeforeSettings == GameState::MainMenu && fileExists) {
-                    if (LoadGame(saveSlotSelection + 1, &playerPosition, &yaw, &pitch, &health, &stamina, &hunger, &thirst, inventory, &flashlightBattery, &isFlashlightOn, map, &fov)) {
-                        camera.position = playerPosition;
-                        Vector3 target = { cosf(DEG2RAD * yaw), sinf(DEG2RAD * pitch), sinf(DEG2RAD * yaw) * cosf(DEG2RAD * pitch) };
-                        camera.target = Vector3Add(camera.position, target);
-                        camera.fovy = fov;
-                        gameState = GameState::Gameplay;
-                    }
-                }
-            }
-        }
-
-        int newScreenW = GetScreenWidth();
-        int newScreenH = GetScreenHeight();
-        if (newScreenW != screenW || newScreenH != screenH) {
-            screenW = newScreenW;
-            screenH = newScreenH;
         }
 
         // --- RENDERING ---
         BeginDrawing();
-
         ClearBackground(Color{ 5, 10, 15, 255 });
 
-        // Only render 3D when necessary
         if (gameState == GameState::Gameplay || gameState == GameState::Paused) {
-            // Begin upscaled rendering
-            if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE) {
-                g_UpscalingManager->BeginUpscaledRender();
-            }
-            // Update shader lighting uniforms
-            if (g_ShaderManager) {
-                Vector3 sunPos = { MAP_SIZE / 2.0f, 100.0f, MAP_SIZE / 2.0f };
-                Vector3 flashDir = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
-                float flashIntensity = (flashlightBattery / 100.0f) * 5.0f;
+            if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE) g_UpscalingManager->BeginUpscaledRender();
 
-                g_ShaderManager->UpdateLighting(camera, sunPos, isFlashlightOn,
-                    camera.position, flashDir, flashIntensity);
+            if (g_ShaderManager) {
+                g_ShaderManager->UpdateLighting(camera, { MAP_SIZE / 2.0f, 100, MAP_SIZE / 2.0f }, isFlashlightOn, camera.position, Vector3Normalize(Vector3Subtract(camera.target, camera.position)), (flashlightBattery / 100.0f) * 5.0f);
             }
 
             BeginMode3D(camera);
-
-            // Draw grid ONLY when outside
-            if (!g_MapPlayer.insideInterior) {
-                if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-                    BeginShaderMode(g_ShaderManager->GetLightingShader());
-                }
-                DrawGrid(MAP_SIZE, GRID_SIZE);
-                if (g_ShaderManager && g_ShaderManager->GetLightingShader().id > 0) {
-                    EndShaderMode();
-                }
-            }
+            if (!g_MapPlayer.insideInterior) DrawGrid(MAP_SIZE, GRID_SIZE);
             DrawMapGeometry(map);
-
-            // Draw waypoints in 3D
             g_WaypointManager.DrawIn3D(playerPosition, 100.0f);
 
-            // Draw weapon using weapon system
-            int equippedWeapon = inventory[BACKPACK_SLOTS].itemId;
-            if (equippedWeapon != ITEM_NONE) {
-                Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
-                Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
-                Vector3 up = Vector3Normalize(camera.up);
-
-                Vector3 weaponPos = g_WeaponSystem.CalculateWeaponPosition(camera, g_CurrentWeaponState, equippedWeapon == ITEM_M16);
-
-                if (equippedWeapon == ITEM_PISTOL) {
-                    DrawEnhancedPistol(weaponPos, forward, right, up, g_CurrentWeaponState);
-                    DrawLeftHandOnWeapon(weaponPos, forward, right, up, false, g_CurrentWeaponState.adsProgress);
-                }
-                else if (equippedWeapon == ITEM_M16) {
-                    DrawM16Rifle(weaponPos, forward, right, up, g_CurrentWeaponState);
-                    DrawLeftHandOnWeapon(weaponPos, forward, right, up, true, g_CurrentWeaponState.adsProgress);
-                }
-                else if (equippedWeapon == ITEM_FLASHLIGHT) {
-                    // Still use the old DrawPlayerHands for flashlight
-                    DrawPlayerHands(camera, inventory, pistolRecoilPitch, pistolRecoilYaw);
-                }
-                else {
-                    // Generic items use old system
-                    DrawPlayerHands(camera, inventory, pistolRecoilPitch, pistolRecoilYaw);
-                }
-            }
-            else {
-                // No weapon - draw idle hands
-                DrawIdleHands(camera, (float)GetTime());
-            }
+            // Draw Weapons
+            int eq = inventory[BACKPACK_SLOTS].itemId;
+            Vector3 wPos = g_WeaponSystem.CalculateWeaponPosition(camera, g_CurrentWeaponState, eq == ITEM_M16);
+            Vector3 fwd = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+            Vector3 rgt = Vector3Normalize(Vector3CrossProduct(fwd, camera.up));
+            if (eq == ITEM_PISTOL) DrawEnhancedPistol(wPos, fwd, rgt, camera.up, g_CurrentWeaponState);
+            else if (eq == ITEM_M16) DrawM16Rifle(wPos, fwd, rgt, camera.up, g_CurrentWeaponState);
+            else DrawPlayerHands(camera, inventory, 0, 0);
 
             EndMode3D();
-            // End upscaled rendering
-            if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE) {
-                g_UpscalingManager->EndUpscaledRender(screenW, screenH);
-            }
-            // Check for nearby door and show prompt
-            Door* nearDoor = GetNearestDoor(playerPosition, 2.5f);
-            if (nearDoor && !isAnyMenuOpen) {
-                const char* doorText = g_MapPlayer.insideInterior ? "Press E to Exit" : "Press E to Enter";
-                int textWidth = MeasureText(doorText, 20);
-                DrawText(doorText, screenW / 2 - textWidth / 2, screenH - 100, 20, PIPBOY_GREEN);
-            }
-            // Post-processing effects
-            if (graphicsSettings.renderScale >= 0.9f) {
-                DrawRectangleGradientV(0, 0, screenW, screenH / 5, Color{ 0, 0, 0, 120 }, Color{ 0, 0, 0, 0 });
-                DrawRectangleGradientV(0, screenH * 4 / 5, screenW, screenH / 5, Color{ 0, 0, 0, 0 }, Color{ 0, 0, 0, 120 });
-                DrawRectangleGradientH(0, 0, screenW / 6, screenH, Color{ 0, 0, 0, 100 }, Color{ 0, 0, 0, 0 });
-                DrawRectangleGradientH(screenW * 5 / 6, 0, screenW / 6, screenH, Color{ 0, 0, 0, 0 }, Color{ 0, 0, 0, 100 });
+            if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE) g_UpscalingManager->EndUpscaledRender(screenW, screenH);
 
-                if (isFlashlightOn && flashlightBattery > 0.0f) {
-                    float glowAlpha = (flashlightBattery / 100.0f) * 30.0f;
-                    DrawRectangle(0, 0, screenW, screenH, Color{ 255, 245, 200, (unsigned char)glowAlpha });
-                }
-
-                if (health < 30.0f) {
-                    float pulseIntensity = sinf(GetTime() * 2.0f) * 0.5f + 0.5f;
-                    unsigned char redAlpha = (unsigned char)((30.0f - health) * 2.0f * pulseIntensity);
-                    DrawRectangle(0, 0, screenW, screenH, Color{ 180, 0, 0, redAlpha });
-                }
-            }
-
-            if (showMinimap && gameState == GameState::Gameplay && !isMapOpen) {
-                DrawMinimap(map, playerPosition, yaw, screenW - 160, 10, 150, 150, true, 0);
-
-                // Draw waypoints on minimap
-                g_WaypointManager.DrawOnMinimap(screenW - 160, 10, 150, 150, playerPosition, 15, 10.0f);
-            }
-
+            // UI
             if (gameState == GameState::Gameplay) {
                 DrawHUD(screenW, screenH, health, stamina, hunger, thirst, fov, flashlightBattery, isFlashlightOn, inventory);
-
-                // Draw quest tracker
                 g_QuestManager.DrawQuestTrackerCompact(screenW, screenH);
-
-                // Draw reload indicator
-                if (isReloading) {
-                    int barW = 200;
-                    int barH = 20;
-                    int barX = screenW / 2 - barW / 2;
-                    int barY = screenH / 2 + 100;
-
-                    WeaponStats* stats = g_WeaponSystem.GetWeaponStats(inventory[BACKPACK_SLOTS].itemId);
-                    float reloadProgress = stats ? 1.0f - (reloadTimer / stats->reloadTime) : 0.0f;
-
-                    DrawRectangle(barX, barY, barW, barH, PIPBOY_DARK);
-                    DrawRectangle(barX, barY, (int)(barW * reloadProgress), barH, PIPBOY_GREEN);
-                    DrawRectangleLines(barX, barY, barW, barH, PIPBOY_GREEN);
-                    DrawText("RELOADING...", barX + 50, barY + 3, 16, PIPBOY_GREEN);
-                }
+                if (showMinimap) DrawMinimap(map, playerPosition, yaw, screenW - 160, 10, 150, 150, true, 0);
             }
 
-            if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
+            if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
             if (isCraftingOpen) DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
-            if (inventoryOpen) {
-                // Use tabbed interface for inventory
-                int menuW = (int)(screenW * 0.9f);
-                int menuH = (int)(screenH * 0.9f);
-                int menuX = (screenW - menuW) / 2;
-                int menuY = (screenH - menuH) / 2;
-
-                // Draw background
-                DrawRectangle(menuX, menuY, menuW, menuH, PIPBOY_DARK);
-                DrawRectangleLines(menuX, menuY, menuW, menuH, PIPBOY_GREEN);
-
-                // Draw tab bar
-                g_TabManager.DrawTabBar(screenW, screenH, menuX, menuY, menuW);
-
-                // Handle tab input
-                g_TabManager.HandleTabInput(useController);
-
-                // Calculate content area (below tabs)
-                int contentY = menuY + 50;
-                int contentH = menuH - 50;
-
-                // Draw content based on active tab
-                switch (g_TabManager.GetCurrentTab()) {
-                case TAB_INVENTORY:
-                    DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
-                    break;
-                case TAB_CRAFTING:
-                    DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
-                    break;
-                case TAB_MAP:
-                    DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
-                    break;
-                case TAB_SKILLS:
-                    DrawSkillsScreen(screenW, screenH, menuX + 10, contentY, menuW - 20, contentH - 10, useController);
-                    break;
-                case TAB_QUESTS:
-                    DrawQuestsScreen(screenW, screenH, menuX + 10, contentY, menuW - 20, contentH - 10, useController);
-                    break;
-                }
-            }
+            if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
         }
 
-        // Menu rendering
         if (gameState == GameState::MainMenu) {
-            ClearBackground(PIPBOY_DARK);
-            std::vector<std::string> options = { "New Game", "Load Game", "Settings", "Exit" };
-            DrawMenu(screenW, screenH, options, &mainMenuSelection, useController, "ECHOES OF TIME");
+            std::vector<std::string> opts = { "New Game", "Load Game", "Settings", "Exit" };
+            DrawMenu(screenW, screenH, opts, &mainMenuSelection, useController, "ECHOES OF TIME");
         }
         else if (gameState == GameState::Paused) {
             DrawRectangle(0, 0, screenW, screenH, Color{ 0, 0, 0, 180 });
-            std::vector<std::string> options = { "Continue", "Save Game", "Settings", "Main Menu" };
-            DrawMenu(screenW, screenH, options, &pauseMenuSelection, useController, "PAUSED");
-        }
-        else if (gameState == GameState::GameOver) {
-            DrawRectangle(0, 0, screenW, screenH, Color{ 10, 10, 10, 200 });
-            DrawText("GAME OVER", screenW / 2 - MeasureText("GAME OVER", 80) / 2, screenH / 2 - 40, 80, PIPBOY_GREEN);
-            DrawText("You perished. Press ESC to return to main menu.", screenW / 2 - MeasureText("You perished. Press ESC to return to main menu.", 20) / 2, screenH / 2 + 40, 20, PIPBOY_GREEN);
-        }
-        else if (gameState == GameState::LoadMenu) {
-            DrawLoadMenu(screenW, screenH, &saveSlotSelection, stateBeforeSettings);
+            std::vector<std::string> opts = { "Continue", "Save Game", "Settings", "Main Menu" };
+            DrawMenu(screenW, screenH, opts, &pauseMenuSelection, useController, "PAUSED");
         }
         else if (gameState == GameState::Settings) {
-            GameState tempState = stateBeforeSettings;
-            DrawSettingsMenu(screenW, screenH, &showMinimap, &isControllerEnabled, &isFullscreen, &settingsSelection, &tempState);
-        }
-        else if (gameState == GameState::AudioSettings) {
-            GameState tempState = GameState::Settings;
-            DrawAudioSettingsMenu(screenW, screenH, &audioSettingsSelection, &tempState);
-        }
-        else if (gameState == GameState::GraphicsSettings) {
-            GameState tempState = GameState::Settings;
-            DrawGraphicsSettingsMenu(screenW, screenH, &graphicsSettings, &graphicsSettingsSelection, &tempState);
-        }
-        else if (gameState == GameState::ControllerBindings) {
-            DrawControllerBindings(screenW, screenH, &activeBindingIndex, &isBindingMode, &controllerSettingsSelection, bindings);
-        }
-        else if (gameState == GameState::Console) {
-            DrawConsole(screenW, screenH, consoleHistory, consoleInput, consoleInputLength);
+            DrawSettingsMenu(screenW, screenH, &showMinimap, &isControllerEnabled, &isFullscreen, &settingsSelection, &stateBeforeSettings);
         }
 
-        // FPS display
-        if (graphicsSettings.showFPS) {
-            DrawText(TextFormat("FPS: %d (%.2fms)", GetFPS(), avgFrameTime * 1000.0f),
-                10, 10, 20, PIPBOY_GREEN);
-        }
-
+        if (graphicsSettings.showFPS) DrawText(TextFormat("FPS: %d", GetFPS()), 10, 10, 20, GREEN);
         EndDrawing();
     }
-    // Cleanup rendering systems
-    CleanupModelSystem();  
-	//close sound system      
+
+    CleanupModelSystem();
     CleanupRenderingSystems();
     CleanupAnimationSystem();
     CleanupVehicleSystem();
     CleanupSkyboxSystem();
-
     CloseWindow();
     return 0;
 }

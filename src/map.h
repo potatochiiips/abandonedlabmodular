@@ -130,7 +130,8 @@ struct ItemSpawn {
     std::string itemType;
 };
 
-// Interior structure - FIXED: Removed duplicate definition
+// Interior structures
+
 struct Interior {
     int width;
     int height;
@@ -139,7 +140,7 @@ struct Interior {
     std::vector<ItemSpawn> spawns;
     int playerSpawnX, playerSpawnY;
     int doorX, doorY;
-
+    std::vector<Floor> floors;
     Interior() : width(0), height(0), playerSpawnX(-1), playerSpawnY(-1), doorX(-1), doorY(-1) {}
 };
 
