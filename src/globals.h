@@ -223,8 +223,8 @@ struct GraphicsSettings {
     int maxDrawCalls;
     UpscalingMode upscalingMode;
     UpscalingQuality upscalingQuality;
-    float vegetationDensity;  // NEW: 0.0 to 1.0
-    float viewDistance;       // NEW: in meters
+    float vegetationDensity;
+    float viewDistance;
 };
 
 const Resolution AVAILABLE_RESOLUTIONS[] = {

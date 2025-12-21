@@ -1,23 +1,3 @@
-#include "globals.h"
-#include "hud.h"
-#include "menus.h"
-#include "crafting.h"
-#include "inventory.h"
-#include "items.h"
-#include "map.h"
-#include "player.h"
-#include "console.h"
-#include "fileio.h"
-#include "texture_manager.h"
-#include "weapons.h"
-#include "quest_system.h"
-#include "ui_tabs.h"
-#include "rlgl.h"
-#include "upscaling_manager.h"
-#include "model_manager.h"
-
-
-
 // --- GLOBAL VARIABLE DEFINITIONS ---
 Camera3D camera = { 0 };
 Vector3 playerPosition = { 0 };
@@ -82,9 +62,24 @@ GraphicsSettings graphicsSettings = {
     true,   // enableLOD
     true,   // enableFrustumCulling
     1000,   // maxDrawCalls
-    UPSCALING_NONE,        // upscalingMode
-    UPSCALE_QUALITY_QUALITY // upscalingQuality
+    UPSCALING_NONE,
+    UPSCALE_QUALITY_QUALITY,
+    1.0f,   // vegetationDensity
+    150.0f  // viewDistance
 };
+
+// Animation state
+AnimationState playerAnimState = {
+    ANIM_TYPE_IDLE,
+    0.0f,
+    0.0f,
+    false,
+    true
+};
+
+// Vehicle state
+std::vector<Vehicle> vehicles;
+Vehicle* playerVehicle = nullptr;
 
 // Performance optimization: Frame time tracking
 static float frameTimeAccumulator = 0.0f;
@@ -99,7 +94,6 @@ void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float hei
 
     rlBegin(RL_QUADS);
     rlColor4ub(color.r, color.g, color.b, color.a);
-
     rlSetTexture(texture.id);
 
     // Front Face
@@ -155,7 +149,16 @@ void CloseInGameMenus() {
 }
 
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov) {
-    *playerPosition = Vector3{ MAP_SIZE / 2.0f, playerHeight, MAP_SIZE / 2.0f };
+    // Generate map data (player will spawn inside lab)
+    GenerateMapData(g_MapData);
+    InitializePlayerFromMapStart(g_MapData, g_MapPlayer);
+
+    // Set player position from spawn point (inside lab cryo room)
+    *playerPosition = Vector3{
+        (float)g_MapPlayer.interiorX,
+        playerHeight,
+        (float)g_MapPlayer.interiorY
+    };
     *playerVelocity = Vector3{ 0.0f, 0.0f, 0.0f };
     camera->position = *playerPosition;
 
@@ -190,10 +193,8 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     inventory[4] = { ITEM_M16, 1, 25 };
     inventory[5] = { ITEM_M16_MAG, 3, 0 };
 
+    // Convert to legacy map format for minimap
     GenerateMap(map);
-
-    currentFloor = -1;
-    currentBuildingIndex = -1;
 
     // Reset weapon state
     g_CurrentWeaponState.animState = ANIM_IDLE;
@@ -234,61 +235,51 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
         "Find a pistol");
     g_QuestManager.AddObjective(quest2, QUEST_OBJ_COLLECT, ITEM_MAG, 3,
         "Collect 3 magazines");
-}
 
+    TraceLog(LOG_INFO, "Player spawned inside lab at position: %.1f, %.1f, %.1f",
+        playerPosition->x, playerPosition->y, playerPosition->z);
+}
 
 int main() {
     LoadGraphicsSettings(&graphicsSettings);
     const Resolution& initialRes = AVAILABLE_RESOLUTIONS[graphicsSettings.resolutionIndex];
 
-    // Get monitor resolution for fullscreen
     int monitorWidth = GetMonitorWidth(0);
     int monitorHeight = GetMonitorHeight(0);
 
-    // Set fullscreen flag BEFORE InitWindow
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_FULLSCREEN_MODE);
     if (graphicsSettings.msaa) {
         if (graphicsSettings.msaaSamples == 2) SetConfigFlags(FLAG_MSAA_4X_HINT);
         else if (graphicsSettings.msaaSamples == 4) SetConfigFlags(FLAG_MSAA_4X_HINT);
     }
 
-    // Initialize window in fullscreen
     InitWindow(monitorWidth, monitorHeight, "Echoes of Time");
     SetExitKey(KEY_NULL);
 
-    // ==============================================================
-    // FIXED SPLASH SCREEN RENDERING
-    // ==============================================================
-
-    // Load splash screen FIRST (before other assets)
+    // Load splash screen
     Texture2D splashTexture = LoadTexture("assets/splash.png");
 
-    // Draw fullscreen splash while loading
     BeginDrawing();
     ClearBackground(BLACK);
     if (splashTexture.id > 0) {
-        // Calculate aspect-preserving dimensions to fill screen
         float splashAspect = (float)splashTexture.width / (float)splashTexture.height;
         float screenAspect = (float)monitorWidth / (float)monitorHeight;
 
         int drawWidth, drawHeight, drawX, drawY;
 
         if (screenAspect > splashAspect) {
-            // Screen is wider - fit to height
             drawHeight = monitorHeight;
             drawWidth = (int)(drawHeight * splashAspect);
             drawX = (monitorWidth - drawWidth) / 2;
             drawY = 0;
         }
         else {
-            // Screen is taller - fit to width
             drawWidth = monitorWidth;
             drawHeight = (int)(drawWidth / splashAspect);
             drawX = 0;
             drawY = (monitorHeight - drawHeight) / 2;
         }
 
-        // Draw splash centered and scaled
         DrawTexturePro(
             splashTexture,
             Rectangle{ 0, 0, (float)splashTexture.width, (float)splashTexture.height },
@@ -299,27 +290,21 @@ int main() {
         );
     }
 
-    // Draw loading text at bottom center
     const char* loadingText = "LOADING...";
     int textWidth = MeasureText(loadingText, 40);
     DrawText(loadingText, monitorWidth / 2 - textWidth / 2, monitorHeight - 80, 40, WHITE);
-
     EndDrawing();
-    // ==============================================================
-    // END SPLASH SCREEN FIX
-    // ==============================================================
 
     InitializeUpscalingSystem(initialRes.width, initialRes.height);
     ApplyGraphicsSettings(graphicsSettings);
 
-    // Initialize all systems (this takes time - splash is visible during this)
+    // Initialize all systems
     InitializeRenderingSystems();
     InitializeModelSystem();
     InitializeSkyboxSystem();
     InitializeVehicleSystem();
     InitializeAnimationSystem();
 
-    // Unload splash after everything loaded
     if (splashTexture.id > 0) {
         UnloadTexture(splashTexture);
     }
@@ -328,7 +313,6 @@ int main() {
 
     int screenW = GetScreenWidth();
     int screenH = GetScreenHeight();
-    bool prevBindingMode = isBindingMode;
 
     while (!WindowShouldClose()) {
         float deltaTime = GetFrameTime();
@@ -410,41 +394,71 @@ int main() {
             if (mapTogglePressed) { CloseInGameMenus(); isMapOpen = !isMapOpen; }
 
             if (!isAnyMenuOpen) {
-                UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
+                // Check if player is in vehicle
+                if (g_VehicleManager && g_VehicleManager->IsPlayerInVehicle()) {
+                    // Vehicle controls
+                    g_VehicleManager->HandleVehicleInput(deltaTime, useController);
 
-                // Door interaction - FIXED: Check nearDoor before using it
+                    // Update camera to follow vehicle
+                    Vehicle* vehicle = g_VehicleManager->GetPlayerVehicle();
+                    if (vehicle) {
+                        camera.position = Vector3{
+                            vehicle->position.x,
+                            vehicle->position.y + 3.0f,
+                            vehicle->position.z - 5.0f
+                        };
+                        camera.target = vehicle->position;
+                    }
+
+                    // Exit vehicle
+                    bool exitPressed = IsKeyPressed(KEY_F) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT));
+                    if (exitPressed) {
+                        g_VehicleManager->ExitVehicle();
+                        playerPosition = vehicle->position;
+                        camera.position = playerPosition;
+                    }
+                }
+                else {
+                    // Normal player movement
+                    UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
+                }
+
+                // Door interaction
                 if (IsKeyPressed(KEY_E) && !inventoryOpen && !isCraftingOpen && !isMapOpen) {
-                    Door* nearDoor = GetNearestDoor(playerPosition, 2.5f);
-
-                    if (nearDoor) {
-                        if (g_MapPlayer.insideInterior) {
-                            // Inside a building - check if this is the exit door
-                            if (nearDoor->isInteriorDoor && nearDoor->buildingId == g_MapPlayer.currentBuildingId) {
-                                // Exit to exterior
-                                if (ExitInterior(g_MapData, g_MapPlayer)) {
-                                    playerPosition = Vector3{
-                                        (float)g_MapPlayer.worldX,
-                                        playerHeight,
-                                        (float)g_MapPlayer.worldY
-                                    };
-                                    camera.position = playerPosition;
-                                    TraceLog(LOG_INFO, "Exited to exterior");
-                                }
-                            }
+                    // First check for vehicle entry
+                    if (g_VehicleManager && !g_VehicleManager->IsPlayerInVehicle()) {
+                        if (g_VehicleManager->TryEnterVehicle(playerPosition)) {
+                            TraceLog(LOG_INFO, "Entered vehicle");
                         }
                         else {
-                            // Outside - check if this is an entrance door
-                            if (!nearDoor->isInteriorDoor) {
-                                // Try to enter the building
-                                if (EnterInterior(g_MapData, g_MapPlayer, nearDoor->buildingId)) {
-                                    // Teleport player to interior spawn position
-                                    playerPosition = Vector3{
-                                        (float)g_MapPlayer.interiorX,
-                                        playerHeight,
-                                        (float)g_MapPlayer.interiorY
-                                    };
-                                    camera.position = playerPosition;
-                                    TraceLog(LOG_INFO, "Entered building interior");
+                            // Try door interaction
+                            Door* nearDoor = GetNearestDoor(playerPosition, 2.5f);
+                            if (nearDoor) {
+                                if (g_MapPlayer.insideInterior) {
+                                    if (nearDoor->isInteriorDoor && nearDoor->buildingId == g_MapPlayer.currentBuildingId) {
+                                        if (ExitInterior(g_MapData, g_MapPlayer)) {
+                                            playerPosition = Vector3{
+                                                (float)g_MapPlayer.worldX,
+                                                playerHeight,
+                                                (float)g_MapPlayer.worldY
+                                            };
+                                            camera.position = playerPosition;
+                                            TraceLog(LOG_INFO, "Exited to exterior");
+                                        }
+                                    }
+                                }
+                                else {
+                                    if (!nearDoor->isInteriorDoor) {
+                                        if (EnterInterior(g_MapData, g_MapPlayer, nearDoor->buildingId)) {
+                                            playerPosition = Vector3{
+                                                (float)g_MapPlayer.interiorX,
+                                                playerHeight,
+                                                (float)g_MapPlayer.interiorY
+                                            };
+                                            camera.position = playerPosition;
+                                            TraceLog(LOG_INFO, "Entered building interior");
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -455,7 +469,7 @@ int main() {
 
                 // Flashlight toggle
                 bool flashlightPressed = useController ? IsActionPressed(ACTION_FLASHLIGHT, bindings) : IsKeyPressed(KEY_F);
-                if (flashlightPressed) isFlashlightOn = !isFlashlightOn;
+                if (flashlightPressed && !g_VehicleManager->IsPlayerInVehicle()) isFlashlightOn = !isFlashlightOn;
 
                 if (isFlashlightOn && flashlightBattery > 0.0f) {
                     flashlightBattery -= 5.0f * deltaTime;
@@ -471,7 +485,7 @@ int main() {
                     UseEquippedItem(inventory, &health, &stamina, &hunger, &thirst);
                 }
 
-                // ADS toggle (right mouse hold for pistol/rifle)
+                // ADS toggle
                 int equippedWeapon = inventory[BACKPACK_SLOTS].itemId;
                 if (equippedWeapon == ITEM_PISTOL || equippedWeapon == ITEM_M16) {
                     bool adsPressed = IsMouseButtonDown(MOUSE_RIGHT_BUTTON) ||
@@ -491,7 +505,6 @@ int main() {
                     }
                 }
 
-                // Update reload timer
                 if (isReloading) {
                     reloadTimer -= deltaTime;
                     if (reloadTimer <= 0.0f) {
@@ -500,7 +513,7 @@ int main() {
                     }
                 }
 
-                // Weapon shooting with weapon system
+                // Weapon shooting
                 bool shootPressed = useController ? IsActionPressed(ACTION_SHOOT, bindings) : IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
                 if (shootPressed && shotTimer <= 0.0f && !isReloading) {
                     int weaponId = inventory[BACKPACK_SLOTS].itemId;
@@ -510,11 +523,9 @@ int main() {
                         shotTimer = stats->fireRate;
                         inventory[BACKPACK_SLOTS].ammo--;
 
-                        // Apply recoil
                         pistolRecoilPitch = stats->recoilPitch;
                         pistolRecoilYaw = stats->recoilYaw;
 
-                        // Visual recoil on weapon
                         g_CurrentWeaponState.recoilOffset.y = -0.02f;
                         g_CurrentWeaponState.recoilOffset.z = -0.05f;
 
@@ -534,16 +545,25 @@ int main() {
 
                 if (health <= 0.0f) gameState = GameState::GameOver;
 
-                // Update weapon system
                 g_WeaponSystem.UpdateWeapon(g_CurrentWeaponState, deltaTime);
 
-                // Recoil decay
                 pistolRecoilPitch = fmaxf(0.0f, pistolRecoilPitch - RECOIL_DECAY_RATE * deltaTime * 60.0f);
                 pistolRecoilYaw = fmaxf(0.0f, pistolRecoilYaw - RECOIL_DECAY_RATE * deltaTime * 60.0f);
 
                 shotTimer = fmaxf(0.0f, shotTimer - deltaTime);
             }
+
+            // Update vehicle system
+            if (g_VehicleManager) {
+                g_VehicleManager->Update(deltaTime);
+            }
+
+            // Update animation system
+            if (g_AnimationManager) {
+                g_AnimationManager->UpdateAll(deltaTime);
+            }
         }
+
         // Menu state handling
         if (gameState == GameState::MainMenu) {
             if (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))) {

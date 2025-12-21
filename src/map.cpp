@@ -437,30 +437,43 @@ void Draw3DWorld(const MapData& mapData, const MapPlayerState& playerState) {
     }
 }
 
-void Draw3DInterior(const Interior& interior) {
+// Draw interior doors
+for (const auto& door : doors) {
+    if (door.isInteriorDoor) {
+        DrawDoor(door);
+    }
+}
+}
+
+void Draw3DInteriorWithFloor(const Interior& interior, int currentFloor) {
+    if (currentFloor < 0 || currentFloor >= (int)interior.floors.size()) return;
+
+    const Floor& floor = interior.floors[currentFloor];
+
     Texture2D wallTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_WALL_CONCRETE) : Texture2D{ 0 };
     Texture2D floorTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_FLOOR_TILE) : Texture2D{ 0 };
-    Texture2D doorTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_DOOR_METAL) : Texture2D{ 0 };
 
-    for (int y = 0; y < interior.height; y++) {
-        for (int x = 0; x < interior.width; x++) {
-            int tile = interior.tiles[y * interior.width + x];
-            Vector3 pos = Vector3{ (float)x, 0.0f, (float)y };
+    float floorY = currentFloor * FLOOR_HEIGHT;
 
-            // Draw floor for all non-empty tiles
+    for (int y = 0; y < floor.height; y++) {
+        for (int x = 0; x < floor.width; x++) {
+            int tile = floor.tiles[y * floor.width + x];
+            Vector3 pos = Vector3{ (float)x, floorY, (float)y };
+
+            // Draw floor
             if (tile != IT_EMPTY && floorTex.id > 0) {
-                DrawCubeTexture(floorTex, Vector3{ (float)x, 0.0f, (float)y },
+                DrawCubeTexture(floorTex, Vector3{ (float)x, floorY, (float)y },
                     1.0f, 0.05f, 1.0f, WHITE);
             }
 
             // Draw walls
             if (tile == IT_WALL) {
                 if (wallTex.id > 0) {
-                    DrawCubeTexture(wallTex, Vector3{ (float)x, WALL_HEIGHT / 2.0f, (float)y },
+                    DrawCubeTexture(wallTex, Vector3{ (float)x, floorY + WALL_HEIGHT / 2.0f, (float)y },
                         1.0f, WALL_HEIGHT, 1.0f, WHITE);
                 }
                 else {
-                    DrawCube(Vector3{ (float)x, WALL_HEIGHT / 2.0f, (float)y },
+                    DrawCube(Vector3{ (float)x, floorY + WALL_HEIGHT / 2.0f, (float)y },
                         1.0f, WALL_HEIGHT, 1.0f, Color{ 180, 180, 185, 255 });
                 }
             }
@@ -468,16 +481,16 @@ void Draw3DInterior(const Interior& interior) {
             // Draw props
             switch (tile) {
             case IT_CRYOPOD_BROKEN:
-                DrawCube(Vector3{ (float)x, 0.5f, (float)y }, 0.8f, 1.0f, 0.8f, Color{ 100, 150, 200, 255 });
+                DrawCube(Vector3{ (float)x, floorY + 0.5f, (float)y }, 0.8f, 1.0f, 0.8f, Color{ 100, 150, 200, 255 });
                 break;
             case IT_CONSOLE:
-                DrawCube(Vector3{ (float)x, 0.4f, (float)y }, 0.6f, 0.8f, 0.6f, Color{ 80, 120, 160, 255 });
+                DrawCube(Vector3{ (float)x, floorY + 0.4f, (float)y }, 0.6f, 0.8f, 0.6f, Color{ 80, 120, 160, 255 });
                 break;
-            case IT_BENCH:
-                DrawCube(Vector3{ (float)x, 0.4f, (float)y }, 0.8f, 0.8f, 0.4f, Color{ 140, 120, 100, 255 });
+            case IT_STAIRS_UP:
+                DrawCube(Vector3{ (float)x, floorY + 0.5f, (float)y }, 0.9f, 1.0f, 0.9f, Color{ 180, 160, 140, 255 });
                 break;
-            case IT_BED:
-                DrawCube(Vector3{ (float)x, 0.3f, (float)y }, 0.9f, 0.6f, 0.9f, Color{ 180, 160, 140, 255 });
+            case IT_STAIRS_DOWN:
+                DrawCube(Vector3{ (float)x, floorY + 0.5f, (float)y }, 0.9f, 1.0f, 0.9f, Color{ 160, 140, 120, 255 });
                 break;
             }
         }
@@ -485,18 +498,11 @@ void Draw3DInterior(const Interior& interior) {
 
     // Draw ceiling
     Vector3 ceilingCenter = Vector3{
-        interior.width / 2.0f,
-        CEILING_HEIGHT,
-        interior.height / 2.0f
+        floor.width / 2.0f,
+        floorY + CEILING_HEIGHT,
+        floor.height / 2.0f
     };
-    DrawCube(ceilingCenter, (float)interior.width, 0.1f, (float)interior.height, Color{ 240, 240, 240, 255 });
-
-    // Draw interior doors
-    for (const auto& door : doors) {
-        if (door.isInteriorDoor) {
-            DrawDoor(door);
-        }
-    }
+    DrawCube(ceilingCenter, (float)floor.width, 0.1f, (float)floor.height, Color{ 240, 240, 240, 255 });
 }
 
 void DrawDoor(const Door& door) {
