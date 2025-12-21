@@ -102,6 +102,7 @@
     <ClCompile Include="src\model_manager.cpp" />
     <ClCompile Include="src\player.cpp" />
     <ClCompile Include="src\recipes.cpp" />
+    <ClCompile Include="src\terrain_system.cpp" />
     <ClCompile Include="src\waypoints.cpp" />
     <ClCompile Include="src\quest_system.cpp" />
     <ClCompile Include="src\weapons.cpp" />
@@ -115,6 +116,7 @@
     <ClCompile Include="src\animation_system.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\city_system.h" />
     <ClInclude Include="src\console.h" />
     <ClInclude Include="src\crafting.h" />
     <ClInclude Include="src\fileio.h" />
@@ -127,6 +129,8 @@
     <ClInclude Include="src\model_manager.h" />
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\recipes.h" />
+    <ClInclude Include="src\terrain_system.h" />
+    <ClInclude Include="src\vegetation_system.h" />
     <ClInclude Include="src\waypoints.h" />
     <ClInclude Include="src\quest_system.h" />
     <ClInclude Include="src\weapons.h" />
@@ -141,6 +145,9 @@
   <ItemGroup>
     <None Include="assets\shaders\lighting.vs" />
     <None Include="assets\shaders\lighting.fs" />
+    <None Include="src\animation_system_cpp" />
+    <None Include="src\animation_system_h" />
+    <None Include="src\vehicle_system_cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
