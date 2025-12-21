@@ -8,7 +8,14 @@ struct Player;
 // Define MAP_WIDTH/HEIGHT for map.cpp
 #define MAP_WIDTH MAP_SIZE
 #define MAP_HEIGHT MAP_SIZE
-
+struct Interior {
+    int width, height;
+    std::string id;
+    std::vector<int> tiles; // This seems to be missing
+    std::vector<ItemSpawn> spawns;
+    int playerSpawnX, playerSpawnY; // These also seem missing
+    int doorX, doorY;
+};
 // Wall heights
 #define WALL_HEIGHT 3.0f
 #define DOOR_HEIGHT 2.5f

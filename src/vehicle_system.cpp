@@ -1,5 +1,9 @@
 #include "vehicle_system.h"
 #include "model_manager.h"
+#include "raylib.h"
+#include "rlgl.h"
+#include <globals.h>
+#include <animation_system.h>
 
 // Global instance
 VehicleManager* g_VehicleManager = nullptr;

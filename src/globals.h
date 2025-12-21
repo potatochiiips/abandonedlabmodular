@@ -48,6 +48,7 @@
 #define TERRAIN_HEIGHT_SCALE 50.0f
 #define TERRAIN_BASE_HEIGHT 0.0f
 
+
 // ----------------------------------------------------------------------------------
 // DATA STRUCTURES & DEFINITIONS
 // ----------------------------------------------------------------------------------
@@ -64,7 +65,7 @@ enum class GameState {
     GraphicsSettings,
     AudioSettings
 };
-
+extern AnimationManager g_AnimationManager;
 // --- ITEM DEFINITIONS ---
 #define ITEM_NONE 0
 #define ITEM_WATER_BOTTLE 1

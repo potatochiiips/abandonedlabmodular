@@ -1,7 +1,9 @@
 #include "inventory.h"
 #include "items.h"
 #include "model_manager.h"
-#include "player.h" // For GetModelIDFromItem - this is the correct header
+#include "player.h" 
+#include <animation_system.h>
+#include <globals.h>
 
 // Static variables for drag and drop
 static bool isDragging = false;

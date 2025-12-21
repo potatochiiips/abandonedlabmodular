@@ -1,3 +1,25 @@
+#include "globals.h"
+#include "hud.h"
+#include "menus.h"
+#include "crafting.h"
+#include "inventory.h"
+#include "items.h"
+#include "map.h"
+#include "player.h"
+#include "console.h"
+#include "fileio.h"
+#include "texture_manager.h"
+#include "weapons.h"
+#include "quest_system.h"
+#include "ui_tabs.h"
+#include "rlgl.h"
+#include "upscaling_manager.h"
+#include "model_manager.h"
+#include "sound_manager.h"
+#include "skybox.h"
+#include "vehicle_system.h"
+#include "animation_system.h"
+
 // --- GLOBAL VARIABLE DEFINITIONS ---
 Camera3D camera = { 0 };
 Vector3 playerPosition = { 0 };
