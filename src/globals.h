@@ -15,6 +15,11 @@
 #include <unordered_map>
 
 // ----------------------------------------------------------------------------------
+// FORWARD DECLARATIONS
+// ----------------------------------------------------------------------------------
+class AnimationManager;  // Forward declaration to fix compilation error
+
+// ----------------------------------------------------------------------------------
 // COMPATIBILITY FIXES FOR OLDER RAYLIB VERSIONS
 // ----------------------------------------------------------------------------------
 #ifndef GAMEPAD_BUTTON_DPAD_UP
@@ -65,7 +70,7 @@ enum class GameState {
     GraphicsSettings,
     AudioSettings
 };
-extern AnimationManager g_AnimationManager;
+
 // --- ITEM DEFINITIONS ---
 #define ITEM_NONE 0
 #define ITEM_WATER_BOTTLE 1
@@ -398,6 +403,9 @@ extern AnimationState playerAnimState;
 // Vehicle state
 extern std::vector<Vehicle> vehicles;
 extern Vehicle* playerVehicle;
+
+// Global animation manager pointer (now properly declared as pointer)
+extern AnimationManager* g_AnimationManager;
 
 // Prototype for InitNewGame
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov);

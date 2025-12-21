@@ -8,14 +8,7 @@ struct Player;
 // Define MAP_WIDTH/HEIGHT for map.cpp
 #define MAP_WIDTH MAP_SIZE
 #define MAP_HEIGHT MAP_SIZE
-struct Interior {
-    int width, height;
-    std::string id;
-    std::vector<int> tiles; // This seems to be missing
-    std::vector<ItemSpawn> spawns;
-    int playerSpawnX, playerSpawnY; // These also seem missing
-    int doorX, doorY;
-};
+
 // Wall heights
 #define WALL_HEIGHT 3.0f
 #define DOOR_HEIGHT 2.5f
@@ -134,22 +127,20 @@ struct Floor {
 struct ItemSpawn {
     int x;
     int y;
-    int floor; // NEW: which floor
     std::string itemType;
 };
 
-// Full interior with multiple floors
+// Interior structure - FIXED: Removed duplicate definition
 struct Interior {
     int width;
     int height;
-    int numFloors;
     std::string id;
-    std::vector<Floor> floors;
+    std::vector<int> tiles;
     std::vector<ItemSpawn> spawns;
-    int entranceFloor;
+    int playerSpawnX, playerSpawnY;
     int doorX, doorY;
 
-    Interior() : width(0), height(0), numFloors(1), entranceFloor(0), doorX(-1), doorY(-1) {}
+    Interior() : width(0), height(0), playerSpawnX(-1), playerSpawnY(-1), doorX(-1), doorY(-1) {}
 };
 
 // Building footprint rect
@@ -167,10 +158,9 @@ struct Door {
     int requiredKeyId;
     int buildingId;
     bool isInteriorDoor;
-    int floor; // NEW: which floor door is on
 
     Door() : isOpen(false), openProgress(0.0f), isLocked(false),
-        requiredKeyId(0), buildingId(-1), isInteriorDoor(false), floor(0) {
+        requiredKeyId(0), buildingId(-1), isInteriorDoor(false) {
         position = Vector3{ 0, 0, 0 };
         normal = Vector3{ 0, 0, 1 };
     }
@@ -184,13 +174,12 @@ struct Building {
     int id;
     int entranceX;
     int entranceY;
-    int numFloors;
     BuildingDamageLevel damageLevel;
 
     Vector3 position;
     int floor;
 
-    Building() : id(0), entranceX(0), entranceY(0), numFloors(1),
+    Building() : id(0), entranceX(0), entranceY(0),
         damageLevel(DAMAGE_NONE), floor(0) {
         position = Vector3{ 0, 0, 0 };
     }
@@ -221,10 +210,9 @@ struct MapPlayerState {
     int worldY;
     int interiorX;
     int interiorY;
-    int currentFloor; // NEW: which floor player is on
 
     MapPlayerState() : insideInterior(false), currentBuildingId(0),
-        worldX(0), worldY(0), interiorX(0), interiorY(0), currentFloor(0) {
+        worldX(0), worldY(0), interiorX(0), interiorY(0) {
     }
 };
 
@@ -245,10 +233,6 @@ bool EnterInterior(MapData& m, MapPlayerState& p, int buildingId);
 bool ExitInterior(MapData& m, MapPlayerState& p);
 const Interior* GetInterior(const MapData& m, const std::string& id);
 
-// NEW: Floor navigation
-bool UseStairs(MapData& m, MapPlayerState& p, bool goingUp);
-bool UseElevator(MapData& m, MapPlayerState& p, int targetFloor);
-
 // Legacy compatibility functions
 void GenerateMap(char map[MAP_SIZE][MAP_SIZE]);
 void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw);
@@ -257,14 +241,10 @@ void DrawMapGeometry(char map[MAP_SIZE][MAP_SIZE]);
 
 // Enhanced world functions - NEW 3D DRAWING
 void Draw3DWorld(const MapData& mapData, const MapPlayerState& playerState);
-void Draw3DInterior(const Interior& interior, int currentFloor);
-void DrawDoor(const Door& door, int currentFloor);
+void Draw3DInterior(const Interior& interior);
+void DrawDoor(const Door& door);
 void UpdateDoors(float deltaTime);
 Door* GetNearestDoor(Vector3 playerPos, float maxDistance);
-
-// NEW: Stair/elevator detection
-Vector3* GetNearestStairs(Vector3 playerPos, float maxDistance, bool& goingUp);
-Vector3* GetNearestElevator(Vector3 playerPos, float maxDistance);
 
 // Collision detection
 bool CheckWallCollision(Vector3 position, float radius, const MapData& mapData, const MapPlayerState& playerState);

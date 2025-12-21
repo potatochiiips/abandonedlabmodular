@@ -2,8 +2,8 @@
 #include "items.h"
 #include "model_manager.h"
 #include "player.h" 
-#include <animation_system.h>
-#include <globals.h>
+#include "animation_system.h"
+#include "globals.h"
 
 // Static variables for drag and drop
 static bool isDragging = false;
@@ -72,7 +72,11 @@ void UseEquippedItem(InventorySlot* inventory, float* health, float* stamina, fl
 
 bool ReloadWeapon(InventorySlot* inventory) {
     InventorySlot* equippedSlot = &inventory[BACKPACK_SLOTS];
-    if (equippedSlot->itemId != ITEM_PISTOL && equippedSlot->itemId != ITEM_M16) {
+
+    // FIXED: Get weaponId from equipped slot
+    int weaponId = equippedSlot->itemId;
+
+    if (weaponId != ITEM_PISTOL && weaponId != ITEM_M16) {
         TraceLog(LOG_INFO, "No weapon equipped that can be reloaded.");
         return false;
     }
@@ -81,7 +85,7 @@ bool ReloadWeapon(InventorySlot* inventory) {
     int magId = ITEM_MAG;
     int magAmmoCount = 15;
 
-    if (equippedSlot->itemId == ITEM_M16) {
+    if (weaponId == ITEM_M16) {
         maxAmmo = 30;
         magId = ITEM_M16_MAG;
         magAmmoCount = 30;
@@ -117,12 +121,14 @@ bool ReloadWeapon(InventorySlot* inventory) {
     }
 
     TraceLog(LOG_INFO, TextFormat("Reloaded! Ammo: %d/%d", equippedSlot->ammo, maxAmmo));
+
     // Play reload animation
     if (g_AnimationManager) {
         AnimationType anim = (weaponId == ITEM_PISTOL) ?
             ANIM_TYPE_RELOAD_PISTOL : ANIM_TYPE_RELOAD_RIFLE;
         g_AnimationManager->PlayAnimation(anim, false);
     }
+
     return true;
 }
 
