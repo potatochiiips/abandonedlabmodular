@@ -15,37 +15,6 @@ enum ModelID {
     MODEL_POTATO_CHIPS,
     MODEL_MAGAZINE,
     MODEL_M16_MAGAZINE,
-    MODEL_COUNT
-};
-
-// Model data structure
-struct ModelData {
-    Model model;
-    bool loaded;
-    Vector3 scale;
-    Vector3 offset;
-    Vector3 rotation;
-    std::string filename;
-};
-
-// Model manager class
-#pragma once
-#include "globals.h"
-#include <map>
-#include <string>
-
-// Model IDs for different items
-enum ModelID {
-    MODEL_PISTOL,
-    MODEL_M16,
-    MODEL_FLASHLIGHT,
-    MODEL_WATER_BOTTLE,
-    MODEL_LAB_KEY,
-    MODEL_WOOD,
-    MODEL_STONE,
-    MODEL_POTATO_CHIPS,
-    MODEL_MAGAZINE,
-    MODEL_M16_MAGAZINE,
     MODEL_KNIFE,
     MODEL_CRYOPOD,
     MODEL_COUNT

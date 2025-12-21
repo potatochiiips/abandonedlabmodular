@@ -1,6 +1,7 @@
 #include "globals.h"
 #include "map.h"
 #include "texture_manager.h"
+#include "model_manager.h"
 #include <cstdlib>
 #include <ctime>
 #include <cmath>
