@@ -3,7 +3,7 @@
 #include <map>
 #include <string>
 
-// Model IDs for different items
+// Model IDs for different items and props
 enum ModelID {
     MODEL_PISTOL,
     MODEL_M16,
@@ -17,6 +17,21 @@ enum ModelID {
     MODEL_M16_MAGAZINE,
     MODEL_KNIFE,
     MODEL_CRYOPOD,
+    MODEL_CONSOLE_TERMINAL,
+    MODEL_BED,
+    MODEL_DESK,
+    MODEL_CHAIR,
+    MODEL_TABLE,
+    MODEL_SHELF,
+    MODEL_LOCKER,
+    MODEL_CABINET,
+    MODEL_BENCH,
+    MODEL_SERVER_RACK,
+    MODEL_BROKEN_GLASS,
+    MODEL_DEBRIS_CONCRETE,
+    MODEL_DEBRIS_METAL,
+    MODEL_BARREL,
+    MODEL_CRATE,
     MODEL_COUNT
 };
 

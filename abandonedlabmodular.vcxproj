@@ -147,7 +147,6 @@
     <None Include="assets\shaders\lighting.fs" />
     <None Include="src\animation_system_cpp" />
     <None Include="src\animation_system_h" />
-    <None Include="src\vehicle_system_cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

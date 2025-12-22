@@ -82,7 +82,7 @@ void DrawHUD(int screenW, int screenH, float health, float stamina, float hunger
     }
 }
 
-// NEW: Draw round minimap with circular mask
+// NEW: Draw round minimap with circular mask - INCREASED SIZE
 void DrawRoundMinimap(char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw,
     int centerX, int centerY, int radius, int viewRange) {
     // Create render texture for minimap

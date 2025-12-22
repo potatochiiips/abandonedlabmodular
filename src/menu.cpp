@@ -13,12 +13,12 @@ void DrawMenu(int screenW, int screenH, const std::vector<std::string>& options,
     DrawRectangleLines(menuX, menuY, menuW, menuH, PIPBOY_GREEN);
 
     if (title && title[0] != '\0') {
-        int titleWidth = MeasureText(title, 36);
-        DrawText(title, menuX + (menuW - titleWidth) / 2, menuY + 30, 36, PIPBOY_GREEN);
+        int titleWidth = MeasureText(title, 48); // INCREASED from 36
+        DrawText(title, menuX + (menuW - titleWidth) / 2, menuY + 40, 48, PIPBOY_GREEN); // INCREASED size
     }
 
-    const int lineHeight = 28;
-    int startY = menuY + 120;
+    const int lineHeight = 40; // INCREASED from 28
+    int startY = screenH / 2 - ((int)options.size() * (lineHeight + 20)) / 2; // CENTER vertically
     int index = 0;
 
     int localSel = 0;
@@ -50,10 +50,13 @@ void DrawMenu(int screenW, int screenH, const std::vector<std::string>& options,
 
     for (const auto& it : options) {
         Color txtCol = PIPBOY_DIM;
-        int itemX = menuX + 16;
-        int itemY = startY - 6;
-        int itemW = menuW - 32;
-        int itemH = lineHeight + 8;
+
+        // Calculate centered position for each option
+        int textW = MeasureText(it.c_str(), 28); // INCREASED from 22
+        int itemX = screenW / 2 - textW / 2 - 20; // CENTER horizontally
+        int itemY = startY - 10;
+        int itemW = textW + 40;
+        int itemH = lineHeight + 20;
 
         bool hovered = false;
         if (mouse.x >= (float)itemX && mouse.x <= (float)(itemX + itemW) &&
@@ -71,8 +74,7 @@ void DrawMenu(int screenW, int screenH, const std::vector<std::string>& options,
             txtCol = PIPBOY_GREEN;
         }
 
-        int textW = MeasureText(it.c_str(), 22);
-        DrawText(it.c_str(), menuX + (menuW - textW) / 2, startY, 22, txtCol);
+        DrawText(it.c_str(), itemX + 20, startY, 28, txtCol); // INCREASED from 22
 
         if ((enterPressed || gpConfirm) && localSel == index) {
             if (gameState == GameState::MainMenu) {
@@ -156,7 +158,7 @@ void DrawMenu(int screenW, int screenH, const std::vector<std::string>& options,
             }
         }
 
-        startY += lineHeight + 14;
+        startY += lineHeight + 20;
         ++index;
     }
 
@@ -164,7 +166,7 @@ void DrawMenu(int screenW, int screenH, const std::vector<std::string>& options,
 
     if (!useController) {
         const char* tip = "Use arrows and Enter to select, or click with mouse.";
-        int tipW = MeasureText(tip, 16);
-        DrawText(tip, menuX + (menuW - tipW) / 2, menuY + menuH - 34, 16, PIPBOY_DIM);
+        int tipW = MeasureText(tip, 18); // INCREASED from 16
+        DrawText(tip, menuX + (menuW - tipW) / 2, menuY + menuH - 40, 18, PIPBOY_DIM); // INCREASED size
     }
 }

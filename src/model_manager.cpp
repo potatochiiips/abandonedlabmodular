@@ -17,6 +17,21 @@ static const char* MODEL_PATHS[MODEL_COUNT] = {
     "assets/models/m16_magazine.glb",
     "assets/models/knife.glb",
     "assets/models/cryopod.glb"
+    "assets/models/console_terminal.glb",
+    "assets/models/bed.glb",
+    "assets/models/desk.glb",
+    "assets/models/chair.glb",
+    "assets/models/table.glb",
+    "assets/models/shelf.glb",
+    "assets/models/locker.glb",
+    "assets/models/cabinet.glb",
+    "assets/models/bench.glb",
+    "assets/models/server_rack.glb",
+    "assets/models/broken_glass.glb",
+    "assets/models/debris_concrete.glb",
+    "assets/models/debris_metal.glb",
+    "assets/models/barrel.glb",
+    "assets/models/crate.glb",
 };
 
 static const float TARGET_SIZE = 0.15f;

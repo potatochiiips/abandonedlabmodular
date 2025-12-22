@@ -475,18 +475,14 @@ int main() {
             if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE)
                 g_UpscalingManager->EndUpscaledRender(screenW, screenH);
 
-            if (gameState == GameState::Gameplay) {
-                DrawHUD(screenW, screenH, health, stamina, hunger, thirst, fov, flashlightBattery, isFlashlightOn, inventory);
-                g_QuestManager.DrawQuestTrackerCompact(screenW, screenH);
-
-                if (showMinimap) {
-                    int minimapRadius = 75;
-                    int minimapX = screenW - minimapRadius - 20;
-                    int minimapY = minimapRadius + 20;
-                    int viewRange = 15;
-                    DrawRoundMinimap(map, playerPosition, yaw, minimapX, minimapY, minimapRadius, viewRange);
-                }
+            if (showMinimap) {
+                int minimapRadius = 95; // INCREASED from 75
+                int minimapX = screenW - minimapRadius - 20;
+                int minimapY = minimapRadius + 20;
+                int viewRange = 18; // INCREASED from 15 for better visibility
+                DrawRoundMinimap(map, playerPosition, yaw, minimapX, minimapY, minimapRadius, viewRange);
             }
+        
             if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
             if (isCraftingOpen) DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
             if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
