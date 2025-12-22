@@ -4,8 +4,10 @@
 #include "player.h" 
 #include "animation_system.h"
 #include "globals.h"
+#include "ui_tabs.h"
+#include "crafting.h"
+#include "map.h"
 
-// Static variables for drag and drop
 static bool isDragging = false;
 static int draggedSlotIndex = -1;
 static bool draggedFromHand = false;
@@ -72,8 +74,6 @@ void UseEquippedItem(InventorySlot* inventory, float* health, float* stamina, fl
 
 bool ReloadWeapon(InventorySlot* inventory) {
     InventorySlot* equippedSlot = &inventory[BACKPACK_SLOTS];
-
-    // FIXED: Get weaponId from equipped slot
     int weaponId = equippedSlot->itemId;
 
     if (weaponId != ITEM_PISTOL && weaponId != ITEM_M16) {
@@ -122,7 +122,6 @@ bool ReloadWeapon(InventorySlot* inventory) {
 
     TraceLog(LOG_INFO, TextFormat("Reloaded! Ammo: %d/%d", equippedSlot->ammo, maxAmmo));
 
-    // Play reload animation
     if (g_AnimationManager) {
         AnimationType anim = (weaponId == ITEM_PISTOL) ?
             ANIM_TYPE_RELOAD_PISTOL : ANIM_TYPE_RELOAD_RIFLE;
@@ -133,18 +132,49 @@ bool ReloadWeapon(InventorySlot* inventory) {
 }
 
 void DrawInventory(int screenW, int screenH, InventorySlot* inventory, int* selectedHandSlot, int* selectedInvSlot, bool useController) {
-    int invWidth = (int)(screenW * 0.85f);
-    int invHeight = (int)(screenH * 0.8f);
-    int padding = 15;
+    int invWidth = (int)(screenW * 0.90f);
+    int invHeight = (int)(screenH * 0.85f);
+    int invX = (screenW - invWidth) / 2;
+    int invY = (screenH - invHeight) / 2;
 
+    DrawRectangle(0, 0, screenW, screenH, Color{ 0, 0, 0, 180 });
+    DrawRectangle(invX, invY, invWidth, invHeight, PIPBOY_DARK);
+    DrawRectangleLines(invX, invY, invWidth, invHeight, PIPBOY_GREEN);
+
+    // Draw tab bar
+    g_TabManager.DrawTabBar(screenW, screenH, invX, invY, invWidth);
+    g_TabManager.HandleTabInput(useController);
+
+    int contentY = invY + 50;
+    int contentH = invHeight - 55;
+
+    UITab currentTab = g_TabManager.GetCurrentTab();
+
+    if (currentTab == TAB_INVENTORY) {
+        DrawInventoryTab(screenW, screenH, invX, contentY, invWidth, contentH, inventory, selectedHandSlot, selectedInvSlot, useController);
+    }
+    else if (currentTab == TAB_CRAFTING) {
+        DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
+    }
+    else if (currentTab == TAB_MAP) {
+        DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
+    }
+    else if (currentTab == TAB_SKILLS) {
+        DrawSkillsScreen(screenW, screenH, invX, contentY, invWidth, contentH, useController);
+    }
+    else if (currentTab == TAB_QUESTS) {
+        DrawQuestsScreen(screenW, screenH, invX, contentY, invWidth, contentH, useController);
+    }
+}
+
+void DrawInventoryTab(int screenW, int screenH, int invX, int invY, int invWidth, int invHeight,
+    InventorySlot* inventory, int* selectedHandSlot, int* selectedInvSlot, bool useController) {
+    int padding = 15;
     int cols = 9;
     int rows = BACKPACK_SLOTS / cols;
     int availableWidth = invWidth - (padding * 3);
     int slotSize = (int)fminf(50.0f, (float)availableWidth / (float)(cols + 0.5f));
     int spacing = (int)fmaxf(3.0f, slotSize * 0.1f);
-
-    int invX = (screenW - invWidth) / 2;
-    int invY = (screenH - invHeight) / 2 + 50;
 
     DrawText("Drag & Drop items to move them", invX + padding, invY + 10, 14, PIPBOY_DIM);
 
@@ -153,7 +183,7 @@ void DrawInventory(int screenW, int screenH, InventorySlot* inventory, int* sele
     bool mouseReleased = IsMouseButtonReleased(MOUSE_LEFT_BUTTON);
     bool mouseDown = IsMouseButtonDown(MOUSE_LEFT_BUTTON);
 
-    // --- Hand Slots ---
+    // Hand Slots
     int handY = invY + padding + 30;
     DrawText("EQUIPPED:", invX + padding, handY - 20, 15, PIPBOY_DIM);
 
@@ -212,7 +242,7 @@ void DrawInventory(int screenW, int screenH, InventorySlot* inventory, int* sele
         }
     }
 
-    // --- Backpack Slots ---
+    // Backpack Slots
     int backpackY = handY + slotSize + spacing + 10;
     DrawText("BACKPACK:", invX + padding, backpackY - 20, 15, PIPBOY_DIM);
 
@@ -295,7 +325,7 @@ void DrawInventory(int screenW, int screenH, InventorySlot* inventory, int* sele
         draggedSlotIndex = -1;
     }
 
-    // --- Item Details Panel WITH 3D PREVIEW ---
+    // Item Details Panel WITH 3D PREVIEW
     int detailPanelX = invX + invWidth - 210;
     int detailPanelW = 200;
     int detailPanelH = invHeight - 60;
@@ -310,18 +340,14 @@ void DrawInventory(int screenW, int screenH, InventorySlot* inventory, int* sele
         if (item.itemId != ITEM_NONE) {
             int detailY = invY + 90;
 
-            // === 3D ITEM PREVIEW ===
             if (g_ModelManager) {
-                // Create a small 3D viewport for item preview
                 int previewSize = 120;
                 int previewX = detailPanelX + (detailPanelW - previewSize) / 2;
                 int previewY = detailY;
 
-                // Draw preview background
                 DrawRectangle(previewX, previewY, previewSize, previewSize, Color{ 10, 20, 10, 255 });
                 DrawRectangleLines(previewX, previewY, previewSize, previewSize, PIPBOY_GREEN);
 
-                // Set up a mini 3D camera for item preview
                 Camera3D previewCam = { 0 };
                 previewCam.position = Vector3{ 0.3f, 0.2f, 0.3f };
                 previewCam.target = Vector3{ 0.0f, 0.0f, 0.0f };
@@ -329,11 +355,9 @@ void DrawInventory(int screenW, int screenH, InventorySlot* inventory, int* sele
                 previewCam.fovy = 45.0f;
                 previewCam.projection = CAMERA_PERSPECTIVE;
 
-                // Render item model in 3D
                 BeginScissorMode(previewX, previewY, previewSize, previewSize);
                 BeginMode3D(previewCam);
 
-                // Rotate item slowly for better view
                 float rotation = (float)GetTime() * 30.0f;
                 Vector3 itemPos = Vector3{ 0.0f, 0.0f, 0.0f };
                 Vector3 forward = Vector3{ cosf(rotation * DEG2RAD), 0.0f, sinf(rotation * DEG2RAD) };
@@ -349,7 +373,6 @@ void DrawInventory(int screenW, int screenH, InventorySlot* inventory, int* sele
                 detailY += previewSize + 10;
             }
 
-            // Text details below preview
             DrawText(TextFormat("Name: %s", GetItemName(item.itemId)), detailPanelX + 10, detailY, 15, PIPBOY_GREEN);
             DrawText(TextFormat("Qty: %d", item.quantity), detailPanelX + 10, detailY + 20, 15, PIPBOY_GREEN);
             if (item.ammo > 0)

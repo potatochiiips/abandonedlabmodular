@@ -72,43 +72,22 @@ bool cursorHidden = true;
 GameState gameState = GameState::MainMenu;
 GameState stateBeforeSettings = GameState::MainMenu;
 
-// Graphics settings
 GraphicsSettings graphicsSettings = {
-    2,      // resolutionIndex (1280x720)
-    true,   // vsync
-    false,  // msaa
-    4,      // msaaSamples
-    60,     // targetFPS
-    1.0f,   // renderScale
-    false,  // showFPS
-    true,   // enableLOD
-    true,   // enableFrustumCulling
-    1000,   // maxDrawCalls
-    UPSCALING_NONE,
-    UPSCALE_QUALITY_QUALITY,
-    1.0f,   // vegetationDensity
-    150.0f  // viewDistance
+    2, true, false, 4, 60, 1.0f, false, true, true, 1000,
+    UPSCALING_NONE, UPSCALE_QUALITY_QUALITY, 1.0f, 150.0f
 };
 
-// Animation state
 AnimationState playerAnimState = {
-    ANIM_TYPE_IDLE,
-    0.0f,
-    0.0f,
-    false,
-    true
+    ANIM_TYPE_IDLE, 0.0f, 0.0f, false, true
 };
 
-// Vehicle state
 std::vector<Vehicle> vehicles;
 Vehicle* playerVehicle = nullptr;
 
-// Performance optimization: Frame time tracking
 static float frameTimeAccumulator = 0.0f;
 static int frameCount = 0;
 static float avgFrameTime = 0.0f;
 
-// Helper function to draw textured cubes
 void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float height, float length, Color color) {
     float x = position.x;
     float y = position.y;
@@ -118,42 +97,36 @@ void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float hei
     rlColor4ub(color.r, color.g, color.b, color.a);
     rlSetTexture(texture.id);
 
-    // Front Face
     rlNormal3f(0.0f, 0.0f, 1.0f);
     rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z + length / 2);
     rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
     rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z + length / 2);
     rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z + length / 2);
 
-    // Back Face
     rlNormal3f(0.0f, 0.0f, -1.0f);
     rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
     rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z - length / 2);
     rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
     rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
 
-    // Top Face
     rlNormal3f(0.0f, 1.0f, 0.0f);
     rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z - length / 2);
     rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width / 2, y + height / 2, z + length / 2);
     rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width / 2, y + height / 2, z + length / 2);
     rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
 
-    // Bottom Face
     rlNormal3f(-1.0f, -1.0f, 0.0f);
     rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
     rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
     rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
     rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z + length / 2);
 
-    // Right face
     rlNormal3f(1.0f, 0.0f, 0.0f);
     rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
     rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
     rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z + length / 2);
     rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
 
-    // Left Face
     rlNormal3f(-1.0f, 0.0f, 0.0f);
     rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
     rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z + length / 2);
@@ -249,14 +222,11 @@ int main() {
         else if (graphicsSettings.msaaSamples == 4) SetConfigFlags(FLAG_MSAA_4X_HINT);
     }
 
-    // 1. Init Window FIRST
     InitWindow(monitorWidth, monitorHeight, "Echoes of Time");
     SetExitKey(KEY_NULL);
 
-    // 2. Load splash screen AFTER InitWindow
     Texture2D splashTexture = LoadTexture("assets/splash.png");
 
-    // 3. Splash Screen Display Loop (2.5 seconds)
     float splashTime = 2.5f;
     while (splashTime > 0 && !WindowShouldClose()) {
         float dt = GetFrameTime();
@@ -266,11 +236,10 @@ int main() {
         ClearBackground(BLACK);
 
         if (splashTexture.id > 0) {
-            // Stretch the texture to fill the entire screen dimensions
             DrawTexturePro(
                 splashTexture,
-                Rectangle{ 0, 0, (float)splashTexture.width, (float)splashTexture.height }, // Source (entire image)
-                Rectangle{ 0, 0, (float)GetScreenWidth(), (float)GetScreenHeight() },      // Destination (entire screen)
+                Rectangle{ 0, 0, (float)splashTexture.width, (float)splashTexture.height },
+                Rectangle{ 0, 0, (float)GetScreenWidth(), (float)GetScreenHeight() },
                 Vector2{ 0, 0 },
                 0.0f,
                 WHITE
@@ -283,7 +252,6 @@ int main() {
         EndDrawing();
     }
 
-    // 4. Cleanup Splash and Initialize Rest of Systems
     if (splashTexture.id > 0) UnloadTexture(splashTexture);
 
     InitializeUpscalingSystem(initialRes.width, initialRes.height);
@@ -301,7 +269,6 @@ int main() {
         int screenW = GetScreenWidth();
         int screenH = GetScreenHeight();
 
-        // Performance monitoring
         frameTimeAccumulator += deltaTime;
         frameCount++;
         if (frameTimeAccumulator >= 1.0f) {
@@ -313,8 +280,9 @@ int main() {
         bool isAnyMenuOpen = (inventoryOpen || isCraftingOpen || isMapOpen);
         bool useController = isControllerEnabled && IsGamepadAvailable(0);
 
-        // Cursor Handling
-        bool shouldCaptureCursor = (gameState == GameState::Gameplay && !isAnyMenuOpen && !isBindingMode) || isBindingMode;
+        // Cursor handling
+        bool shouldCaptureCursor = (gameState == GameState::Gameplay && !isAnyMenuOpen) ||
+            (gameState == GameState::Console);
         static bool prevCursorCaptured = false;
         if (shouldCaptureCursor != prevCursorCaptured) {
             if (shouldCaptureCursor) {
@@ -327,7 +295,7 @@ int main() {
             prevCursorCaptured = shouldCaptureCursor;
         }
 
-        // Global ESC handling
+        // ESC handling
         if (IsKeyPressed(KEY_ESCAPE) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_START))) {
             if (gameState == GameState::Gameplay && !isAnyMenuOpen) {
                 gameState = GameState::Paused;
@@ -340,22 +308,44 @@ int main() {
             else if (isAnyMenuOpen) {
                 CloseInGameMenus();
             }
-            else if (gameState != GameState::MainMenu) {
+            else if (gameState == GameState::Console) {
+                gameState = GameState::Gameplay;
+            }
+            else if (gameState == GameState::LoadMenu) {
+                gameState = stateBeforeSettings;
+            }
+            else if (gameState == GameState::Settings ||
+                gameState == GameState::GraphicsSettings ||
+                gameState == GameState::AudioSettings ||
+                gameState == GameState::ControllerBindings) {
                 gameState = stateBeforeSettings;
             }
         }
 
         if (IsKeyPressed(KEY_GRAVE)) {
-            if (gameState == GameState::Gameplay) gameState = GameState::Console;
-            else if (gameState == GameState::Console) gameState = GameState::Gameplay;
+            if (gameState == GameState::Gameplay) {
+                gameState = GameState::Console;
+            }
+            else if (gameState == GameState::Console) {
+                gameState = GameState::Gameplay;
+            }
         }
 
-        // --- Gameplay Logic ---
+        // Gameplay Logic
         if (gameState == GameState::Gameplay) {
-            // Menu Toggles
-            if (IsKeyPressed(KEY_I) || (useController && IsActionPressed(ACTION_INVENTORY, bindings))) { CloseInGameMenus(); inventoryOpen = !inventoryOpen; }
-            if (IsKeyPressed(KEY_C) || (useController && IsActionPressed(ACTION_CRAFTING, bindings))) { CloseInGameMenus(); isCraftingOpen = !isCraftingOpen; selectedRecipeIndex = 0; }
-            if (IsKeyPressed(KEY_M) || (useController && IsActionPressed(ACTION_MAP, bindings))) { CloseInGameMenus(); isMapOpen = !isMapOpen; }
+            if (IsKeyPressed(KEY_I) || (useController && IsActionPressed(ACTION_INVENTORY, bindings))) {
+                CloseInGameMenus();
+                inventoryOpen = !inventoryOpen;
+            }
+            if (IsKeyPressed(KEY_C) || (useController && IsActionPressed(ACTION_CRAFTING, bindings))) {
+                CloseInGameMenus();
+                isCraftingOpen = !isCraftingOpen;
+                selectedRecipeIndex = 0;
+            }
+            if (IsKeyPressed(KEY_M) || (useController && IsActionPressed(ACTION_MAP, bindings))) {
+                CloseInGameMenus();
+                isMapOpen = !isMapOpen;
+            }
 
             if (!isAnyMenuOpen) {
                 if (g_VehicleManager && g_VehicleManager->IsPlayerInVehicle()) {
@@ -374,27 +364,28 @@ int main() {
                     UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
                 }
 
-
-                // Interactions
                 if (IsKeyPressed(KEY_E)) {
                     if (g_VehicleManager && !g_VehicleManager->TryEnterVehicle(playerPosition)) {
                         Door* nearDoor = GetNearestDoor(playerPosition, 2.5f);
                         if (nearDoor) {
                             if (g_MapPlayer.insideInterior) ExitInterior(g_MapData, g_MapPlayer);
                             else EnterInterior(g_MapData, g_MapPlayer, nearDoor->buildingId);
-                            playerPosition = g_MapPlayer.insideInterior ? Vector3{ (float)g_MapPlayer.interiorX, playerHeight, (float)g_MapPlayer.interiorY } : Vector3{ (float)g_MapPlayer.worldX, playerHeight, (float)g_MapPlayer.worldY };
+                            playerPosition = g_MapPlayer.insideInterior ?
+                                Vector3{ (float)g_MapPlayer.interiorX, playerHeight, (float)g_MapPlayer.interiorY } :
+                                Vector3{ (float)g_MapPlayer.worldX, playerHeight, (float)g_MapPlayer.worldY };
                             camera.position = playerPosition;
                         }
                     }
                 }
 
                 UpdateDoors(deltaTime);
-                if (IsKeyPressed(KEY_F) && !g_VehicleManager->IsPlayerInVehicle()) isFlashlightOn = !isFlashlightOn;
+                if (IsKeyPressed(KEY_F) && !g_VehicleManager->IsPlayerInVehicle())
+                    isFlashlightOn = !isFlashlightOn;
 
-                // Combat logic
                 int eq = inventory[BACKPACK_SLOTS].itemId;
                 if (eq == ITEM_PISTOL || eq == ITEM_M16) {
-                    g_CurrentWeaponState.isADS = IsMouseButtonDown(MOUSE_RIGHT_BUTTON) || (useController && IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_TRIGGER_2));
+                    g_CurrentWeaponState.isADS = IsMouseButtonDown(MOUSE_RIGHT_BUTTON) ||
+                        (useController && IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_TRIGGER_2));
                 }
 
                 if (IsKeyPressed(KEY_R) && !isReloading && ReloadWeapon(inventory)) {
@@ -418,7 +409,6 @@ int main() {
                     }
                 }
 
-                // Stats
                 hunger = fmaxf(0, hunger - 0.5f * deltaTime);
                 thirst = fmaxf(0, thirst - 0.7f * deltaTime);
                 if (health <= 0) gameState = GameState::GameOver;
@@ -427,25 +417,45 @@ int main() {
             if (g_VehicleManager) g_VehicleManager->Update(deltaTime);
             if (g_AnimationManager) g_AnimationManager->UpdateAll(deltaTime);
         }
-
-        // Menu Logic
-        if (gameState == GameState::MainMenu) {
+        else if (gameState == GameState::Console) {
+            UpdateConsoleInput(&health, &stamina, &hunger, &thirst, &isNoclip, &fov);
+        }
+        else if (gameState == GameState::LoadMenu) {
             if (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))) {
-                if (mainMenuSelection == 0) { InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov); gameState = GameState::Gameplay; }
-                if (mainMenuSelection == 2) { stateBeforeSettings = GameState::MainMenu; gameState = GameState::Settings; }
-                if (mainMenuSelection == 3) break;
+                if (stateBeforeSettings == GameState::Paused) {
+                    SaveGame(saveSlotSelection + 1, playerPosition, yaw, pitch, health, stamina, hunger, thirst,
+                        inventory, flashlightBattery, isFlashlightOn, map, fov);
+                    gameState = GameState::Paused;
+                }
+                else if (stateBeforeSettings == GameState::MainMenu) {
+                    if (LoadGame(saveSlotSelection + 1, &playerPosition, &yaw, &pitch, &health, &stamina,
+                        &hunger, &thirst, inventory, &flashlightBattery, &isFlashlightOn, map, &fov)) {
+                        camera.position = playerPosition;
+                        Vector3 forward = {
+                            cosf(DEG2RAD * yaw) * cosf(DEG2RAD * pitch),
+                            sinf(DEG2RAD * pitch),
+                            sinf(DEG2RAD * yaw) * cosf(DEG2RAD * pitch)
+                        };
+                        camera.target = Vector3Add(camera.position, forward);
+                        gameState = GameState::Gameplay;
+                    }
+                }
             }
         }
 
-        // --- RENDERING ---
+        // RENDERING
         BeginDrawing();
         ClearBackground(Color{ 5, 10, 15, 255 });
 
         if (gameState == GameState::Gameplay || gameState == GameState::Paused) {
-            if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE) g_UpscalingManager->BeginUpscaledRender();
+            if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE)
+                g_UpscalingManager->BeginUpscaledRender();
 
             if (g_ShaderManager) {
-                g_ShaderManager->UpdateLighting(camera, { MAP_SIZE / 2.0f, 100, MAP_SIZE / 2.0f }, isFlashlightOn, camera.position, Vector3Normalize(Vector3Subtract(camera.target, camera.position)), (flashlightBattery / 100.0f) * 5.0f);
+                g_ShaderManager->UpdateLighting(camera, { MAP_SIZE / 2.0f, 100, MAP_SIZE / 2.0f },
+                    isFlashlightOn, camera.position,
+                    Vector3Normalize(Vector3Subtract(camera.target, camera.position)),
+                    (flashlightBattery / 100.0f) * 5.0f);
             }
 
             BeginMode3D(camera);
@@ -453,7 +463,6 @@ int main() {
             DrawMapGeometry(map);
             g_WaypointManager.DrawIn3D(playerPosition, 100.0f);
 
-            // Draw Weapons
             int eq = inventory[BACKPACK_SLOTS].itemId;
             Vector3 wPos = g_WeaponSystem.CalculateWeaponPosition(camera, g_CurrentWeaponState, eq == ITEM_M16);
             Vector3 fwd = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
@@ -463,39 +472,54 @@ int main() {
             else DrawPlayerHands(camera, inventory, 0, 0);
 
             EndMode3D();
-            if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE) g_UpscalingManager->EndUpscaledRender(screenW, screenH);
+            if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE)
+                g_UpscalingManager->EndUpscaledRender(screenW, screenH);
 
-            // UI
             if (gameState == GameState::Gameplay) {
                 DrawHUD(screenW, screenH, health, stamina, hunger, thirst, fov, flashlightBattery, isFlashlightOn, inventory);
                 g_QuestManager.DrawQuestTrackerCompact(screenW, screenH);
 
-                // Draw round minimap in top-right corner
                 if (showMinimap) {
                     int minimapRadius = 75;
                     int minimapX = screenW - minimapRadius - 20;
                     int minimapY = minimapRadius + 20;
                     int viewRange = 15;
-
                     DrawRoundMinimap(map, playerPosition, yaw, minimapX, minimapY, minimapRadius, viewRange);
                 }
             }
             if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
             if (isCraftingOpen) DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
             if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
-        }
 
-        if (gameState == GameState::MainMenu) {
+            if (gameState == GameState::Paused) {
+                DrawRectangle(0, 0, screenW, screenH, Color{ 0, 0, 0, 180 });
+                std::vector<std::string> opts = { "Continue", "Save Game", "Settings", "Main Menu" };
+                DrawMenu(screenW, screenH, opts, &pauseMenuSelection, useController, "PAUSED");
+            }
+        }
+        else if (gameState == GameState::MainMenu) {
             std::vector<std::string> opts = { "New Game", "Load Game", "Settings", "Exit" };
             DrawMenu(screenW, screenH, opts, &mainMenuSelection, useController, "ECHOES OF TIME");
         }
-        else if (gameState == GameState::Paused) {
-            DrawRectangle(0, 0, screenW, screenH, Color{ 0, 0, 0, 180 });
-            std::vector<std::string> opts = { "Continue", "Save Game", "Settings", "Main Menu" };
-            DrawMenu(screenW, screenH, opts, &pauseMenuSelection, useController, "PAUSED");
+        else if (gameState == GameState::Console) {
+            DrawConsole(screenW, screenH, consoleHistory, consoleInput, consoleInputLength);
+        }
+        else if (gameState == GameState::LoadMenu) {
+            DrawLoadMenu(screenW, screenH, &saveSlotSelection, stateBeforeSettings);
         }
         else if (gameState == GameState::Settings) {
-            DrawSettingsMenu(screenW, screenH, &showMinimap, &isControllerEnabled, &isFullscreen, &settingsSelection, &stateBeforeSettings);
+            DrawSettingsMenu(screenW, screenH, &showMinimap, &isControllerEnabled, &isFullscreen,
+                &settingsSelection, &stateBeforeSettings);
+        }
+        else if (gameState == GameState::GraphicsSettings) {
+            DrawGraphicsSettingsMenu(screenW, screenH, &graphicsSettings, &graphicsSettingsSelection, &stateBeforeSettings);
+        }
+        else if (gameState == GameState::AudioSettings) {
+            DrawAudioSettingsMenu(screenW, screenH, &audioSettingsSelection, &stateBeforeSettings);
+        }
+        else if (gameState == GameState::ControllerBindings) {
+            DrawControllerBindings(screenW, screenH, &activeBindingIndex, &isBindingMode,
+                &controllerSettingsSelection, bindings);
         }
 
         if (graphicsSettings.showFPS) DrawText(TextFormat("FPS: %d", GetFPS()), 10, 10, 20, GREEN);
