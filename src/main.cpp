@@ -374,6 +374,7 @@ int main() {
                     UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
                 }
 
+
                 // Interactions
                 if (IsKeyPressed(KEY_E)) {
                     if (g_VehicleManager && !g_VehicleManager->TryEnterVehicle(playerPosition)) {

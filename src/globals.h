@@ -85,7 +85,7 @@ enum class GameState {
 #define ITEM_KNIFE 11
 // ------------------------
 
-// --- FALLOUT 4 (PIP-BOY) STYLE COLORS ---
+// --- Customized colors for game ---
 #define PIPBOY_GREEN Color{65, 255, 65, 255}
 #define PIPBOY_DARK Color{10, 30, 10, 240}
 #define PIPBOY_SELECTED Color{40, 70, 40, 255}
