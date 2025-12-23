@@ -103,11 +103,18 @@ bool ModelManager::LoadModelFile(ModelID id, const char* filename) {
         if (model.meshCount > 0) {
             // FIXED: Generate mipmaps for all textures to fix TRILINEAR warnings
             for (int i = 0; i < model.materialCount; i++) {
-                for (int j = 0; j < MATERIAL_MAP_COUNT; j++) {
-                    if (model.materials[i].maps[j].texture.id > 0) {
-                        GenTextureMipmaps(&model.materials[i].maps[j].texture);
-                        SetTextureFilter(model.materials[i].maps[j].texture, TEXTURE_FILTER_TRILINEAR);
-                    }
+                // Generate mipmaps for diffuse, specular, and normal maps
+                if (model.materials[i].maps[MATERIAL_MAP_DIFFUSE].texture.id > 0) {
+                    GenTextureMipmaps(&model.materials[i].maps[MATERIAL_MAP_DIFFUSE].texture);
+                    SetTextureFilter(model.materials[i].maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_TRILINEAR);
+                }
+                if (model.materials[i].maps[MATERIAL_MAP_SPECULAR].texture.id > 0) {
+                    GenTextureMipmaps(&model.materials[i].maps[MATERIAL_MAP_SPECULAR].texture);
+                    SetTextureFilter(model.materials[i].maps[MATERIAL_MAP_SPECULAR].texture, TEXTURE_FILTER_TRILINEAR);
+                }
+                if (model.materials[i].maps[MATERIAL_MAP_NORMAL].texture.id > 0) {
+                    GenTextureMipmaps(&model.materials[i].maps[MATERIAL_MAP_NORMAL].texture);
+                    SetTextureFilter(model.materials[i].maps[MATERIAL_MAP_NORMAL].texture, TEXTURE_FILTER_TRILINEAR);
                 }
             }
 
