@@ -71,17 +71,20 @@ bool TextureManager::LoadTextureFile(TextureID id, const char* filename) {
     if (FileExists(filename)) {
         Texture2D tex = LoadTexture(filename);
         if (tex.id > 0) {
+            // FIXED: Generate mipmaps before setting filter
+            GenTextureMipmaps(&tex);
+
             // Enable trilinear filtering for better quality
             SetTextureFilter(tex, TEXTURE_FILTER_TRILINEAR);
             SetTextureWrap(tex, TEXTURE_WRAP_REPEAT);
-            
+
             textures[id] = tex;
             loadedStatus[id] = true;
-            TraceLog(LOG_INFO, "Loaded texture: %s", filename);
+            TraceLog(LOG_INFO, "Loaded texture: %s (with mipmaps)", filename);
             return true;
         }
     }
-    
+
     loadedStatus[id] = false;
     return false;
 }
@@ -211,9 +214,12 @@ Texture2D TextureManager::CreateProceduralTexture(TextureID id) {
     
     Texture2D tex = LoadTextureFromImage(img);
     UnloadImage(img);
-    SetTextureFilter(tex, TEXTURE_FILTER_BILINEAR);
+
+    // FIXED: Generate mipmaps for procedural textures
+    GenTextureMipmaps(&tex);
+    SetTextureFilter(tex, TEXTURE_FILTER_TRILINEAR);
     SetTextureWrap(tex, TEXTURE_WRAP_REPEAT);
-    
+
     return tex;
 }
 

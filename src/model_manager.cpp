@@ -16,8 +16,8 @@ static const char* MODEL_PATHS[MODEL_COUNT] = {
     "assets/models/magazine.glb",
     "assets/models/m16_magazine.glb",
     "assets/models/knife.glb",
-    "assets/models/cryopod.glb"
-    "assets/models/console_terminal.glb",
+    "assets/models/cryopod.glb",  // FIXED: Added proper separator
+    "assets/models/console_terminal.glb",  // FIXED: Separate line
     "assets/models/bed.glb",
     "assets/models/desk.glb",
     "assets/models/chair.glb",
@@ -35,6 +35,7 @@ static const char* MODEL_PATHS[MODEL_COUNT] = {
 };
 
 static const float TARGET_SIZE = 0.15f;
+static const float MIN_SCALE = 0.001f; // FIXED: Minimum scale to avoid 0.000
 
 ModelManager::ModelManager() {
     fallbackModel = { 0 };
@@ -62,7 +63,6 @@ void ModelManager::Initialize() {
             data.offset = Vector3{ 0.0f, 0.0f, 0.0f };
             data.rotation = Vector3{ 0.0f, 0.0f, 0.0f };
 
-            // Fix M16 backwards issue - rotate 180 degrees
             if (id == MODEL_M16) {
                 data.rotation = Vector3{ 0.0f, 180.0f, 0.0f };
             }
@@ -84,7 +84,12 @@ Vector3 ModelManager::CalculateAutoScale(const Model& model) {
     float height = bbox.max.y - bbox.min.y;
     float depth = bbox.max.z - bbox.min.z;
     float maxDim = fmaxf(fmaxf(width, height), depth);
+
+    // FIXED: Prevent division by zero and ensure minimum scale
+    if (maxDim < 0.001f) maxDim = 1.0f;
+
     float scale = TARGET_SIZE / maxDim;
+    scale = fmaxf(scale, MIN_SCALE); // FIXED: Enforce minimum scale
 
     TraceLog(LOG_INFO, "Auto-scale calculated: %.3f (dimensions: %.3f x %.3f x %.3f)",
         scale, width, height, depth);
@@ -96,6 +101,16 @@ bool ModelManager::LoadModelFile(ModelID id, const char* filename) {
     if (FileExists(filename)) {
         Model model = LoadModel(filename);
         if (model.meshCount > 0) {
+            // FIXED: Generate mipmaps for all textures to fix TRILINEAR warnings
+            for (int i = 0; i < model.materialCount; i++) {
+                for (int j = 0; j < MATERIAL_MAP_COUNT; j++) {
+                    if (model.materials[i].maps[j].texture.id > 0) {
+                        GenTextureMipmaps(&model.materials[i].maps[j].texture);
+                        SetTextureFilter(model.materials[i].maps[j].texture, TEXTURE_FILTER_TRILINEAR);
+                    }
+                }
+            }
+
             ApplyTexturesToModel(model, id);
 
             ModelData data;
@@ -105,7 +120,6 @@ bool ModelManager::LoadModelFile(ModelID id, const char* filename) {
             data.offset = Vector3{ 0.0f, 0.0f, 0.0f };
             data.rotation = Vector3{ 0.0f, 0.0f, 0.0f };
 
-            // Fix M16 backwards issue - rotate 180 degrees
             if (id == MODEL_M16) {
                 data.rotation = Vector3{ 0.0f, 180.0f, 0.0f };
             }
@@ -165,6 +179,10 @@ void ModelManager::ApplyTexturesToModel(Model& model, ModelID id) {
     }
 
     if (texture.id > 0) {
+        // FIXED: Generate mipmaps for applied textures
+        GenTextureMipmaps(&texture);
+        SetTextureFilter(texture, TEXTURE_FILTER_TRILINEAR);
+
         for (int i = 0; i < model.materialCount; i++) {
             model.materials[i].maps[MATERIAL_MAP_DIFFUSE].texture = texture;
         }
@@ -176,8 +194,9 @@ void ModelManager::CreateFallbackModel() {
     fallbackModel = LoadModelFromMesh(mesh);
 
     if (g_TextureManager) {
-        fallbackModel.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture =
-            g_TextureManager->GetFallbackTexture();
+        Texture2D fallbackTex = g_TextureManager->GetFallbackTexture();
+        GenTextureMipmaps(&fallbackTex);
+        fallbackModel.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = fallbackTex;
     }
 }
 
@@ -216,6 +235,9 @@ Model ModelManager::CreateProceduralModel(ModelID id) {
         break;
     case MODEL_CRYOPOD:
         mesh = GenMeshCube(0.8f, 2.0f, 0.6f);
+        break;
+    case MODEL_CONSOLE_TERMINAL:
+        mesh = GenMeshCube(0.6f, 0.8f, 0.4f);
         break;
     default:
         mesh = GenMeshCube(0.05f, 0.05f, 0.05f);
