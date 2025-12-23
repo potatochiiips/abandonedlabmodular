@@ -114,6 +114,9 @@
     <ClCompile Include="src\skybox.cpp" />
     <ClCompile Include="src\vehicle_system.cpp" />
     <ClCompile Include="src\animation_system.cpp" />
+    <ClCompile Include="src\daynight_system.cpp" />
+    <ClCompile Include="src\weather_system.cpp" />
+    <ClCompile Include="src\zombie_system.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\city_system.h" />
@@ -141,6 +144,9 @@
     <ClInclude Include="src\skybox.h" />
     <ClInclude Include="src\vehicle_system.h" />
     <ClInclude Include="src\animation_system.h" />
+    <ClInclude Include="src\daynight_system.h" />
+    <ClInclude Include="src\weather_system.h" />
+    <ClInclude Include="src\zombie_system.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\shaders\lighting.vs" />
