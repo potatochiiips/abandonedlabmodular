@@ -210,6 +210,7 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
 }
 
 int main() {
+    InitializeSoundSystem();
     LoadGraphicsSettings(&graphicsSettings);
     const Resolution& initialRes = AVAILABLE_RESOLUTIONS[graphicsSettings.resolutionIndex];
 
@@ -221,10 +222,10 @@ int main() {
         if (graphicsSettings.msaaSamples == 2) SetConfigFlags(FLAG_MSAA_4X_HINT);
         else if (graphicsSettings.msaaSamples == 4) SetConfigFlags(FLAG_MSAA_4X_HINT);
     }
-
+   
     InitWindow(monitorWidth, monitorHeight, "Echoes of Time");
     SetExitKey(KEY_NULL);
-
+ 
     Texture2D splashTexture = LoadTexture("assets/splash.png");
 
     float splashTime = 2.5f;
@@ -253,7 +254,7 @@ int main() {
     }
 
     if (splashTexture.id > 0) UnloadTexture(splashTexture);
-    InitializeSoundSystem();
+
     InitializeUpscalingSystem(initialRes.width, initialRes.height);
     ApplyGraphicsSettings(graphicsSettings);
     InitializeRenderingSystems();
@@ -266,6 +267,13 @@ int main() {
     InitializeZombieSystem();       
 
     InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov);
+    if (g_SoundManager) {
+        MusicID currentMusic = g_MapPlayer.insideInterior ? MUS_AMBIENT_INSIDE : MUS_AMBIENT_OUTSIDE;
+        g_SoundManager->PlayMusic(currentMusic, true, 3.0f);
+    }
+    if (g_SoundManager) {
+        g_SoundManager->PlayMusic(MUS_MENU, true, 2.0f);
+    }
 
     while (!WindowShouldClose()) {
         float deltaTime = GetFrameTime();
@@ -284,8 +292,8 @@ int main() {
         bool useController = isControllerEnabled && IsGamepadAvailable(0);
 
         // Cursor handling
-        bool shouldCaptureCursor = (gameState == GameState::Gameplay && !isAnyMenuOpen) ||
-            (gameState == GameState::Console);
+        bool shouldCaptureCursor = (gameState == GameState::Gameplay && !isAnyMenuOpen && gameState != GameState::Console);
+
         static bool prevCursorCaptured = false;
         if (shouldCaptureCursor != prevCursorCaptured) {
             if (shouldCaptureCursor) {
@@ -324,7 +332,7 @@ int main() {
                 gameState = stateBeforeSettings;
             }
         }
-
+    
         if (IsKeyPressed(KEY_GRAVE)) {
             if (gameState == GameState::Gameplay) {
                 gameState = GameState::Console;
@@ -369,7 +377,7 @@ int main() {
                 else {
                     UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
                 }
-
+            
                 if (IsKeyPressed(KEY_E)) {
                     if (g_VehicleManager && !g_VehicleManager->TryEnterVehicle(playerPosition)) {
                         Door* nearDoor = GetNearestDoor(playerPosition, 2.5f);
@@ -401,14 +409,19 @@ int main() {
                     // Play reload sound
                     if (g_SoundManager) {
                         g_SoundManager->PlaySound(SND_RELOAD, 0.5f);
-                }
+                    }
 
-                if (isReloading) {
-                    reloadTimer -= deltaTime;
-                    if (reloadTimer <= 0) isReloading = false;
+                    if (isReloading) {
+                        reloadTimer -= deltaTime;
+                        if (reloadTimer <= 0) isReloading = false;
+                    }
                 }
+                g_WeaponSystem.UpdateWeapon(g_CurrentWeaponState, deltaTime);
+                // SHOOTING LOGIC - FIXED
+                bool shootPressed = IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ||
+                    (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_TRIGGER_2));
 
-                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && shotTimer <= 0 && !isReloading) {
+                if (shootPressed && shotTimer <= 0 && !isReloading) {
                     WeaponStats* s = g_WeaponSystem.GetWeaponStats(eq);
                     if (s && inventory[BACKPACK_SLOTS].ammo > 0) {
                         shotTimer = s->fireRate;
@@ -416,10 +429,13 @@ int main() {
                         g_CurrentWeaponState.animState = ANIM_SHOOT;
                         g_CurrentWeaponState.animTimer = 0.2f;
 
-                        // ADD WEAPON RECOIL
+                        // Weapon recoil
                         g_CurrentWeaponState.recoilOffset.y = -0.05f;
                         g_CurrentWeaponState.recoilOffset.z = -0.02f;
-                    }
+
+                        // Camera recoil
+                        pitch -= s->recoilPitch;
+                        yaw += (rand() % 100 - 50) / 100.0f * s->recoilYaw;
 
                         // Play weapon sound
                         if (g_SoundManager) {
@@ -430,15 +446,25 @@ int main() {
                                 g_SoundManager->PlaySound(SND_RIFLE_SHOT, 0.7f);
                             }
                         }
+
+                        // Raycast for hit detection
+                        Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+
+                        // Check zombie hits
+                        if (g_ZombieManager) {
+                            Zombie* hitZombie = g_ZombieManager->GetZombieAt(camera.position, 2.0f);
+                            if (hitZombie) {
+                                g_ZombieManager->DamageZombie(hitZombie->id, s->damage);
+                            }
+                        }
                     }
                     else if (s) {
-                        // Empty click sound
+                        // Empty click
                         if (g_SoundManager) {
                             g_SoundManager->PlaySound(SND_EMPTY_CLICK, 0.5f);
                         }
                     }
                 }
-
 
                 hunger = fmaxf(0, hunger - 0.5f * deltaTime);
                 thirst = fmaxf(0, thirst - 0.7f * deltaTime);

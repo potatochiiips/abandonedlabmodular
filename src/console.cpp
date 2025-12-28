@@ -1,4 +1,8 @@
 #include "console.h"
+#include "daynight_system.h"
+#include "weather_system.h"
+#include "zombie_system.h"
+#include "player.h"
 #include <algorithm>
 #include <sstream>
 #include <cctype>
@@ -25,14 +29,15 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
         history.push_back("Available commands:");
         history.push_back("  help - Show this help message");
         history.push_back("  noclip - Toggle noclip mode");
-        history.push_back("  setstat <stat> <value> - Set player stat (health/stamina/hunger/thirst)");
+        history.push_back("  setstat <stat> <value> - Set player stat");
         history.push_back("  setfov <value> - Set FOV (30-120)");
-        history.push_back("  god - Toggle god mode (infinite health)");
-        history.push_back("  spawn <item> - Spawn item in inventory");
-        history.push_back("  clear - Clear console history");
-        history.push_back("  teleport <x> <y> <z> - Teleport to coordinates");
-        history.push_back("  time <hour> - Set time of day (0-24)");
-        history.push_back("  weather <type> - Set weather (clear/rain/fog)");
+        history.push_back("  god - Toggle god mode");
+        history.push_back("  spawn <item> - Spawn item");
+        history.push_back("  clear - Clear console");
+        history.push_back("  teleport <x> <y> <z> - Teleport");
+        history.push_back("  time <hour> - Set time (0-24)");
+        history.push_back("  weather <type> - Set weather");
+        history.push_back("  spawnzombie - Spawn zombie nearby");
     }
     else if (command == "noclip" && isNoclip) {
         *isNoclip = !(*isNoclip);
@@ -55,7 +60,6 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
 
         if (statName.empty() || ss.fail()) {
             history.push_back("Usage: setstat <stat> <value>");
-            history.push_back("Stats: health, stamina, hunger, thirst");
         }
         else {
             std::transform(statName.begin(), statName.end(), statName.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
@@ -67,7 +71,7 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
             else if (statName == "thirst" && thirst) *thirst = fmaxf(0.0f, fminf(100.0f, value));
             else known = false;
 
-            if (!known) history.push_back("Unknown stat. Use health, stamina, hunger, or thirst.");
+            if (!known) history.push_back("Unknown stat.");
             else history.push_back(TextFormat("%s set to %.0f", statName.c_str(), value));
         }
     }
@@ -87,10 +91,36 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
         ss >> itemName;
         if (itemName.empty()) {
             history.push_back("Usage: spawn <item>");
-            history.push_back("Items: water, key, flashlight, wood, stone, chips, pistol, mag, m16, m16mag, knife");
         }
         else {
-            history.push_back(TextFormat("Spawning %s... (not implemented yet)", itemName.c_str()));
+            // Implement item spawning
+            extern InventorySlot inventory[TOTAL_INVENTORY_SLOTS];
+            int itemId = ITEM_NONE;
+
+            if (itemName == "water") itemId = ITEM_WATER_BOTTLE;
+            else if (itemName == "key") itemId = ITEM_LAB_KEY;
+            else if (itemName == "flashlight") itemId = ITEM_FLASHLIGHT;
+            else if (itemName == "wood") itemId = ITEM_WOOD;
+            else if (itemName == "stone") itemId = ITEM_STONE;
+            else if (itemName == "chips") itemId = ITEM_POTATO_CHIPS;
+            else if (itemName == "pistol") itemId = ITEM_PISTOL;
+            else if (itemName == "mag") itemId = ITEM_MAG;
+            else if (itemName == "m16") itemId = ITEM_M16;
+            else if (itemName == "m16mag") itemId = ITEM_M16_MAG;
+            else if (itemName == "knife") itemId = ITEM_KNIFE;
+
+            if (itemId != ITEM_NONE) {
+                extern bool AddItemToInventory(InventorySlot * inventory, int itemId, int quantity, int ammo);
+                if (AddItemToInventory(inventory, itemId, 1, 0)) {
+                    history.push_back(TextFormat("Spawned %s", itemName.c_str()));
+                }
+                else {
+                    history.push_back("Inventory full!");
+                }
+            }
+            else {
+                history.push_back(TextFormat("Unknown item: %s", itemName.c_str()));
+            }
         }
     }
     else if (command == "teleport") {
@@ -100,7 +130,11 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
             history.push_back("Usage: teleport <x> <y> <z>");
         }
         else {
-            history.push_back(TextFormat("Teleport to (%.1f, %.1f, %.1f) - not implemented yet", x, y, z));
+            extern Vector3 playerPosition;
+            extern Camera3D camera;
+            playerPosition = Vector3{ x, y, z };
+            camera.position = playerPosition;
+            history.push_back(TextFormat("Teleported to (%.1f, %.1f, %.1f)", x, y, z));
         }
     }
     else if (command == "time") {
@@ -110,17 +144,47 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
             history.push_back("Usage: time <hour> (0-24)");
         }
         else {
-            history.push_back(TextFormat("Time set to %d:00 - not implemented yet", hour));
+            if (g_DayNightCycle) {
+                g_DayNightCycle->SetTime((float)hour);
+                history.push_back(TextFormat("Time set to %d:00", hour));
+            }
+            else {
+                history.push_back("Day/night system not available");
+            }
         }
     }
     else if (command == "weather") {
         std::string weather;
         ss >> weather;
         if (weather.empty()) {
-            history.push_back("Usage: weather <type> (clear/rain/fog)");
+            history.push_back("Usage: weather <type> (clear/rain/fog/storm)");
         }
         else {
-            history.push_back(TextFormat("Weather set to %s - not implemented yet", weather.c_str()));
+            if (g_WeatherSystem) {
+                WeatherType type = WEATHER_CLEAR;
+                if (weather == "clear") type = WEATHER_CLEAR;
+                else if (weather == "rain") type = WEATHER_RAIN;
+                else if (weather == "fog") type = WEATHER_FOG;
+                else if (weather == "storm") type = WEATHER_STORM;
+
+                g_WeatherSystem->SetWeather(type);
+                history.push_back(TextFormat("Weather set to %s", weather.c_str()));
+            }
+            else {
+                history.push_back("Weather system not available");
+            }
+        }
+    }
+    else if (command == "spawnzombie") {
+        if (g_ZombieManager) {
+            extern Vector3 playerPosition;
+            Vector3 spawnPos = playerPosition;
+            spawnPos.x += 5.0f;
+            g_ZombieManager->SpawnZombie(spawnPos);
+            history.push_back("Zombie spawned nearby");
+        }
+        else {
+            history.push_back("Zombie system not available");
         }
     }
     else {
@@ -132,11 +196,9 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
 }
 
 void DrawConsole(int screenW, int screenH, const std::vector<std::string>& history, const char* input, int inputLength) {
-    // Semi-transparent background
     DrawRectangle(0, 0, screenW, screenH / 2, Color{ 0, 0, 0, 200 });
     DrawRectangleLines(0, 0, screenW, screenH / 2, PIPBOY_GREEN);
 
-    // Title
     DrawText("CONSOLE", 10, 5, 20, PIPBOY_GREEN);
     DrawText("Press ` or ESC to close", screenW - 200, 5, 14, PIPBOY_DIM);
 
@@ -149,16 +211,13 @@ void DrawConsole(int screenW, int screenH, const std::vector<std::string>& histo
         DrawText(history[i].c_str(), 10, 30 + (i - startLine) * (fontSize + 2), fontSize, PIPBOY_GREEN);
     }
 
-    // Input line background
     DrawRectangle(0, screenH / 2 - 30, screenW, 30, Color{ 0, 50, 0, 220 });
     DrawText(TextFormat("] %s_", input ? input : ""), 10, screenH / 2 - 25, 18, PIPBOY_GREEN);
 }
 
 void UpdateConsoleInput(float* health, float* stamina, float* hunger, float* thirst, bool* isNoclip, float* fov) {
-    // Get all character input
     int key = GetCharPressed();
     while (key > 0) {
-        // Handle printable characters (space to ~)
         if (key >= 32 && key <= 126 && consoleInputLength < MAX_COMMAND_LENGTH - 1) {
             consoleInput[consoleInputLength] = (char)key;
             consoleInputLength++;
@@ -167,13 +226,11 @@ void UpdateConsoleInput(float* health, float* stamina, float* hunger, float* thi
         key = GetCharPressed();
     }
 
-    // Handle backspace
     if (IsKeyPressed(KEY_BACKSPACE) && consoleInputLength > 0) {
         consoleInputLength--;
         consoleInput[consoleInputLength] = '\0';
     }
-    
-    // Handle enter
+
     if (IsKeyPressed(KEY_ENTER)) {
         ProcessConsoleCommand(consoleHistory, health, stamina, hunger, thirst, isNoclip, fov);
     }
