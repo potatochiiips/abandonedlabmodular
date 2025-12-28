@@ -419,6 +419,7 @@ int main() {
                         // ADD WEAPON RECOIL
                         g_CurrentWeaponState.recoilOffset.y = -0.05f;
                         g_CurrentWeaponState.recoilOffset.z = -0.02f;
+                    }
 
                         // Play weapon sound
                         if (g_SoundManager) {
