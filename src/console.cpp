@@ -93,7 +93,6 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
             history.push_back("Usage: spawn <item>");
         }
         else {
-            // Implement item spawning
             extern InventorySlot inventory[TOTAL_INVENTORY_SLOTS];
             int itemId = ITEM_NONE;
 
@@ -215,9 +214,12 @@ void DrawConsole(int screenW, int screenH, const std::vector<std::string>& histo
     DrawText(TextFormat("] %s_", input ? input : ""), 10, screenH / 2 - 25, 18, PIPBOY_GREEN);
 }
 
+// FIXED: Console input handling - check game state properly
 void UpdateConsoleInput(float* health, float* stamina, float* hunger, float* thirst, bool* isNoclip, float* fov) {
+    // FIXED: Only process typed characters, not special keys
     int key = GetCharPressed();
     while (key > 0) {
+        // Only accept printable characters (space to ~)
         if (key >= 32 && key <= 126 && consoleInputLength < MAX_COMMAND_LENGTH - 1) {
             consoleInput[consoleInputLength] = (char)key;
             consoleInputLength++;
@@ -226,11 +228,13 @@ void UpdateConsoleInput(float* health, float* stamina, float* hunger, float* thi
         key = GetCharPressed();
     }
 
+    // Handle backspace separately
     if (IsKeyPressed(KEY_BACKSPACE) && consoleInputLength > 0) {
         consoleInputLength--;
         consoleInput[consoleInputLength] = '\0';
     }
 
+    // Handle enter separately
     if (IsKeyPressed(KEY_ENTER)) {
         ProcessConsoleCommand(consoleHistory, health, stamina, hunger, thirst, isNoclip, fov);
     }

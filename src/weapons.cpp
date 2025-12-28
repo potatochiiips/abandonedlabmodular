@@ -13,7 +13,16 @@ WeaponState g_CurrentWeaponState = {
     {0.0f, 0.0f, 0.0f}
 };
 
+// FIXED: Add weapon system re-initialization flag
+static bool g_WeaponSystemInitialized = false;
+
 void DrawEnhancedPistol(Vector3 basePos, Vector3 forward, Vector3 right, Vector3 up, const WeaponState& state) {
+    // FIXED: Re-initialize weapon system if needed
+    if (!g_WeaponSystemInitialized) {
+        g_WeaponSystem.InitializeWeapons();
+        g_WeaponSystemInitialized = true;
+    }
+
     if (g_ModelManager) {
         Vector3 adjustedPos = Vector3Add(basePos, state.recoilOffset);
         g_ModelManager->DrawModel(MODEL_PISTOL, adjustedPos, forward, right, up, WHITE);
@@ -24,6 +33,12 @@ void DrawEnhancedPistol(Vector3 basePos, Vector3 forward, Vector3 right, Vector3
 }
 
 void DrawM16Rifle(Vector3 basePos, Vector3 forward, Vector3 right, Vector3 up, const WeaponState& state) {
+    // FIXED: Re-initialize weapon system if needed
+    if (!g_WeaponSystemInitialized) {
+        g_WeaponSystem.InitializeWeapons();
+        g_WeaponSystemInitialized = true;
+    }
+
     if (g_ModelManager) {
         Vector3 adjustedPos = Vector3Add(basePos, state.recoilOffset);
         g_ModelManager->DrawModel(MODEL_M16, adjustedPos, forward, right, up, WHITE);

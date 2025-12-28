@@ -64,7 +64,8 @@ private:
     Model fallbackModel;
 
     void CreateFallbackModel();
-    Vector3 CalculateAutoScale(const Model& model);
+    // FIXED: Added ModelID parameter for context-aware scaling
+    Vector3 CalculateAutoScale(const Model& model, ModelID id = MODEL_PISTOL);
     bool LoadModelFile(ModelID id, const char* filename);
     Model CreateProceduralModel(ModelID id);
     void ApplyTexturesToModel(Model& model, ModelID id);

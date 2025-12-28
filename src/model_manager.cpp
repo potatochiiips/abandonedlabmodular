@@ -16,8 +16,8 @@ static const char* MODEL_PATHS[MODEL_COUNT] = {
     "assets/models/magazine.glb",
     "assets/models/m16_magazine.glb",
     "assets/models/knife.glb",
-    "assets/models/cryopod.glb",  // FIXED: Added proper separator
-    "assets/models/console_terminal.glb",  // FIXED: Separate line
+    "assets/models/cryopod.glb",
+    "assets/models/console_terminal.glb",
     "assets/models/bed.glb",
     "assets/models/desk.glb",
     "assets/models/chair.glb",
@@ -34,8 +34,10 @@ static const char* MODEL_PATHS[MODEL_COUNT] = {
     "assets/models/crate.glb",
 };
 
-static const float TARGET_SIZE = 0.15f;
-static const float MIN_SCALE = 0.001f; // FIXED: Minimum scale to avoid 0.000
+// FIXED: Separate target sizes for items vs world props
+static const float ITEM_TARGET_SIZE = 0.15f;  // Small for inventory items
+static const float PROP_TARGET_SIZE = 1.0f;   // Larger for world props
+static const float MIN_SCALE = 0.001f;
 
 ModelManager::ModelManager() {
     fallbackModel = { 0 };
@@ -59,7 +61,7 @@ void ModelManager::Initialize() {
             ModelData data;
             data.model = procModel;
             data.loaded = true;
-            data.scale = CalculateAutoScale(procModel);
+            data.scale = CalculateAutoScale(procModel, id); // FIXED: Pass ID for context
             data.offset = Vector3{ 0.0f, 0.0f, 0.0f };
             data.rotation = Vector3{ 0.0f, 0.0f, 0.0f };
 
@@ -76,7 +78,8 @@ void ModelManager::Initialize() {
         (int)models.size(), MODEL_COUNT);
 }
 
-Vector3 ModelManager::CalculateAutoScale(const Model& model) {
+// FIXED: Scale based on model type - items vs world props
+Vector3 ModelManager::CalculateAutoScale(const Model& model, ModelID id) {
     if (model.meshCount == 0) return Vector3{ 1.0f, 1.0f, 1.0f };
 
     BoundingBox bbox = GetMeshBoundingBox(model.meshes[0]);
@@ -85,14 +88,21 @@ Vector3 ModelManager::CalculateAutoScale(const Model& model) {
     float depth = bbox.max.z - bbox.min.z;
     float maxDim = fmaxf(fmaxf(width, height), depth);
 
-    // FIXED: Prevent division by zero and ensure minimum scale
     if (maxDim < 0.001f) maxDim = 1.0f;
 
-    float scale = TARGET_SIZE / maxDim;
-    scale = fmaxf(scale, MIN_SCALE); // FIXED: Enforce minimum scale
+    // FIXED: Use different target sizes for different model types
+    float targetSize = ITEM_TARGET_SIZE; // Default for items
 
-    TraceLog(LOG_INFO, "Auto-scale calculated: %.3f (dimensions: %.3f x %.3f x %.3f)",
-        scale, width, height, depth);
+    // World props should be much larger
+    if (id >= MODEL_CRYOPOD && id <= MODEL_CRATE) {
+        targetSize = PROP_TARGET_SIZE;
+    }
+
+    float scale = targetSize / maxDim;
+    scale = fmaxf(scale, MIN_SCALE);
+
+    TraceLog(LOG_INFO, "Auto-scale calculated for %d: %.3f (dimensions: %.3f x %.3f x %.3f, target: %.3f)",
+        id, scale, width, height, depth, targetSize);
 
     return Vector3{ scale, scale, scale };
 }
@@ -101,9 +111,7 @@ bool ModelManager::LoadModelFile(ModelID id, const char* filename) {
     if (FileExists(filename)) {
         Model model = LoadModel(filename);
         if (model.meshCount > 0) {
-            // FIXED: Generate mipmaps for all textures to fix TRILINEAR warnings
             for (int i = 0; i < model.materialCount; i++) {
-                // Generate mipmaps for diffuse, specular, and normal maps
                 if (model.materials[i].maps[MATERIAL_MAP_DIFFUSE].texture.id > 0) {
                     GenTextureMipmaps(&model.materials[i].maps[MATERIAL_MAP_DIFFUSE].texture);
                     SetTextureFilter(model.materials[i].maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_TRILINEAR);
@@ -123,7 +131,7 @@ bool ModelManager::LoadModelFile(ModelID id, const char* filename) {
             ModelData data;
             data.model = model;
             data.loaded = true;
-            data.scale = CalculateAutoScale(model);
+            data.scale = CalculateAutoScale(model, id); // FIXED: Pass ID
             data.offset = Vector3{ 0.0f, 0.0f, 0.0f };
             data.rotation = Vector3{ 0.0f, 0.0f, 0.0f };
 
@@ -186,7 +194,6 @@ void ModelManager::ApplyTexturesToModel(Model& model, ModelID id) {
     }
 
     if (texture.id > 0) {
-        // FIXED: Generate mipmaps for applied textures
         GenTextureMipmaps(&texture);
         SetTextureFilter(texture, TEXTURE_FILTER_TRILINEAR);
 
@@ -209,6 +216,10 @@ void ModelManager::CreateFallbackModel() {
 
 Model ModelManager::CreateProceduralModel(ModelID id) {
     Mesh mesh;
+
+    // FIXED: Different sizes for world props vs items
+    bool isWorldProp = (id >= MODEL_CRYOPOD && id <= MODEL_CRATE);
+    float propScale = isWorldProp ? 2.0f : 1.0f;
 
     switch (id) {
     case MODEL_PISTOL:
@@ -241,10 +252,50 @@ Model ModelManager::CreateProceduralModel(ModelID id) {
         mesh = GenMeshCube(0.02f, 0.01f, 0.12f);
         break;
     case MODEL_CRYOPOD:
-        mesh = GenMeshCube(0.8f, 2.0f, 0.6f);
+        mesh = GenMeshCube(0.8f * propScale, 2.0f * propScale, 0.6f * propScale);
         break;
     case MODEL_CONSOLE_TERMINAL:
-        mesh = GenMeshCube(0.6f, 0.8f, 0.4f);
+        mesh = GenMeshCube(0.6f * propScale, 0.8f * propScale, 0.4f * propScale);
+        break;
+    case MODEL_BED:
+        mesh = GenMeshCube(0.9f * propScale, 0.6f * propScale, 1.8f * propScale);
+        break;
+    case MODEL_DESK:
+        mesh = GenMeshCube(0.8f * propScale, 0.8f * propScale, 0.5f * propScale);
+        break;
+    case MODEL_CHAIR:
+        mesh = GenMeshCube(0.5f * propScale, 0.8f * propScale, 0.5f * propScale);
+        break;
+    case MODEL_TABLE:
+        mesh = GenMeshCube(0.9f * propScale, 0.8f * propScale, 0.9f * propScale);
+        break;
+    case MODEL_SHELF:
+        mesh = GenMeshCube(0.7f * propScale, 1.6f * propScale, 0.3f * propScale);
+        break;
+    case MODEL_LOCKER:
+        mesh = GenMeshCube(0.5f * propScale, 1.8f * propScale, 0.5f * propScale);
+        break;
+    case MODEL_CABINET:
+        mesh = GenMeshCube(0.6f * propScale, 1.0f * propScale, 0.4f * propScale);
+        break;
+    case MODEL_BENCH:
+        mesh = GenMeshCube(0.8f * propScale, 0.6f * propScale, 0.4f * propScale);
+        break;
+    case MODEL_SERVER_RACK:
+        mesh = GenMeshCube(0.6f * propScale, 1.6f * propScale, 0.7f * propScale);
+        break;
+    case MODEL_BROKEN_GLASS:
+        mesh = GenMeshCube(0.5f * propScale, 0.1f * propScale, 0.5f * propScale);
+        break;
+    case MODEL_DEBRIS_CONCRETE:
+    case MODEL_DEBRIS_METAL:
+        mesh = GenMeshCube(0.4f * propScale, 0.3f * propScale, 0.5f * propScale);
+        break;
+    case MODEL_BARREL:
+        mesh = GenMeshCylinder(0.3f * propScale, 0.8f * propScale, 16);
+        break;
+    case MODEL_CRATE:
+        mesh = GenMeshCube(0.8f * propScale, 1.0f * propScale, 0.8f * propScale);
         break;
     default:
         mesh = GenMeshCube(0.05f, 0.05f, 0.05f);

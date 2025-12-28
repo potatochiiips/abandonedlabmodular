@@ -488,9 +488,25 @@ int main() {
         if (g_ZombieManager) {
             g_ZombieManager->Update(deltaTime, playerPosition);
         }
-
         else if (gameState == GameState::Console) {
-            UpdateConsoleInput(&health, &stamina, &hunger, &thirst, &isNoclip, &fov);
+            int key = GetCharPressed();
+            while (key > 0) {
+                if (key >= 32 && key <= 126 && consoleInputLength < MAX_COMMAND_LENGTH - 1) {
+                    consoleInput[consoleInputLength] = (char)key;
+                    consoleInputLength++;
+                    consoleInput[consoleInputLength] = '\0';
+                }
+                key = GetCharPressed();
+            }
+
+            if (IsKeyPressed(KEY_BACKSPACE) && consoleInputLength > 0) {
+                consoleInputLength--;
+                consoleInput[consoleInputLength] = '\0';
+            }
+
+            if (IsKeyPressed(KEY_ENTER)) {
+                ProcessConsoleCommand(consoleHistory, &health, &stamina, &hunger, &thirst, &isNoclip, &fov);
+            }
         }
         else if (gameState == GameState::LoadMenu) {
             if (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))) {
