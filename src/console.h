@@ -1,5 +1,9 @@
 #pragma once
 #include "globals.h"
+#include "vehicle_system.h"
+#include "zombie_system.h"
+#include "daynight_system.h"
+#include "weather_system.h"
 
 // Global console variables (defined in console.cpp)
 extern char consoleInput[MAX_COMMAND_LENGTH];

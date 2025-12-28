@@ -364,6 +364,9 @@ bool ExitInterior(MapData& m, MapPlayerState& p) {
 // 3D RENDERING - NEW IMPLEMENTATION
 // =============================================================================
 
+// Add this to the Draw3DInterior function in map.cpp
+// Replace the prop drawing section with model manager calls
+
 void Draw3DInterior(const Interior& interior) {
     Texture2D wallTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_WALL_CONCRETE) : Texture2D{ 0 };
     Texture2D floorTex = g_TextureManager ? g_TextureManager->GetTexture(TEX_FLOOR_TILE) : Texture2D{ 0 };
@@ -391,38 +394,176 @@ void Draw3DInterior(const Interior& interior) {
                 }
             }
 
-            // Draw props
+            // Draw props using ModelManager
+            Vector3 propPos = Vector3{ (float)x, 0.0f, (float)y };
+            Vector3 forward = Vector3{ 0.0f, 0.0f, 1.0f };
+            Vector3 right = Vector3{ 1.0f, 0.0f, 0.0f };
+            Vector3 up = Vector3{ 0.0f, 1.0f, 0.0f };
+
             switch (tile) {
             case IT_CRYOPOD_BROKEN:
-                // Use glTF model if available
                 if (g_ModelManager && g_ModelManager->IsLoaded(MODEL_CRYOPOD)) {
-                    Vector3 cryoPos = Vector3{ (float)x, 0.0f, (float)y };
-                    Vector3 forward = Vector3{ 0.0f, 0.0f, 1.0f };
-                    Vector3 right = Vector3{ 1.0f, 0.0f, 0.0f };
-                    Vector3 up = Vector3{ 0.0f, 1.0f, 0.0f };
-
-                    // Scale up the cryopod to be larger
-                    g_ModelManager->DrawModel(MODEL_CRYOPOD, cryoPos, forward, right, up,
+                    propPos.y = 0.0f;
+                    g_ModelManager->DrawModel(MODEL_CRYOPOD, propPos, forward, right, up,
                         Color{ 100, 150, 200, 255 });
-
                     // Add broken glass effect
-                    DrawSphere(Vector3Add(cryoPos, Vector3{ 0.0f, 1.0f, 0.3f }), 0.1f,
+                    DrawSphere(Vector3Add(propPos, Vector3{ 0.0f, 1.0f, 0.3f }), 0.1f,
                         Color{ 200, 220, 255, 100 });
                 }
                 else {
-                    // Fallback cube
                     DrawCube(Vector3{ (float)x, 0.5f, (float)y },
                         0.8f, 1.0f, 0.8f, Color{ 100, 150, 200, 255 });
                 }
                 break;
+
             case IT_CONSOLE:
-                DrawCube(Vector3{ (float)x, 0.4f, (float)y }, 0.6f, 0.8f, 0.6f, Color{ 80, 120, 160, 255 });
+                if (g_ModelManager && g_ModelManager->IsLoaded(MODEL_CONSOLE_TERMINAL)) {
+                    propPos.y = 0.0f;
+                    g_ModelManager->DrawModel(MODEL_CONSOLE_TERMINAL, propPos, forward, right, up,
+                        Color{ 80, 120, 160, 255 });
+                }
+                else {
+                    DrawCube(Vector3{ (float)x, 0.4f, (float)y },
+                        0.6f, 0.8f, 0.6f, Color{ 80, 120, 160, 255 });
+                }
                 break;
+
+            case IT_BED:
+                if (g_ModelManager && g_ModelManager->IsLoaded(MODEL_BED)) {
+                    propPos.y = 0.0f;
+                    g_ModelManager->DrawModel(MODEL_BED, propPos, forward, right, up, WHITE);
+                }
+                else {
+                    DrawCube(Vector3{ (float)x, 0.3f, (float)y },
+                        0.9f, 0.6f, 1.8f, Color{ 139, 90, 43, 255 });
+                }
+                break;
+
+            case IT_DESK:
+                if (g_ModelManager && g_ModelManager->IsLoaded(MODEL_DESK)) {
+                    propPos.y = 0.0f;
+                    g_ModelManager->DrawModel(MODEL_DESK, propPos, forward, right, up, WHITE);
+                }
+                else {
+                    DrawCube(Vector3{ (float)x, 0.4f, (float)y },
+                        0.8f, 0.8f, 0.5f, Color{ 101, 67, 33, 255 });
+                }
+                break;
+
+            case IT_CHAIR:
+                if (g_ModelManager && g_ModelManager->IsLoaded(MODEL_CHAIR)) {
+                    propPos.y = 0.0f;
+                    g_ModelManager->DrawModel(MODEL_CHAIR, propPos, forward, right, up, WHITE);
+                }
+                else {
+                    DrawCube(Vector3{ (float)x, 0.4f, (float)y },
+                        0.5f, 0.8f, 0.5f, Color{ 101, 67, 33, 255 });
+                }
+                break;
+
+            case IT_TABLE:
+                if (g_ModelManager && g_ModelManager->IsLoaded(MODEL_TABLE)) {
+                    propPos.y = 0.0f;
+                    g_ModelManager->DrawModel(MODEL_TABLE, propPos, forward, right, up, WHITE);
+                }
+                else {
+                    DrawCube(Vector3{ (float)x, 0.4f, (float)y },
+                        0.9f, 0.8f, 0.9f, Color{ 101, 67, 33, 255 });
+                }
+                break;
+
+            case IT_SHELF:
+                if (g_ModelManager && g_ModelManager->IsLoaded(MODEL_SHELF)) {
+                    propPos.y = 0.0f;
+                    g_ModelManager->DrawModel(MODEL_SHELF, propPos, forward, right, up, WHITE);
+                }
+                else {
+                    DrawCube(Vector3{ (float)x, 0.8f, (float)y },
+                        0.7f, 1.6f, 0.3f, Color{ 101, 67, 33, 255 });
+                }
+                break;
+
+            case IT_LOCKER:
+                if (g_ModelManager && g_ModelManager->IsLoaded(MODEL_LOCKER)) {
+                    propPos.y = 0.0f;
+                    g_ModelManager->DrawModel(MODEL_LOCKER, propPos, forward, right, up, WHITE);
+                }
+                else {
+                    DrawCube(Vector3{ (float)x, 0.9f, (float)y },
+                        0.5f, 1.8f, 0.5f, Color{ 100, 100, 110, 255 });
+                }
+                break;
+
+            case IT_CABINET:
+                if (g_ModelManager && g_ModelManager->IsLoaded(MODEL_CABINET)) {
+                    propPos.y = 0.0f;
+                    g_ModelManager->DrawModel(MODEL_CABINET, propPos, forward, right, up, WHITE);
+                }
+                else {
+                    DrawCube(Vector3{ (float)x, 0.5f, (float)y },
+                        0.6f, 1.0f, 0.4f, Color{ 101, 67, 33, 255 });
+                }
+                break;
+
+            case IT_BENCH:
+                if (g_ModelManager && g_ModelManager->IsLoaded(MODEL_BENCH)) {
+                    propPos.y = 0.0f;
+                    g_ModelManager->DrawModel(MODEL_BENCH, propPos, forward, right, up, WHITE);
+                }
+                else {
+                    DrawCube(Vector3{ (float)x, 0.3f, (float)y },
+                        0.8f, 0.6f, 0.4f, Color{ 101, 67, 33, 255 });
+                }
+                break;
+
+            case IT_SERVER_RACK:
+                if (g_ModelManager && g_ModelManager->IsLoaded(MODEL_SERVER_RACK)) {
+                    propPos.y = 0.0f;
+                    g_ModelManager->DrawModel(MODEL_SERVER_RACK, propPos, forward, right, up, WHITE);
+                }
+                else {
+                    DrawCube(Vector3{ (float)x, 0.8f, (float)y },
+                        0.6f, 1.6f, 0.7f, Color{ 40, 40, 45, 255 });
+                }
+                break;
+
+            case IT_BROKEN_GLASS:
+                if (g_ModelManager && g_ModelManager->IsLoaded(MODEL_BROKEN_GLASS)) {
+                    propPos.y = 0.05f;
+                    g_ModelManager->DrawModel(MODEL_BROKEN_GLASS, propPos, forward, right, up,
+                        Color{ 200, 220, 255, 180 });
+                }
+                else {
+                    DrawCube(Vector3{ (float)x, 0.05f, (float)y },
+                        0.5f, 0.1f, 0.5f, Color{ 200, 220, 255, 180 });
+                }
+                break;
+
             case IT_STAIRS_UP:
-                DrawCube(Vector3{ (float)x, 0.5f, (float)y }, 0.9f, 1.0f, 0.9f, Color{ 180, 160, 140, 255 });
+                DrawCube(Vector3{ (float)x, 0.5f, (float)y },
+                    0.9f, 1.0f, 0.9f, Color{ 180, 160, 140, 255 });
+                // Draw an upward arrow indicator
+                DrawCube(Vector3{ (float)x, 1.2f, (float)y },
+                    0.2f, 0.3f, 0.2f, PIPBOY_GREEN);
                 break;
+
             case IT_STAIRS_DOWN:
-                DrawCube(Vector3{ (float)x, 0.5f, (float)y }, 0.9f, 1.0f, 0.9f, Color{ 160, 140, 120, 255 });
+                DrawCube(Vector3{ (float)x, 0.5f, (float)y },
+                    0.9f, 1.0f, 0.9f, Color{ 160, 140, 120, 255 });
+                // Draw a downward arrow indicator
+                DrawCube(Vector3{ (float)x, 0.3f, (float)y },
+                    0.2f, 0.3f, 0.2f, Color{ 255, 100, 100, 255 });
+                break;
+
+            case IT_CRATE:
+                if (g_ModelManager && g_ModelManager->IsLoaded(MODEL_CRATE)) {
+                    propPos.y = 0.0f;
+                    g_ModelManager->DrawModel(MODEL_CRATE, propPos, forward, right, up, WHITE);
+                }
+                else {
+                    DrawCube(Vector3{ (float)x, 0.5f, (float)y },
+                        0.8f, 1.0f, 0.8f, Color{ 139, 90, 43, 255 });
+                }
                 break;
             }
         }
@@ -442,6 +583,13 @@ void Draw3DInterior(const Interior& interior) {
             DrawDoor(door);
         }
     }
+}
+
+// Helper function for 3D text (add to map.cpp)
+void DrawText3D(const char* text, Vector3 position, int fontSize, Color color) {
+    // This is a placeholder - 3D text requires more complex implementation
+    // For now, we'll skip this or use a simple marker
+    DrawSphere(position, 0.1f, color);
 }
 
 void Draw3DWorld(const MapData& mapData, const MapPlayerState& playerState) {

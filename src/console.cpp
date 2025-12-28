@@ -155,23 +155,26 @@ void DrawConsole(int screenW, int screenH, const std::vector<std::string>& histo
 }
 
 void UpdateConsoleInput(float* health, float* stamina, float* hunger, float* thirst, bool* isNoclip, float* fov) {
+    // Get all character input
     int key = GetCharPressed();
     while (key > 0) {
-        // Handle printable characters
+        // Handle printable characters (space to ~)
         if (key >= 32 && key <= 126 && consoleInputLength < MAX_COMMAND_LENGTH - 1) {
-            consoleInput[consoleInputLength++] = static_cast<char>(key);
+            consoleInput[consoleInputLength] = (char)key;
+            consoleInputLength++;
             consoleInput[consoleInputLength] = '\0';
         }
         key = GetCharPressed();
     }
 
-    // Handle special keys
-    if (IsKeyPressed(KEY_BACKSPACE)) {
-        if (consoleInputLength > 0) {
-            consoleInput[--consoleInputLength] = '\0';
-        }
+    // Handle backspace
+    if (IsKeyPressed(KEY_BACKSPACE) && consoleInputLength > 0) {
+        consoleInputLength--;
+        consoleInput[consoleInputLength] = '\0';
     }
-    else if (IsKeyPressed(KEY_ENTER)) {
+    
+    // Handle enter
+    if (IsKeyPressed(KEY_ENTER)) {
         ProcessConsoleCommand(consoleHistory, health, stamina, hunger, thirst, isNoclip, fov);
     }
 }

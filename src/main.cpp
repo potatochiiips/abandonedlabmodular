@@ -253,7 +253,7 @@ int main() {
     }
 
     if (splashTexture.id > 0) UnloadTexture(splashTexture);
-
+    InitializeSoundSystem();
     InitializeUpscalingSystem(initialRes.width, initialRes.height);
     ApplyGraphicsSettings(graphicsSettings);
     InitializeRenderingSystems();
@@ -261,6 +261,9 @@ int main() {
     InitializeSkyboxSystem();
     InitializeVehicleSystem();
     InitializeAnimationSystem();
+    InitializeDayNightSystem();    
+    InitializeWeatherSystem();      
+    InitializeZombieSystem();       
 
     InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov);
 
@@ -330,7 +333,10 @@ int main() {
                 gameState = GameState::Gameplay;
             }
         }
-
+        // UPDATE SOUND SYSTEM
+        if (g_SoundManager) {
+            g_SoundManager->Update(deltaTime);
+        }
         // Gameplay Logic
         if (gameState == GameState::Gameplay) {
             if (IsKeyPressed(KEY_I) || (useController && IsActionPressed(ACTION_INVENTORY, bindings))) {
@@ -392,6 +398,9 @@ int main() {
                     isReloading = true;
                     WeaponStats* s = g_WeaponSystem.GetWeaponStats(inventory[BACKPACK_SLOTS].itemId);
                     reloadTimer = s ? s->reloadTime : 1.5f;
+                    // Play reload sound
+                    if (g_SoundManager) {
+                        g_SoundManager->PlaySound(SND_RELOAD, 0.5f);
                 }
 
                 if (isReloading) {
@@ -406,8 +415,29 @@ int main() {
                         inventory[BACKPACK_SLOTS].ammo--;
                         g_CurrentWeaponState.animState = ANIM_SHOOT;
                         g_CurrentWeaponState.animTimer = 0.2f;
+
+                        // ADD WEAPON RECOIL
+                        g_CurrentWeaponState.recoilOffset.y = -0.05f;
+                        g_CurrentWeaponState.recoilOffset.z = -0.02f;
+
+                        // Play weapon sound
+                        if (g_SoundManager) {
+                            if (eq == ITEM_PISTOL) {
+                                g_SoundManager->PlaySound(SND_PISTOL_SHOT, 0.7f);
+                            }
+                            else if (eq == ITEM_M16) {
+                                g_SoundManager->PlaySound(SND_RIFLE_SHOT, 0.7f);
+                            }
+                        }
+                    }
+                    else if (s) {
+                        // Empty click sound
+                        if (g_SoundManager) {
+                            g_SoundManager->PlaySound(SND_EMPTY_CLICK, 0.5f);
+                        }
                     }
                 }
+
 
                 hunger = fmaxf(0, hunger - 0.5f * deltaTime);
                 thirst = fmaxf(0, thirst - 0.7f * deltaTime);
@@ -417,6 +447,21 @@ int main() {
             if (g_VehicleManager) g_VehicleManager->Update(deltaTime);
             if (g_AnimationManager) g_AnimationManager->UpdateAll(deltaTime);
         }
+        // Update day/night cycle
+        if (g_DayNightCycle) {
+            g_DayNightCycle->Update(deltaTime);
+        }
+
+        // Update weather system
+        if (g_WeatherSystem) {
+            g_WeatherSystem->Update(deltaTime, playerPosition);
+        }
+
+        // Update zombie system
+        if (g_ZombieManager) {
+            g_ZombieManager->Update(deltaTime, playerPosition);
+        }
+
         else if (gameState == GameState::Console) {
             UpdateConsoleInput(&health, &stamina, &hunger, &thirst, &isNoclip, &fov);
         }
@@ -461,8 +506,20 @@ int main() {
             BeginMode3D(camera);
             if (!g_MapPlayer.insideInterior) DrawGrid(MAP_SIZE, GRID_SIZE);
             DrawMapGeometry(map);
-            g_WaypointManager.DrawIn3D(playerPosition, 100.0f);
+            // Draw skybox first
+            if (g_SkyboxManager) {
+                g_SkyboxManager->Draw(camera);
+            }
 
+            if (!g_MapPlayer.insideInterior) DrawGrid(MAP_SIZE, GRID_SIZE);
+            DrawMapGeometry(map);
+
+            // Draw zombies
+            if (g_ZombieManager) {
+                g_ZombieManager->Draw(camera);
+            }
+
+            g_WaypointManager.DrawIn3D(playerPosition, 100.0f);
             int eq = inventory[BACKPACK_SLOTS].itemId;
             Vector3 wPos = g_WeaponSystem.CalculateWeaponPosition(camera, g_CurrentWeaponState, eq == ITEM_M16);
             Vector3 fwd = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
@@ -472,8 +529,14 @@ int main() {
             else DrawPlayerHands(camera, inventory, 0, 0);
 
             EndMode3D();
+            // Draw weather effects after 3D rendering
+            if (g_WeatherSystem) {
+                g_WeatherSystem->Draw(camera);
+            }
             if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE)
                 g_UpscalingManager->EndUpscaledRender(screenW, screenH);
+           
+            DrawHUD(screenW, screenH, health, stamina, hunger, thirst, fov, flashlightBattery, isFlashlightOn, inventory);
 
             if (showMinimap) {
                 int minimapRadius = 95; // INCREASED from 75
@@ -482,7 +545,8 @@ int main() {
                 int viewRange = 18; // INCREASED from 15 for better visibility
                 DrawRoundMinimap(map, playerPosition, yaw, minimapX, minimapY, minimapRadius, viewRange);
             }
-        
+            g_QuestManager.DrawQuestTrackerCompact(screenW, screenH);
+
             if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
             if (isCraftingOpen) DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
             if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
@@ -522,6 +586,10 @@ int main() {
         EndDrawing();
     }
 
+    CleanupZombieSystem();
+    CleanupSoundSystem();
+    CleanupWeatherSystem();
+    CleanupDayNightSystem();
     CleanupModelSystem();
     CleanupRenderingSystems();
     CleanupAnimationSystem();
