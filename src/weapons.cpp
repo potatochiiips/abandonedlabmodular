@@ -13,19 +13,19 @@
 
 void HandleWeaponShooting() {
     extern InventorySlot inventory[TOTAL_INVENTORY_SLOTS];
-    extern UpgradedWeaponRenderer* g_UpgradedWeaponRenderer;
+    extern WeaponRenderer* g_WeaponRenderer;
     extern UpgradedHUDManager* g_UpgradedHUD;
 
     bool shootPressed = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
 
     if (shootPressed && inventory[BACKPACK_SLOTS].ammo > 0) {
         // Play weapon animation
-        g_UpgradedWeaponRenderer->PlayShootAnimation();
+        g_WeaponRenderer->PlayShootAnimation();
 
         // Apply recoil
         WeaponStats* stats = g_WeaponSystem.GetWeaponStats(inventory[BACKPACK_SLOTS].itemId);
         if (stats) {
-            g_UpgradedWeaponRenderer->ApplyRecoil(stats->recoilPitch, stats->recoilYaw);
+            g_WeaponRenderer->ApplyRecoil(stats->recoilPitch, stats->recoilYaw);
         }
 
         // Decrease ammo

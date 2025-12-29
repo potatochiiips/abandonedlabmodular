@@ -15,10 +15,10 @@
 // Upgraded-STYLE WEAPON RENDERING SYSTEM
 // ============================================================================
 
-class UpgradedWeaponRenderer {
+class WeaponRenderer {
 public:
-    UpgradedWeaponRenderer();
-    ~UpgradedWeaponRenderer();
+    WeaponRenderer();
+    ~WeaponRenderer();
     
     void Initialize();
     void Update(float deltaTime, const Camera3D& camera);

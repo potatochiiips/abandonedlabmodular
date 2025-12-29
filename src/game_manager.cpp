@@ -20,7 +20,7 @@ void UpgradedGameManager::Initialize() {
     // Create subsystems
     mapRenderer = std::make_unique<UpgradedMapRenderer>();
     hudManager = std::make_unique<HUDManager>();
-    weaponRenderer = std::make_unique<UpgradedWeaponRenderer>();
+    weaponRenderer = std::make_unique<WeaponRenderer>();
     handsRenderer = std::make_unique<HandsRenderer>();
 
     // Initialize subsystems

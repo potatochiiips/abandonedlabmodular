@@ -2,7 +2,7 @@
 #include "model_manager.h"
 #include "player.h"
 
-UpgradedWeaponRenderer::UpgradedWeaponRenderer() {
+WeaponRenderer::WeaponRenderer() {
     currentState = { ANIM_IDLE, 0.0f, false, 0.0f, {0,0,0}, {0,0,0}, {0,0,0} };
 
     basePosition = Vector3{ 0.25f, -0.2f, 0.4f };
@@ -21,10 +21,10 @@ UpgradedWeaponRenderer::UpgradedWeaponRenderer() {
     muzzleFlashTimer = 0.0f;
 }
 
-UpgradedWeaponRenderer::~UpgradedWeaponRenderer() {
+WeaponRenderer::~WeaponRenderer() {
 }
 
-void UpgradedWeaponRenderer::Initialize() {
+void WeaponRenderer::Initialize() {
     TraceLog(LOG_INFO, "Initializing Upgraded Weapon Renderer...");
 
     weaponRenderer = std::make_unique<MeshRenderer>();
@@ -41,7 +41,7 @@ void UpgradedWeaponRenderer::Initialize() {
     TraceLog(LOG_INFO, "Upgraded Weapon Renderer initialized");
 }
 
-void UpgradedWeaponRenderer::Update(float deltaTime, const Camera3D& camera) {
+void WeaponRenderer::Update(float deltaTime, const Camera3D& camera) {
     UpdateAnimations(deltaTime);
     UpdateWeaponPosition(camera);
     UpdateWeaponSway(camera);
@@ -61,7 +61,7 @@ void UpgradedWeaponRenderer::Update(float deltaTime, const Camera3D& camera) {
     currentRecoil.z *= 0.85f;
 }
 
-void UpgradedWeaponRenderer::UpdateAnimations(float deltaTime) {
+void WeaponRenderer::UpdateAnimations(float deltaTime) {
     // Update animation timer
     if (currentState.animTimer > 0.0f) {
         currentState.animTimer -= deltaTime;
@@ -88,7 +88,7 @@ void UpgradedWeaponRenderer::UpdateAnimations(float deltaTime) {
     }
 }
 
-void UpgradedWeaponRenderer::UpdateWeaponPosition(const Camera3D& camera) {
+void WeaponRenderer::UpdateWeaponPosition(const Camera3D& camera) {
     if (!weaponRenderer || !weaponRenderer->enabled) return;
 
     // Lerp between base and ADS position
@@ -120,7 +120,7 @@ void UpgradedWeaponRenderer::UpdateWeaponPosition(const Camera3D& camera) {
     weaponRenderer->transform = CreateViewmodelMatrix(camera, targetPos);
 }
 
-Matrix UpgradedWeaponRenderer::CreateViewmodelMatrix(const Camera3D& camera, Vector3 offset) {
+Matrix WeaponRenderer::CreateViewmodelMatrix(const Camera3D& camera, Vector3 offset) {
     // Get camera vectors
     Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
     Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
@@ -150,7 +150,7 @@ Matrix UpgradedWeaponRenderer::CreateViewmodelMatrix(const Camera3D& camera, Vec
     return MatrixMultiply(MatrixMultiply(scale, orientation), translation);
 }
 
-void UpgradedWeaponRenderer::UpdateWeaponSway(const Camera3D& camera) {
+void WeaponRenderer::UpdateWeaponSway(const Camera3D& camera) {
     // Get mouse delta or look input
     Vector2 mouseDelta = GetMouseDelta();
 
@@ -174,7 +174,7 @@ void UpgradedWeaponRenderer::UpdateWeaponSway(const Camera3D& camera) {
     swayAmount.y = Clamp(swayAmount.y, -0.05f, 0.05f);
 }
 
-void UpgradedWeaponRenderer::UpdateWeaponBob(float deltaTime) {
+void WeaponRenderer::UpdateWeaponBob(float deltaTime) {
     extern Vector3 playerVelocity;
     float speed = Vector3Length(Vector3{ playerVelocity.x, 0, playerVelocity.z });
 
@@ -196,7 +196,7 @@ void UpgradedWeaponRenderer::UpdateWeaponBob(float deltaTime) {
     }
 }
 
-void UpgradedWeaponRenderer::SetEquippedWeapon(int itemId) {
+void WeaponRenderer::SetEquippedWeapon(int itemId) {
     if (itemId == ITEM_NONE) {
         weaponRenderer->enabled = false;
         return;
@@ -224,7 +224,7 @@ void UpgradedWeaponRenderer::SetEquippedWeapon(int itemId) {
     }
 }
 
-void UpgradedWeaponRenderer::PlayShootAnimation() {
+void WeaponRenderer::PlayShootAnimation() {
     currentState.animState = ANIM_SHOOT;
     currentState.animTimer = 0.2f;
 
@@ -237,28 +237,28 @@ void UpgradedWeaponRenderer::PlayShootAnimation() {
     muzzleFlashTimer = 0.1f;
 }
 
-void UpgradedWeaponRenderer::PlayReloadAnimation() {
+void WeaponRenderer::PlayReloadAnimation() {
     currentState.animState = ANIM_RELOAD;
     currentState.animTimer = 2.0f;
 }
 
-void UpgradedWeaponRenderer::SetAimingDownSights(bool aiming) {
+void WeaponRenderer::SetAimingDownSights(bool aiming) {
     currentState.isADS = aiming;
 }
 
-void UpgradedWeaponRenderer::ApplyRecoil(float pitch, float yaw) {
+void WeaponRenderer::ApplyRecoil(float pitch, float yaw) {
     currentRecoil.y -= pitch * 0.01f;
     currentRecoil.x += yaw * 0.005f;
 }
 
-MeshRenderer* UpgradedWeaponRenderer::GetWeaponRenderer() {
+MeshRenderer* WeaponRenderer::GetWeaponRenderer() {
     if (weaponRenderer && weaponRenderer->enabled) {
         return weaponRenderer.get();
     }
     return nullptr;
 }
 
-void UpgradedWeaponRenderer::RenderItemInHand(const Camera3D& camera, int itemId) {
+void WeaponRenderer::RenderItemInHand(const Camera3D& camera, int itemId) {
     if (itemId == ITEM_NONE) return;
 
     // For non-weapon items (flashlight, consumables, etc.)
@@ -289,7 +289,7 @@ void UpgradedWeaponRenderer::RenderItemInHand(const Camera3D& camera, int itemId
     }
 }
 
-void UpgradedWeaponRenderer::DrawMuzzleFlash(const Camera3D& camera) {
+void WeaponRenderer::DrawMuzzleFlash(const Camera3D& camera) {
     if (!showMuzzleFlash) return;
 
     // Calculate muzzle position

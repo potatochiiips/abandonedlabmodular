@@ -22,7 +22,7 @@ private:
     // Core systems
     std::unique_ptr<UpgradedMapRenderer> mapRenderer;
     std::unique_ptr<HUDManager> hudManager;
-    std::unique_ptr<UpgradedWeaponRenderer> weaponRenderer;
+    std::unique_ptr<WeaponRenderer> weaponRenderer;
     std::unique_ptr<HandsRenderer> handsRenderer;
     
     // Scene data
