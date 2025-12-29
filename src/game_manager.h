@@ -4,6 +4,7 @@
 #include "map.h"
 #include "hud.h"
 #include "weapon_renderer.h"
+#include "rendering_impl.h"
 #include <vector>
 #include <memory>
 
@@ -20,9 +21,9 @@ public:
 private:
     // Core systems
     std::unique_ptr<UpgradedMapRenderer> mapRenderer;
-    std::unique_ptr<UpgradedHUDManager> hudManager;
+    std::unique_ptr<HUDManager> hudManager;
     std::unique_ptr<UpgradedWeaponRenderer> weaponRenderer;
-    std::unique_ptr<UpgradedHandsRenderer> handsRenderer;
+    std::unique_ptr<HandsRenderer> handsRenderer;
     
     // Scene data
     std::vector<UpgradedLight*> sceneLights;

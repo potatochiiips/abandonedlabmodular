@@ -316,7 +316,7 @@ void UpgradedWeaponRenderer::DrawMuzzleFlash(const Camera3D& camera) {
 // FIRST PERSON HANDS RENDERING
 // ============================================================================
 
-class UpgradedHandsRenderer {
+class HandsRenderer {
 public:
     void DrawHands(const Camera3D& camera, bool holdingWeapon) {
         if (holdingWeapon) return; // Weapon handles its own hands
@@ -374,5 +374,5 @@ private:
 };
 
 // Global instances
-extern UpgradedWeaponRenderer* g_UpgradedWeaponRenderer;
-extern UpgradedHandsRenderer* g_UpgradedHandsRenderer;
+extern WeaponRenderer* g_WeaponRenderer;
+extern HandsRenderer* g_HandsRenderer;

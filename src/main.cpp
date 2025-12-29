@@ -173,10 +173,10 @@ int main() {
         if (graphicsSettings.msaaSamples == 2) SetConfigFlags(FLAG_MSAA_4X_HINT);
         else if (graphicsSettings.msaaSamples == 4) SetConfigFlags(FLAG_MSAA_4X_HINT);
     }
-   
+
     InitWindow(monitorWidth, monitorHeight, "Echoes of Time");
     SetExitKey(KEY_NULL);
- 
+
     Texture2D splashTexture = LoadTexture("assets/splash.png");
 
     float splashTime = 2.5f;
@@ -213,9 +213,9 @@ int main() {
     InitializeSkyboxSystem();
     InitializeVehicleSystem();
     InitializeAnimationSystem();
-    InitializeDayNightSystem();    
-    InitializeWeatherSystem();      
-    InitializeZombieSystem();       
+    InitializeDayNightSystem();
+    InitializeWeatherSystem();
+    InitializeZombieSystem();
     UpgradedGameManager gameManager;
     gameManager.Initialize();
 
@@ -556,7 +556,7 @@ int main() {
             std::vector<std::string> opts = { "Continue", "Save Game", "Settings", "Main Menu" };
             DrawMenu(screenW, screenH, opts, &pauseMenuSelection, useController, "PAUSED");
         }
-    }
+
         else if (gameState == GameState::Console) {
             DrawConsole(screenW, screenH, consoleHistory, consoleInput, consoleInputLength);
         }
@@ -591,9 +591,7 @@ int main() {
     CleanupAnimationSystem();
     CleanupVehicleSystem();
     CleanupSkyboxSystem();
-    CloseWindow();
     gameManager.Cleanup();
-    CleanupAllSystems();
     CloseWindow();
     return 0;
 }

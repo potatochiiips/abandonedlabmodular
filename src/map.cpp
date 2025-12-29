@@ -17,7 +17,7 @@ UpgradedMapRenderer::~UpgradedMapRenderer() {
 }
 
 void UpgradedMapRenderer::Initialize() {
-    TraceLog(LOG_INFO, "Initializing Upgraded Map Renderer...");
+    TraceLog(LOG_INFO, "Initializing Map Renderer...");
     InitializeMaterials();
 }
 

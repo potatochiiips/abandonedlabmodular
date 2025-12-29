@@ -12,16 +12,16 @@ UpgradedGameManager::~UpgradedGameManager() {
 }
 
 void UpgradedGameManager::Initialize() {
-    TraceLog(LOG_INFO, "Initializing Upgraded Game Manager...");
+    TraceLog(LOG_INFO, "Initializing Game Manager...");
 
     // Initialize rendering pipeline
     InitializeUpgradedPipeline();
 
     // Create subsystems
     mapRenderer = std::make_unique<UpgradedMapRenderer>();
-    hudManager = std::make_unique<UpgradedHUDManager>();
+    hudManager = std::make_unique<HUDManager>();
     weaponRenderer = std::make_unique<UpgradedWeaponRenderer>();
-    handsRenderer = std::make_unique<UpgradedHandsRenderer>();
+    handsRenderer = std::make_unique<HandsRenderer>();
 
     // Initialize subsystems
     mapRenderer->Initialize();
@@ -32,7 +32,7 @@ void UpgradedGameManager::Initialize() {
     SetupScene();
     SetupLighting();
 
-    TraceLog(LOG_INFO, "Upgraded Game Manager initialized");
+    TraceLog(LOG_INFO, "Game Manager initialized");
 }
 
 void UpgradedGameManager::SetupScene() {
