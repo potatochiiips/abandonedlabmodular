@@ -1,0 +1,36 @@
+#pragma once
+#include "globals.h"
+#include "rendering.h"
+#include "map.h"
+#include "hud.h"
+#include "weapon_renderer.h"
+#include <vector>
+#include <memory>
+
+class UpgradedGameManager {
+public:
+    UpgradedGameManager();
+    ~UpgradedGameManager();
+    
+    void Initialize();
+    void Update(float deltaTime);
+    void Render();
+    void Cleanup();
+    
+private:
+    // Core systems
+    std::unique_ptr<UpgradedMapRenderer> mapRenderer;
+    std::unique_ptr<UpgradedHUDManager> hudManager;
+    std::unique_ptr<UpgradedWeaponRenderer> weaponRenderer;
+    std::unique_ptr<UpgradedHandsRenderer> handsRenderer;
+    
+    // Scene data
+    std::vector<UpgradedLight*> sceneLights;
+    UpgradedCamera mainCamera;
+    
+    void SetupScene();
+    void SetupLighting();
+    void UpdateCamera();
+    void UpdateWeaponRendering();
+    void CollectRenderables(std::vector<MeshRenderer*>& renderers);
+};

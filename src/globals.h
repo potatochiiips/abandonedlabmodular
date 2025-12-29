@@ -13,6 +13,7 @@
 #include <cmath>
 #include <fstream>
 #include <unordered_map>
+#include "game_manager.h"
 
 // ----------------------------------------------------------------------------------
 // FORWARD DECLARATIONS

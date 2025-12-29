@@ -88,55 +88,6 @@ static float frameTimeAccumulator = 0.0f;
 static int frameCount = 0;
 static float avgFrameTime = 0.0f;
 
-void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float height, float length, Color color) {
-    float x = position.x;
-    float y = position.y;
-    float z = position.z;
-
-    rlBegin(RL_QUADS);
-    rlColor4ub(color.r, color.g, color.b, color.a);
-    rlSetTexture(texture.id);
-
-    rlNormal3f(0.0f, 0.0f, 1.0f);
-    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z + length / 2);
-    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
-    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z + length / 2);
-    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z + length / 2);
-
-    rlNormal3f(0.0f, 0.0f, -1.0f);
-    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
-    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z - length / 2);
-    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
-    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
-
-    rlNormal3f(0.0f, 1.0f, 0.0f);
-    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z - length / 2);
-    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width / 2, y + height / 2, z + length / 2);
-    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width / 2, y + height / 2, z + length / 2);
-    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
-
-    rlNormal3f(-1.0f, -1.0f, 0.0f);
-    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
-    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
-    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
-    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z + length / 2);
-
-    rlNormal3f(1.0f, 0.0f, 0.0f);
-    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z - length / 2);
-    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z - length / 2);
-    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width / 2, y + height / 2, z + length / 2);
-    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width / 2, y - height / 2, z + length / 2);
-
-    rlNormal3f(-1.0f, 0.0f, 0.0f);
-    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z - length / 2);
-    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width / 2, y - height / 2, z + length / 2);
-    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z + length / 2);
-    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width / 2, y + height / 2, z - length / 2);
-
-    rlEnd();
-    rlSetTexture(0);
-}
-
 void CloseInGameMenus() {
     inventoryOpen = false;
     isCraftingOpen = false;
@@ -265,6 +216,8 @@ int main() {
     InitializeDayNightSystem();    
     InitializeWeatherSystem();      
     InitializeZombieSystem();       
+    UpgradedGameManager gameManager;
+    gameManager.Initialize();
 
     InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov);
     if (g_SoundManager) {
@@ -286,6 +239,10 @@ int main() {
             avgFrameTime = frameTimeAccumulator / frameCount;
             frameTimeAccumulator = 0.0f;
             frameCount = 0;
+            if (g_DayNightCycle) g_DayNightCycle->Update(deltaTime);
+            if (g_WeatherSystem) g_WeatherSystem->Update(deltaTime, playerPosition);
+            if (g_ZombieManager) g_ZombieManager->Update(deltaTime, playerPosition);
+            gameManager.Update(deltaTime);
         }
 
         bool isAnyMenuOpen = (inventoryOpen || isCraftingOpen || isMapOpen);
@@ -332,7 +289,7 @@ int main() {
                 gameState = stateBeforeSettings;
             }
         }
-    
+
         if (IsKeyPressed(KEY_GRAVE)) {
             if (gameState == GameState::Gameplay) {
                 gameState = GameState::Console;
@@ -377,7 +334,7 @@ int main() {
                 else {
                     UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
                 }
-            
+
                 if (IsKeyPressed(KEY_E)) {
                     if (g_VehicleManager && !g_VehicleManager->TryEnterVehicle(playerPosition)) {
                         Door* nearDoor = GetNearestDoor(playerPosition, 2.5f);
@@ -535,75 +492,71 @@ int main() {
         BeginDrawing();
         ClearBackground(Color{ 5, 10, 15, 255 });
 
-        if (gameState == GameState::Gameplay || gameState == GameState::Paused) {
-            if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE)
-                g_UpscalingManager->BeginUpscaledRender();
-
-            if (g_ShaderManager) {
-                g_ShaderManager->UpdateLighting(camera, { MAP_SIZE / 2.0f, 100, MAP_SIZE / 2.0f },
-                    isFlashlightOn, camera.position,
-                    Vector3Normalize(Vector3Subtract(camera.target, camera.position)),
-                    (flashlightBattery / 100.0f) * 5.0f);
-            }
-
-            BeginMode3D(camera);
-            if (!g_MapPlayer.insideInterior) DrawGrid(MAP_SIZE, GRID_SIZE);
-            DrawMapGeometry(map);
-            // Draw skybox first
-            if (g_SkyboxManager) {
-                g_SkyboxManager->Draw(camera);
-            }
-
-            if (!g_MapPlayer.insideInterior) DrawGrid(MAP_SIZE, GRID_SIZE);
-            DrawMapGeometry(map);
-
-            // Draw zombies
-            if (g_ZombieManager) {
-                g_ZombieManager->Draw(camera);
-            }
-
-            g_WaypointManager.DrawIn3D(playerPosition, 100.0f);
-            int eq = inventory[BACKPACK_SLOTS].itemId;
-            Vector3 wPos = g_WeaponSystem.CalculateWeaponPosition(camera, g_CurrentWeaponState, eq == ITEM_M16);
-            Vector3 fwd = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
-            Vector3 rgt = Vector3Normalize(Vector3CrossProduct(fwd, camera.up));
-            if (eq == ITEM_PISTOL) DrawEnhancedPistol(wPos, fwd, rgt, camera.up, g_CurrentWeaponState);
-            else if (eq == ITEM_M16) DrawM16Rifle(wPos, fwd, rgt, camera.up, g_CurrentWeaponState);
-            else DrawPlayerHands(camera, inventory, 0, 0);
-
-            EndMode3D();
-            // Draw weather effects after 3D rendering
-            if (g_WeatherSystem) {
-                g_WeatherSystem->Draw(camera);
-            }
-            if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE)
-                g_UpscalingManager->EndUpscaledRender(screenW, screenH);
-           
-            DrawHUD(screenW, screenH, health, stamina, hunger, thirst, fov, flashlightBattery, isFlashlightOn, inventory);
-
-            if (showMinimap) {
-                int minimapRadius = 95; // INCREASED from 75
-                int minimapX = screenW - minimapRadius - 20;
-                int minimapY = minimapRadius + 20;
-                int viewRange = 18; // INCREASED from 15 for better visibility
-                DrawRoundMinimap(map, playerPosition, yaw, minimapX, minimapY, minimapRadius, viewRange);
-            }
-            g_QuestManager.DrawQuestTrackerCompact(screenW, screenH);
-
-            if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
-            if (isCraftingOpen) DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
-            if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
-
-            if (gameState == GameState::Paused) {
-                DrawRectangle(0, 0, screenW, screenH, Color{ 0, 0, 0, 180 });
-                std::vector<std::string> opts = { "Continue", "Save Game", "Settings", "Main Menu" };
-                DrawMenu(screenW, screenH, opts, &pauseMenuSelection, useController, "PAUSED");
-            }
+        if (gameState == GameState::Gameplay) {
+            // Use Upgraded-style rendering
+            gameManager.Render();
         }
         else if (gameState == GameState::MainMenu) {
+            // Draw menu
             std::vector<std::string> opts = { "New Game", "Load Game", "Settings", "Exit" };
-            DrawMenu(screenW, screenH, opts, &mainMenuSelection, useController, "ECHOES OF TIME");
+            DrawMenu(GetScreenWidth(), GetScreenHeight(), opts, &mainMenuSelection,
+                false, "ECHOES OF TIME");
         }
+        if (g_ShaderManager) {
+            g_ShaderManager->UpdateLighting(camera, { MAP_SIZE / 2.0f, 100, MAP_SIZE / 2.0f },
+                isFlashlightOn, camera.position,
+                Vector3Normalize(Vector3Subtract(camera.target, camera.position)),
+                (flashlightBattery / 100.0f) * 5.0f);
+        }
+
+        BeginMode3D(camera);
+        // Draw skybox first
+        if (g_SkyboxManager) {
+            g_SkyboxManager->Draw(camera);
+        }
+
+        // Draw zombies
+        if (g_ZombieManager) {
+            g_ZombieManager->Draw(camera);
+        }
+
+        g_WaypointManager.DrawIn3D(playerPosition, 100.0f);
+        int eq = inventory[BACKPACK_SLOTS].itemId;
+        Vector3 wPos = g_WeaponSystem.CalculateWeaponPosition(camera, g_CurrentWeaponState, eq == ITEM_M16);
+        Vector3 fwd = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+        Vector3 rgt = Vector3Normalize(Vector3CrossProduct(fwd, camera.up));
+        if (eq == ITEM_PISTOL) DrawEnhancedPistol(wPos, fwd, rgt, camera.up, g_CurrentWeaponState);
+        else if (eq == ITEM_M16) DrawM16Rifle(wPos, fwd, rgt, camera.up, g_CurrentWeaponState);
+        else DrawPlayerHands(camera, inventory, 0, 0);
+
+        EndMode3D();
+        // Draw weather effects after 3D rendering
+        if (g_WeatherSystem) {
+            g_WeatherSystem->Draw(camera);
+        }
+        if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE)
+            g_UpscalingManager->EndUpscaledRender(screenW, screenH);
+
+
+        if (showMinimap) {
+            int minimapRadius = 95; // INCREASED from 75
+            int minimapX = screenW - minimapRadius - 20;
+            int minimapY = minimapRadius + 20;
+            int viewRange = 18; // INCREASED from 15 for better visibility
+            DrawRoundMinimap(map, playerPosition, yaw, minimapX, minimapY, minimapRadius, viewRange);
+        }
+        g_QuestManager.DrawQuestTrackerCompact(screenW, screenH);
+
+        if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
+        if (isCraftingOpen) DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
+        if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
+
+        if (gameState == GameState::Paused) {
+            DrawRectangle(0, 0, screenW, screenH, Color{ 0, 0, 0, 180 });
+            std::vector<std::string> opts = { "Continue", "Save Game", "Settings", "Main Menu" };
+            DrawMenu(screenW, screenH, opts, &pauseMenuSelection, useController, "PAUSED");
+        }
+    }
         else if (gameState == GameState::Console) {
             DrawConsole(screenW, screenH, consoleHistory, consoleInput, consoleInputLength);
         }
@@ -638,6 +591,9 @@ int main() {
     CleanupAnimationSystem();
     CleanupVehicleSystem();
     CleanupSkyboxSystem();
+    CloseWindow();
+    gameManager.Cleanup();
+    CleanupAllSystems();
     CloseWindow();
     return 0;
 }
