@@ -3,9 +3,7 @@
 #include "globals.h"
 #include <string>
 
-// ============================================================================
-// Upgraded-STYLE HUD RENDERING SYSTEM
-// ============================================================================
+struct InventorySlot;
 
 // UI Animation states
 struct UIAnimation {

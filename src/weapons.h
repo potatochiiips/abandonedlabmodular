@@ -1,10 +1,28 @@
 #pragma once
 #include "globals.h"
+#include "items.h"
+#include <map>
+#include "game_manager.h"
+#include "weapon_renderer.h"
+#include "hands_renderer.h"
+#include "daynight_system.h"
+#include "weather_system.h"
+#include "zombie_system.h"
+
 
 // Weapon item IDs
-#define ITEM_M16 9
-#define ITEM_M16_MAG 10
-#define ITEM_KNIFE 11
+
+#define ITEM_WATER_BOTTLE   1
+#define ITEM_LAB_KEY        2
+#define ITEM_FLASHLIGHT     3
+#define ITEM_WOOD           4
+#define ITEM_STONE          5
+#define ITEM_POTATO_CHIPS   6
+#define ITEM_PISTOL         7
+#define ITEM_MAG            8
+#define ITEM_M16            9
+#define ITEM_M16_MAG        10
+#define ITEM_KNIFE          11
 
 // Weapon animation states
 enum WeaponAnimState {

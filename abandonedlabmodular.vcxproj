@@ -127,6 +127,7 @@
     <ClInclude Include="src\fileio.h" />
     <ClInclude Include="src\game_manager.h" />
     <ClInclude Include="src\globals.h" />
+    <ClInclude Include="src\hands_renderer.h" />
     <ClInclude Include="src\hud.h" />
     <ClInclude Include="src\inventory.h" />
     <ClInclude Include="src\items.h" />

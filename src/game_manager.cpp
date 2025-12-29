@@ -1,5 +1,7 @@
 #include "globals.h"
 #include "game_manager.h"
+#include "weapon_renderer.h"
+#include "hands_renderer.h"
 #include "daynight_system.h"
 #include "weather_system.h"
 #include "zombie_system.h"

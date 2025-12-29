@@ -9,6 +9,9 @@
 #include <vector>
 #include <memory>
 
+class WeaponRenderer;
+class HandsRenderer;
+
 class UpgradedGameManager {
 public:
     UpgradedGameManager();

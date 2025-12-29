@@ -1,6 +1,8 @@
+#include "globals.h"
 #include "weapon_renderer.h"
 #include "model_manager.h"
 #include "player.h"
+#include "hands_renderer.h"
 
 WeaponRenderer::WeaponRenderer() {
     currentState = { ANIM_IDLE, 0.0f, false, 0.0f, {0,0,0}, {0,0,0}, {0,0,0} };

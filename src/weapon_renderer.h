@@ -1,7 +1,6 @@
 #pragma once
 #include "globals.h"
 #include "rendering.h"
-#include "weapons.h"
 #include "texture_manager.h"
 #include "model_manager.h"
 #include <cstdlib>
@@ -11,6 +10,14 @@
 #include <rlgl.h>
 #include <memory>
 
+// Forward declarations
+class WeaponRenderer;
+class HandsRenderer;
+struct WeaponState;
+enum WeaponAnimState;
+
+//keep this after forward declarations gonna be honest i have no idea why
+#include "weapons.h"
 // ============================================================================
 // Upgraded-STYLE WEAPON RENDERING SYSTEM
 // ============================================================================

@@ -4,6 +4,8 @@
 #include <vector>
 #include <memory>
 #include <unordered_map>
+enum ModelID;
+enum TextureID;
 
 class UpgradedMapRenderer {
 public:
