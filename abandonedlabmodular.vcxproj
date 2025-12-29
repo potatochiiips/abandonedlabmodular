@@ -85,7 +85,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="game_manager.cpp" />
+    <ClCompile Include="src\game_manager.cpp" />
     <ClCompile Include="src\console.cpp" />
     <ClCompile Include="src\console_globals.cpp" />
     <ClCompile Include="src\controller_bindings.cpp" />
@@ -118,7 +118,7 @@
     <ClCompile Include="src\daynight_system.cpp" />
     <ClCompile Include="src\weather_system.cpp" />
     <ClCompile Include="src\zombie_system.cpp" />
-    <ClCompile Include="weapon_renderer.cpp" />
+    <ClCompile Include="src\weapon_renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\city_system.h" />
