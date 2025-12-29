@@ -269,12 +269,12 @@ void UpgradedMapRenderer::CreateFloor(Vector3 position, float size, TextureID te
 
 void UpgradedMapRenderer::CreateBuilding(const Building& building) {
     // Draw building walls (perimeter only)
-    for (int z = building.footprint.y; z < building.footprint.y + building.footprint.h; z++) {
-        for (int x = building.footprint.x; x < building.footprint.x + building.footprint.w; x++) {
+    for (int z = building.footprint.y; z < building.footprint.y + building.footprint.height; z++) {
+        for (int x = building.footprint.x; x < building.footprint.x + building.footprint.width; x++) {
             bool isPerimeter = (x == building.footprint.x ||
-                x == building.footprint.x + building.footprint.w - 1 ||
+                x == building.footprint.x + building.footprint.width - 1 ||
                 z == building.footprint.y ||
-                z == building.footprint.y + building.footprint.h - 1);
+                z == building.footprint.y + building.footprint.height - 1);
 
             bool isEntrance = (x == building.entranceX && z == building.entranceY);
 
@@ -286,14 +286,14 @@ void UpgradedMapRenderer::CreateBuilding(const Building& building) {
 
     // Building roof
     auto roofRenderer = std::make_unique<MeshRenderer>();
-    roofRenderer->mesh = GenMeshCube((float)building.footprint.w, 0.2f, (float)building.footprint.h);
+    roofRenderer->mesh = GenMeshCube((float)building.footprint.width, 0.2f, (float)building.footprint.height);
 
     roofRenderer->material = CreateOpaqueMaterial(TEX_ROOF_SHINGLES, Color{ 80, 50, 50, 255 });
 
     Vector3 roofCenter = {
-        building.footprint.x + building.footprint.w / 2.0f,
+        building.footprint.x + building.footprint.width / 2.0f,
         CEILING_HEIGHT,
-        building.footprint.y + building.footprint.h / 2.0f
+        building.footprint.y + building.footprint.height / 2.0f
     };
     roofRenderer->transform = MatrixTranslate(roofCenter.x, roofCenter.y, roofCenter.z);
 

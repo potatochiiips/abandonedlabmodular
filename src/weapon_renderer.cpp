@@ -314,67 +314,6 @@ void WeaponRenderer::DrawMuzzleFlash(const Camera3D& camera) {
     DrawSphere(muzzlePos, flashSize * 0.4f, Color{ 255, 255, 255, flashColor.a });
 }
 
-// ============================================================================
-// FIRST PERSON HANDS RENDERING
-// ============================================================================
-
-class HandsRenderer {
-public:
-    void DrawHands(const Camera3D& camera, bool holdingWeapon) {
-        if (holdingWeapon) return; // Weapon handles its own hands
-
-        // Draw idle hands animation
-        Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
-        Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
-        Vector3 up = Vector3Normalize(camera.up);
-
-        float time = (float)GetTime();
-        float breatheBob = sinf(time * 1.5f) * 0.01f;
-
-        // Right hand
-        Vector3 rightHandPos = camera.position;
-        rightHandPos = Vector3Add(rightHandPos, Vector3Scale(forward, 0.4f));
-        rightHandPos = Vector3Add(rightHandPos, Vector3Scale(right, 0.2f));
-        rightHandPos = Vector3Add(rightHandPos, Vector3Scale(up, -0.25f + breatheBob));
-
-        DrawHandMesh(rightHandPos, forward, right, up, false);
-
-        // Left hand
-        Vector3 leftHandPos = camera.position;
-        leftHandPos = Vector3Add(leftHandPos, Vector3Scale(forward, 0.45f));
-        leftHandPos = Vector3Add(leftHandPos, Vector3Scale(right, -0.25f));
-        leftHandPos = Vector3Add(leftHandPos, Vector3Scale(up, -0.28f + breatheBob * 0.8f));
-
-        DrawHandMesh(leftHandPos, forward, right, up, true);
-    }
-
-private:
-    void DrawHandMesh(Vector3 position, Vector3 forward, Vector3 right,
-        Vector3 up, bool leftHand) {
-        Color skinColor = Color{ 210, 180, 140, 255 };
-
-        // Palm
-        Vector3 palmSize = { 0.04f, 0.06f, 0.08f };
-        DrawCubeV(position, palmSize, skinColor);
-
-        // Fingers
-        float fingerSpacing = leftHand ? -0.01f : 0.01f;
-        for (int i = 0; i < 4; i++) {
-            Vector3 fingerPos = position;
-            fingerPos = Vector3Add(fingerPos, Vector3Scale(forward, 0.05f));
-            fingerPos = Vector3Add(fingerPos, Vector3Scale(right, fingerSpacing * (i - 1.5f)));
-
-            DrawCubeV(fingerPos, Vector3{ 0.008f, 0.008f, 0.03f }, skinColor);
-        }
-
-        // Thumb
-        Vector3 thumbPos = position;
-        thumbPos = Vector3Add(thumbPos, Vector3Scale(right, leftHand ? 0.025f : -0.025f));
-        thumbPos = Vector3Add(thumbPos, Vector3Scale(forward, 0.02f));
-        DrawCubeV(thumbPos, Vector3{ 0.01f, 0.01f, 0.025f }, skinColor);
-    }
-};
-
 // Global instances
 extern WeaponRenderer* g_WeaponRenderer;
 extern HandsRenderer* g_HandsRenderer;

@@ -17,6 +17,18 @@ struct MapPlayerState {
     bool isInside;
     int currentBuildingId;
     int currentFloor;
+
+    // Additional members needed by code
+    bool insideInterior;
+    std::string currentInteriorId;
+    int worldX;
+    int worldY;
+    int interiorX;
+    int interiorY;
+
+    MapPlayerState() : yaw(0), isInside(false), currentBuildingId(0), currentFloor(0),
+        insideInterior(false), worldX(0), worldY(0), interiorX(0), interiorY(0) {
+    }
 };
 // 2. Enums
 enum BuildingType {
@@ -80,7 +92,7 @@ struct Door {
     Vector3 position;
     bool isInteriorDoor;
     bool isLocked;
-    // Add other fields as needed by your map.cpp logic
+    int buildingId;  // Added
 };
 
 struct Building {

@@ -8,6 +8,10 @@
 #include "weapon_renderer.h"
 #include "sound_manager.h"
 
+WeaponSystem g_WeaponSystem;
+WeaponState g_CurrentWeaponState = {
+    ANIM_IDLE, 0.0f, false, 0.0f, {0,0,0}, {0,0,0}, {0,0,0}
+};
 // ============================================================================
 // WEAPON SHOOTING INTEGRATION EXAMPLE
 // ============================================================================

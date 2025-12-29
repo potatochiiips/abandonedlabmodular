@@ -10,7 +10,8 @@
 #include <memory>
 
 class WeaponRenderer;
-
+struct WeaponState;
+enum WeaponAnimState;
 class UpgradedGameManager {
 public:
     UpgradedGameManager();
