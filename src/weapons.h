@@ -164,20 +164,6 @@ private:
     std::map<int, WeaponStats> weapons;
 };
 
-// Draw enhanced pistol model
-void DrawEnhancedPistol(Vector3 basePos, Vector3 forward, Vector3 right, Vector3 up, const WeaponState& state);
-
-// Draw M16 model
-void DrawM16Rifle(Vector3 basePos, Vector3 forward, Vector3 right, Vector3 up, const WeaponState& state);
-
-// Draw knife model
-void DrawKnife(Vector3 basePos, Vector3 forward, Vector3 right, Vector3 up, const WeaponState& state);
-
-// Draw left hand on weapon
-void DrawLeftHandOnWeapon(Vector3 weaponPos, Vector3 forward, Vector3 right, Vector3 up, bool isRifle, float adsProgress);
-
-// Draw idle hands animation
-void DrawIdleHands(const Camera3D& camera, float time);
 
 // Global weapon system
 extern WeaponSystem g_WeaponSystem;

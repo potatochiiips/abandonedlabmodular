@@ -4,6 +4,7 @@
 #include "map.h"
 #include "hud.h"
 #include "weapon_renderer.h"
+#include "weapons.h"
 #include "rendering_impl.h"
 #include <vector>
 #include <memory>
