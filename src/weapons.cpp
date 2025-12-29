@@ -6,6 +6,7 @@
 #include "zombie_system.h"
 #include "rendering.h"
 #include "weapon_renderer.h"
+#include "sound_manager.h"
 
 // ============================================================================
 // WEAPON SHOOTING INTEGRATION EXAMPLE
