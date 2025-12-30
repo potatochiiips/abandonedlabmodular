@@ -104,7 +104,7 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
         *playerPosition = g_EnhancedMapSystem->GetPlayerSpawnPosition();
         camera->position = *playerPosition;
 
-        // Set player as NOT inside interior (we're spawning in the open world)
+		// Initialize g_MapPlayer state
         g_MapPlayer.insideInterior = false;
         g_MapPlayer.worldX = (int)playerPosition->x;
         g_MapPlayer.worldY = (int)playerPosition->z;
