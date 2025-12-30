@@ -1,15 +1,19 @@
 #pragma once
 #include "globals.h"
+#include <memory>
+
+// Forward declarations
+class MeshRenderer;
+class UpgradedMaterial;
+struct Camera3D;
+enum WeaponAnimState;
+struct WeaponState;
+
+// Include rendering.h after forward declarations
 #include "rendering.h"
 #include "texture_manager.h"
 #include "model_manager.h"
 #include "weapons.h"
-#include <memory>
-
-
-// Forward declarations
-struct WeaponState;
-enum WeaponAnimState;
 
 // ============================================================================
 // Upgraded-STYLE WEAPON RENDERING SYSTEM

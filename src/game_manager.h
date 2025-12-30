@@ -1,6 +1,6 @@
 #pragma once
 #include "globals.h"
-#include "rendering.h"
+#include "rendering.h"  // ADD THIS - must be before using UpgradedLight
 #include <vector>
 #include <memory>
 
@@ -16,8 +16,7 @@ enum WeaponAnimState;
 #include "hud.h"
 #include "weapon_renderer.h"
 #include "weapons.h"
-
-
+// ============================================================================
 class UpgradedGameManager {
 public:
     UpgradedGameManager();

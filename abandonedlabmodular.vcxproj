@@ -120,6 +120,7 @@
     <ClCompile Include="src\zombie_system.cpp" />
     <ClCompile Include="src\weapon_renderer.cpp" />
     <ClCompile Include="src\rendering_impl.cpp" />
+	<ClCompile Include="src\hands_renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\city_system.h" />

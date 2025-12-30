@@ -1,25 +1,31 @@
 #pragma once
 #include "globals.h"
-#include "rendering.h"
 #include <vector>
 #include <memory>
 #include <unordered_map>
 #include <string>
+
 #ifndef MAP_CONSTANTS
 #define MAP_CONSTANTS
 
 const int MAP_SIZE = 256;
-const int mapSize = 300; // For menu rendering
-const int menuX = 50;     // Adjust value as needed
+const int mapSize = 300;
+const int menuX = 50;
 const int menuY = 50;
 const int menuW = 400;
-const int mapX = 50;     // Adjust value as needed
+const int mapX = 50;
 const int mapY = 50;
+
 // 1. Forward Declarations
 enum ModelID;
 enum TextureID;
 struct Player;
+class MeshRenderer;      // ADD THIS
+class UpgradedMaterial;  // ADD THIS
 class UpgradedMapRenderer;
+
+// Include rendering.h AFTER forward declarations
+#include "rendering.h"
 // 2. Enums
 enum BuildingType {
     BTYPE_UNKNOWN = 0, BTYPE_LABORATORY, BTYPE_HOUSE, BTYPE_APARTMENT,
