@@ -468,9 +468,6 @@ const Interior* GetInterior(const MapData& m, const std::string& id);
 // Legacy compatibility functions
 void GenerateMap(char map[MAP_SIZE][MAP_SIZE]);
 void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw);
-void DrawMinimap(char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw, int minimapX, int minimapY, int minimapW, int minimapH, bool largeMap, int screenH);
-void DrawMapGeometry(char map[MAP_SIZE][MAP_SIZE]);
-
 // Enhanced world functions - NEW 3D DRAWING
 void Draw3DWorld(const MapData& mapData, const MapPlayerState& playerState);
 void Draw3DInterior(const Interior& interior);

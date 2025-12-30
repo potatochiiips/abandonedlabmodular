@@ -317,4 +317,4 @@ void WeaponRenderer::DrawMuzzleFlash(const Camera3D& camera) {
 
 // Global instances
  WeaponRenderer* g_WeaponRenderer;
- HandsRenderer* g_HandsRenderer;
+ 

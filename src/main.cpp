@@ -20,6 +20,7 @@
 #include "vehicle_system.h"
 #include "animation_system.h"
 #include "rendering.h"
+#include "game_manager.h"
 
 // --- GLOBAL VARIABLE DEFINITIONS ---
 Camera3D camera = { 0 };

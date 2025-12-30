@@ -8,8 +8,7 @@
 #ifndef MAP_CONSTANTS
 #define MAP_CONSTANTS
 
-const int MAP_SIZE = 256;
-const int mapSize = 300;
+
 const int menuX = 50;
 const int menuY = 50;
 const int menuW = 400;
@@ -17,11 +16,11 @@ const int mapX = 50;
 const int mapY = 50;
 
 // 1. Forward Declarations
-enum ModelID;
-enum TextureID;
+enum ModelID : int;      // Specify : int
+enum TextureID : int;    // Specify : int
 struct Player;
-class MeshRenderer;      // ADD THIS
-class UpgradedMaterial;  // ADD THIS
+class MeshRenderer;
+class UpgradedMaterial;
 class UpgradedMapRenderer;
 
 // Include rendering.h AFTER forward declarations

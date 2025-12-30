@@ -13,13 +13,13 @@
 #include <cmath>
 #include <fstream>
 #include <unordered_map>
-#include "game_manager.h"
 
 
 // ----------------------------------------------------------------------------------
 // FORWARD DECLARATIONS
 // ----------------------------------------------------------------------------------
 class AnimationManager;
+struct MapPlayerState;
 
 // ----------------------------------------------------------------------------------
 // COMPATIBILITY FIXES FOR OLDER RAYLIB VERSIONS
@@ -47,6 +47,7 @@ class AnimationManager;
 #define TILE_FLOOR 1
 #define TILE_DOOR 2
 #define GRID_SIZE 1.0f
+const int mapSize = MAP_SIZE;
 
 // Terrain constants
 #define TERRAIN_CHUNK_SIZE 16
@@ -404,7 +405,6 @@ extern std::vector<Vehicle> vehicles;
 extern Vehicle* playerVehicle;
 extern AnimationManager* g_AnimationManager;
 extern MapPlayerState g_MapPlayer;
-
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov);
 
 void ApplyGraphicsSettings(const GraphicsSettings& settings);
