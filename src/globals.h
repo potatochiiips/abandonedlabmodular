@@ -379,6 +379,7 @@ extern float reloadTimer;
 extern float adsTransitionProgress;
 
 extern bool showMinimap;
+extern bool showcompass;
 extern bool isControllerEnabled;
 extern bool isFullscreen;
 extern int settingsSelection;

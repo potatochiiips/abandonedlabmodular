@@ -121,6 +121,7 @@
     <ClCompile Include="src\weapon_renderer.cpp" />
     <ClCompile Include="src\rendering_impl.cpp" />
 	<ClCompile Include="src\hands_renderer.cpp" />
+	<ClCompile Include="src\enhanced_map_system.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\city_system.h" />
@@ -155,6 +156,7 @@
     <ClInclude Include="src\weapon_renderer.h" />
     <ClInclude Include="src\weather_system.h" />
     <ClInclude Include="src\zombie_system.h" />
+	<ClInclude Include="src\enhanced_map_system.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\shaders\lighting.vs" />

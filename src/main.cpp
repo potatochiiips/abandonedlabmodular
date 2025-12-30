@@ -21,6 +21,7 @@
 #include "animation_system.h"
 #include "rendering.h"
 #include "game_manager.h"
+#include "enhanced_map_system.h"
 
 // --- GLOBAL VARIABLE DEFINITIONS ---
 Camera3D camera = { 0 };
@@ -57,6 +58,7 @@ bool isReloading = false;
 float reloadTimer = 0.0f;
 float adsTransitionProgress = 0.0f;
 bool showMinimap = true;
+bool showcompass = true;
 bool isControllerEnabled = true;
 bool isFullscreen = false;
 int settingsSelection = 0;
@@ -99,11 +101,15 @@ void CloseInGameMenus() {
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov) {
     GenerateMapData(g_MapData);
     InitializePlayerFromMapStart(g_MapData, g_MapPlayer);
-
-    *playerPosition = Vector3{ (float)g_MapPlayer.interiorX, playerHeight, (float)g_MapPlayer.interiorY };
-    *playerVelocity = Vector3{ 0.0f, 0.0f, 0.0f };
-    camera->position = *playerPosition;
-
+    if (g_EnhancedMapSystem) {
+        *playerPosition = g_EnhancedMapSystem->GetPlayerSpawnPosition();
+        camera->position = *playerPosition;
+    }
+	else { // Fallback to legacy player spawn
+        *playerPosition = Vector3{ (float)g_MapPlayer.interiorX, playerHeight, (float)g_MapPlayer.interiorY };
+        *playerVelocity = Vector3{ 0.0f, 0.0f, 0.0f };
+        camera->position = *playerPosition;
+    }
     *yaw = -90.0f;
     *pitch = 0.0f;
     Vector3 forward;
@@ -218,6 +224,7 @@ int main() {
     InitializeDayNightSystem();
     InitializeWeatherSystem();
     InitializeZombieSystem();
+    InitializeEnhancedMapSystem();
     UpgradedGameManager gameManager;
     gameManager.Initialize();
 
@@ -537,16 +544,16 @@ int main() {
         if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE)
             g_UpscalingManager->EndUpscaledRender(screenW, screenH);
 
-
+		//minimap-HUD toggle
         if (showMinimap) {
-            int minimapRadius = 95; // INCREASED from 75
-            int minimapX = screenW - minimapRadius - 20;
-            int minimapY = minimapRadius + 20;
-            int viewRange = 18; // INCREASED from 15 for better visibility
-           void DrawCompass(int screenW, int screenH, float yaw);
+            void DrawMinimapHUD(int screenW, int screenH, Vector3 playerPos, float playerYaw); 
         }
         g_QuestManager.DrawQuestTrackerCompact(screenW, screenH);
-
+		
+        //compass-HUD toggle
+        if (showcompass) {
+            void DrawCompass(int screenW, int screenH, float yaw);
+        }
         if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
         if (isCraftingOpen) DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
         if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
@@ -564,7 +571,7 @@ int main() {
             DrawLoadMenu(screenW, screenH, &saveSlotSelection, stateBeforeSettings);
         }
         else if (gameState == GameState::Settings) {
-            DrawSettingsMenu(screenW, screenH, &showMinimap, &isControllerEnabled, &isFullscreen,
+            DrawSettingsMenu(screenW, screenH, &showMinimap, &showcompass, &isControllerEnabled, &isFullscreen,
                 &settingsSelection, &stateBeforeSettings);
         }
         else if (gameState == GameState::GraphicsSettings) {
@@ -591,6 +598,7 @@ int main() {
     CleanupAnimationSystem();
     CleanupVehicleSystem();
     CleanupSkyboxSystem();
+    CleanupEnhancedMapSystem();
     gameManager.Cleanup();
     CloseWindow();
     return 0;

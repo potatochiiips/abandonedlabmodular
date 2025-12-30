@@ -272,15 +272,18 @@ void HUDManager::DrawDamageVignette(int screenW, int screenH, float damageIntens
 }
 
 void HUDManager::DrawCompass(int screenW, int screenH, float yaw) {
+    // NEW POSITION: Bottom center of screen
     int compassWidth = 300;
     int compassHeight = 40;
     int compassX = screenW / 2 - compassWidth / 2;
-    int compassY = 20;
+    int compassY = screenH - compassHeight - 20; // 20px from bottom
 
-    // Background
-    DrawRectangle(compassX, compassY, compassWidth, compassHeight, Color{ 0, 0, 0, 100 });
-    DrawRectangleLines(compassX, compassY, compassWidth, compassHeight,
-        Color{ 255, 255, 255, 30 });
+    // Background with improved styling
+    DrawRectangle(compassX - 5, compassY - 5, compassWidth + 10, compassHeight + 10, Color{ 0, 0, 0, 160 });
+    DrawRectangleLines(compassX - 5, compassY - 5, compassWidth + 10, compassHeight + 10, PIPBOY_GREEN);
+
+    // Inner background
+    DrawRectangle(compassX, compassY, compassWidth, compassHeight, Color{ 10, 25, 10, 200 });
 
     // Cardinal directions
     const char* directions[] = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
@@ -294,24 +297,67 @@ void HUDManager::DrawCompass(int screenW, int screenH, float yaw) {
         // Map to compass position (-150 to 150 degrees visible)
         if (angle > 180) angle -= 360;
 
-        if (fabs(angle) < 75) {
-            int xPos = compassX + compassWidth / 2 + (int)((angle / 75.0f) * (compassWidth / 2));
+        if (fabs(angle) < 90) { // Increased visibility range
+            int xPos = compassX + compassWidth / 2 + (int)((angle / 90.0f) * (compassWidth / 2));
             int yPos = compassY + compassHeight / 2;
 
             Color dirColor = (i % 2 == 0) ? Color{ 255, 255, 255, 255 } : Color{ 200, 200, 200, 200 };
             if (i == 0) dirColor = Color{ 255, 60, 60, 255 }; // North is red
 
-            DrawGlowingText(directions[i], xPos - MeasureText(directions[i], 16) / 2,
-                yPos - 8, 16, dirColor, Color{ 0, 0, 0, 100 });
+            // Draw tick marks
+            int tickHeight = (i % 2 == 0) ? 12 : 8;
+            DrawLine(xPos, compassY + 5, xPos, compassY + 5 + tickHeight, dirColor);
+
+            // Draw direction letter
+            if (i % 2 == 0 || fabs(angle) < 30) { // Show more labels when close
+                DrawGlowingText(directions[i], xPos - MeasureText(directions[i], 16) / 2,
+                    yPos - 8, 16, dirColor, Color{ 0, 0, 0, 100 });
+            }
         }
     }
 
-    // Center indicator
-    DrawLine(compassX + compassWidth / 2, compassY + 5,
-        compassX + compassWidth / 2, compassY + compassHeight - 5,
-        Color{ 255, 60, 60, 255 });
-}
+    // Center indicator (player heading)
+    int centerX = compassX + compassWidth / 2;
+    DrawLine(centerX, compassY + 2, centerX, compassY + compassHeight - 2, Color{ 255, 255, 100, 255 });
+    DrawCircle(centerX, compassY + compassHeight / 2, 3, Color{ 255, 255, 100, 255 });
 
+    // Degree display
+    int displayDegree = ((int)yaw + 360) % 360;
+    const char* degreeText = TextFormat("%d°", displayDegree);
+    int degreeWidth = MeasureText(degreeText, 14);
+    DrawRectangle(centerX - degreeWidth / 2 - 5, compassY - 20, degreeWidth + 10, 18, Color{ 0, 0, 0, 180 });
+    DrawText(degreeText, centerX - degreeWidth / 2, compassY - 18, 14, PIPBOY_GREEN);
+}
+void DrawMinimapHUD(int screenW, int screenH, Vector3 playerPos, float playerYaw) {
+    if (g_EnhancedMapSystem) {
+        int minimapRadius = 100;
+        int minimapX = screenW - minimapRadius - 20;
+        int minimapY = minimapRadius + 20;
+
+        g_EnhancedMapSystem->DrawMinimap(minimapX, minimapY, minimapRadius, playerPos, playerYaw);
+
+        // Zone label
+        WorldZone currentZone = g_EnhancedMapSystem->GetZoneAt(playerPos.x, playerPos.z);
+        ZoneDefinition* zone = g_EnhancedMapSystem->GetZone(currentZone);
+        if (zone) {
+            int labelWidth = MeasureText(zone->name.c_str(), 16);
+            int labelX = minimapX - labelWidth / 2;
+            int labelY = minimapY + minimapRadius + 15;
+
+            DrawRectangle(labelX - 5, labelY - 2, labelWidth + 10, 20, Color{ 0, 0, 0, 180 });
+            DrawText(zone->name.c_str(), labelX, labelY, 16, PIPBOY_GREEN);
+        }
+
+        // Coordinates display
+        const char* coords = TextFormat("X:%.0f Z:%.0f", playerPos.x, playerPos.z);
+        int coordWidth = MeasureText(coords, 12);
+        int coordX = minimapX - coordWidth / 2;
+        int coordY = minimapY - minimapRadius - 25;
+
+        DrawRectangle(coordX - 3, coordY - 2, coordWidth + 6, 16, Color{ 0, 0, 0, 180 });
+        DrawText(coords, coordX, coordY, 12, PIPBOY_DIM);
+    }
+}
 void HUDManager::DrawNotification(const std::string& message, float duration) {
     currentNotification = message;
     notificationTimer = duration;

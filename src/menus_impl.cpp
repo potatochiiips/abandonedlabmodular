@@ -123,7 +123,7 @@ void DrawAudioSettingsMenu(int screenW, int screenH, int* selection, GameState* 
         menuX + 20, menuY + menuH - 40, 14, PIPBOY_DIM);
 }
 
-void DrawSettingsMenu(int screenW, int screenH, bool* showMinimap, bool* isControllerEnabled, bool* isFullscreen, int* settingsSelection, GameState* nextState) {
+void DrawSettingsMenu(int screenW, int screenH, bool* showMinimap, bool* showcompass, bool* isControllerEnabled, bool* isFullscreen, int* settingsSelection, GameState* nextState) {
     int menuW = 600;
     int menuH = 550;
     int menuX = (screenW - menuW) / 2;
@@ -149,6 +149,7 @@ void DrawSettingsMenu(int screenW, int screenH, bool* showMinimap, bool* isContr
 
     const char* options[] = {
         TextFormat("Show Minimap: %s", *showMinimap ? "ON" : "OFF"),
+        TextFormat("Show Compass: %s", *showcompass ? "ON" : "OFF"),
         TextFormat("Controller Enabled: %s", *isControllerEnabled ? "ON" : "OFF"),
         TextFormat("Fullscreen: %s", *isFullscreen ? "ON" : "OFF"),
         "Audio Settings",
@@ -193,39 +194,45 @@ void DrawSettingsMenu(int screenW, int screenH, bool* showMinimap, bool* isContr
         break;
     case 1:
         if (enterPressed || leftPressed || rightPressed) {
-            *isControllerEnabled = !(*isControllerEnabled);
+            *showcompass = !(*showcompass);
             if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
         }
         break;
     case 2:
+        if (enterPressed || leftPressed || rightPressed) {
+            *isControllerEnabled = !(*isControllerEnabled);
+            if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
+        }
+        break;
+    case 3:
         if (enterPressed || leftPressed || rightPressed) {
             *isFullscreen = !(*isFullscreen);
             ToggleFullscreen();
             if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
         }
         break;
-    case 3:
+    case 4:
         if (enterPressed) {
             gameState = GameState::AudioSettings;
             audioSettingsSelection = 0;
             if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
         }
         break;
-    case 4:
+    case 5:
         if (enterPressed) {
             gameState = GameState::GraphicsSettings;
             graphicsSettingsSelection = 0;
             if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
         }
         break;
-    case 5:
+    case 6:
         if (enterPressed) {
             gameState = GameState::ControllerBindings;
             controllerSettingsSelection = 0;
             if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_SELECT, 0.5f);
         }
         break;
-    case 6:
+    case 7:
         if (enterPressed) {
             gameState = stateBeforeSettings;
             if (g_SoundManager) g_SoundManager->PlaySound(SND_UI_BACK, 0.5f);
