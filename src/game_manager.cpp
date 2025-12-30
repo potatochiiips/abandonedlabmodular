@@ -6,6 +6,7 @@
 #include "weather_system.h"
 #include "zombie_system.h"
 #include "rendering.h"
+#include "enhanced_map_system.h"
 
 UpgradedGameManager::UpgradedGameManager() {
 }
@@ -47,14 +48,19 @@ void UpgradedGameManager::SetupScene() {
     mainCamera.depth = 0;
     mainCamera.cullingMask = -1;
 
-    // Generate map geometry
-    if (g_MapPlayer.insideInterior) {
+    // FIXED: Generate map geometry from enhanced map system
+    if (g_EnhancedMapSystem && !g_MapPlayer.insideInterior) {
+        // Use enhanced map system for new world
+        TraceLog(LOG_INFO, "Generating world geometry from Enhanced Map System");
+        mapRenderer->GenerateEnhancedWorld();
+    } else if (g_MapPlayer.insideInterior) {
+        // Inside an interior
         const Interior* interior = GetInterior(g_MapData, g_MapPlayer.currentInteriorId);
         if (interior) {
             mapRenderer->GenerateInteriorGeometry(*interior);
         }
-    }
-    else {
+    } else {
+        // Fallback: Use old map system
         mapRenderer->GenerateWorldGeometry(g_MapData);
     }
 

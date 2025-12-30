@@ -22,91 +22,91 @@ void EnhancedMapSystem::InitializeZones() {
     // Central City (middle of map)
     ZoneDefinition centralCity;
     centralCity.type = ZONE_CENTRAL_CITY;
-    centralCity.bounds = Rectangle{100, 100, 56, 56}; // Center area
+    centralCity.bounds = Rectangle{ 100.0f, 100.0f, 56.0f, 56.0f }; // FIXED: explicit float
     centralCity.name = "Central City";
-    centralCity.mapColor = Color{120, 120, 140, 255};
+    centralCity.mapColor = Color{ 120, 120, 140, 255 };
     centralCity.buildingDensity = 0.9f;
-    centralCity.allowedBuildings = {BLDG_SKYSCRAPER, BLDG_OFFICE_BUILDING};
+    centralCity.allowedBuildings = { BLDG_SKYSCRAPER, BLDG_OFFICE_BUILDING };
     zones.push_back(centralCity);
-    
+
     // Laboratory (near city edge)
     ZoneDefinition laboratory;
     laboratory.type = ZONE_LABORATORY;
-    laboratory.bounds = Rectangle{80, 80, 15, 15};
+    laboratory.bounds = Rectangle{ 80.0f, 80.0f, 15.0f, 15.0f }; // FIXED: explicit float
     laboratory.name = "Research Laboratory";
-    laboratory.mapColor = Color{100, 150, 180, 255};
+    laboratory.mapColor = Color{ 100, 150, 180, 255 };
     laboratory.buildingDensity = 1.0f;
-    laboratory.allowedBuildings = {BLDG_LABORATORY};
+    laboratory.allowedBuildings = { BLDG_LABORATORY };
     zones.push_back(laboratory);
-    
+
     // Hospital (northeast)
     ZoneDefinition hospital;
     hospital.type = ZONE_HOSPITAL;
-    hospital.bounds = Rectangle{160, 80, 20, 20};
+    hospital.bounds = Rectangle{ 160.0f, 80.0f, 20.0f, 20.0f }; // FIXED: explicit float
     hospital.name = "Medical Center";
-    hospital.mapColor = Color{200, 80, 80, 255};
+    hospital.mapColor = Color{ 200, 80, 80, 255 };
     hospital.buildingDensity = 1.0f;
-    hospital.allowedBuildings = {BLDG_HOSPITAL};
+    hospital.allowedBuildings = { BLDG_HOSPITAL };
     zones.push_back(hospital);
-    
+
     // Business District
     ZoneDefinition business;
     business.type = ZONE_BUSINESS_DISTRICT;
-    business.bounds = Rectangle{90, 120, 76, 40};
+    business.bounds = Rectangle{ 90.0f, 120.0f, 76.0f, 40.0f }; // FIXED: explicit float
     business.name = "Business District";
-    business.mapColor = Color{140, 140, 160, 255};
+    business.mapColor = Color{ 140, 140, 160, 255 };
     business.buildingDensity = 0.8f;
-    business.allowedBuildings = {BLDG_BANK, BLDG_OFFICE_BUILDING, BLDG_RETAIL_STORE};
+    business.allowedBuildings = { BLDG_BANK, BLDG_OFFICE_BUILDING, BLDG_RETAIL_STORE };
     zones.push_back(business);
-    
+
     // Western Farmlands
     ZoneDefinition farmlands;
     farmlands.type = ZONE_WESTERN_FARMLANDS;
-    farmlands.bounds = Rectangle{10, 50, 80, 150};
+    farmlands.bounds = Rectangle{ 10.0f, 50.0f, 80.0f, 150.0f }; // FIXED: explicit float
     farmlands.name = "Western Farmlands";
-    farmlands.mapColor = Color{100, 180, 80, 255};
+    farmlands.mapColor = Color{ 100, 180, 80, 255 };
     farmlands.buildingDensity = 0.2f;
-    farmlands.allowedBuildings = {BLDG_FARMHOUSE, BLDG_BARN};
+    farmlands.allowedBuildings = { BLDG_FARMHOUSE, BLDG_BARN };
     zones.push_back(farmlands);
-    
+
     // Eastern Coast
     ZoneDefinition coast;
     coast.type = ZONE_EASTERN_COAST;
-    coast.bounds = Rectangle{180, 50, 66, 150};
+    coast.bounds = Rectangle{ 180.0f, 50.0f, 66.0f, 150.0f }; // FIXED: explicit float
     coast.name = "Eastern Coast";
-    coast.mapColor = Color{220, 200, 150, 255};
+    coast.mapColor = Color{ 220, 200, 150, 255 };
     coast.buildingDensity = 0.3f;
-    coast.allowedBuildings = {BLDG_BEACH_HOUSE, BLDG_PIER_BUILDING};
+    coast.allowedBuildings = { BLDG_BEACH_HOUSE, BLDG_PIER_BUILDING };
     zones.push_back(coast);
-    
+
     // Northern Mountains
     ZoneDefinition mountains;
     mountains.type = ZONE_NORTHERN_MOUNTAINS;
-    mountains.bounds = Rectangle{50, 10, 156, 40};
+    mountains.bounds = Rectangle{ 50.0f, 10.0f, 156.0f, 40.0f }; // FIXED: explicit float
     mountains.name = "Northern Mountains";
-    mountains.mapColor = Color{160, 160, 170, 255};
+    mountains.mapColor = Color{ 160, 160, 170, 255 };
     mountains.buildingDensity = 0.1f;
-    mountains.allowedBuildings = {BLDG_MILITARY_HANGAR, BLDG_MILITARY_BARRACKS};
+    mountains.allowedBuildings = { BLDG_MILITARY_HANGAR, BLDG_MILITARY_BARRACKS };
     zones.push_back(mountains);
-    
+
     // Southern Industrial
     ZoneDefinition industrial;
     industrial.type = ZONE_SOUTHERN_INDUSTRIAL;
-    industrial.bounds = Rectangle{80, 200, 86, 46};
+    industrial.bounds = Rectangle{ 80.0f, 200.0f, 86.0f, 46.0f }; // FIXED: explicit float
     industrial.name = "Industrial District";
-    industrial.mapColor = Color{100, 90, 80, 255};
+    industrial.mapColor = Color{ 100, 90, 80, 255 };
     industrial.buildingDensity = 0.7f;
-    industrial.allowedBuildings = {BLDG_FACTORY, BLDG_WAREHOUSE};
+    industrial.allowedBuildings = { BLDG_FACTORY, BLDG_WAREHOUSE };
     zones.push_back(industrial);
-    
+
     // Harbor
     ZoneDefinition harbor;
     harbor.type = ZONE_HARBOR;
-    harbor.bounds = Rectangle{30, 230, 60, 16};
+    harbor.bounds = Rectangle{ 30.0f, 230.0f, 60.0f, 16.0f }; // FIXED: explicit float
     harbor.name = "Harbor";
-    harbor.mapColor = Color{60, 80, 120, 255};
+    harbor.mapColor = Color{ 60, 80, 120, 255 };
     harbor.buildingDensity = 0.6f;
-    harbor.allowedBuildings = {BLDG_WAREHOUSE};
+    harbor.allowedBuildings = { BLDG_WAREHOUSE };
     zones.push_back(harbor);
 }
 
@@ -168,38 +168,38 @@ void EnhancedMapSystem::GenerateHospital() {
 
 void EnhancedMapSystem::GenerateMilitaryBase() {
     // Military base in northern mountains
-    Vector3 baseCenter = {128, 0, 25};
-    
+    Vector3 baseCenter = { 128.0f, 0.0f, 25.0f }; // FIXED: explicit float literals
+
     // Hangars
     for (int i = 0; i < 3; i++) {
         EnhancedBuilding hangar;
         hangar.id = nextBuildingId++;
         hangar.type = BLDG_MILITARY_HANGAR;
         hangar.zone = ZONE_NORTHERN_MOUNTAINS;
-        hangar.position = Vector3{baseCenter.x + i * 15, 0, baseCenter.z};
-        hangar.size = Vector3{12, 10, 20};
-        hangar.rotation = 0;
+        hangar.position = Vector3{ baseCenter.x + i * 15.0f, 0.0f, baseCenter.z };
+        hangar.size = Vector3{ 12.0f, 10.0f, 20.0f };
+        hangar.rotation = 0.0f;
         hangar.hasInterior = true;
         hangar.name = TextFormat("Hangar %d", i + 1);
         hangar.isAccessible = true;
         buildings.push_back(hangar);
     }
-    
+
     // Barracks
     for (int i = 0; i < 4; i++) {
         EnhancedBuilding barracks;
         barracks.id = nextBuildingId++;
         barracks.type = BLDG_MILITARY_BARRACKS;
         barracks.zone = ZONE_NORTHERN_MOUNTAINS;
-        barracks.position = Vector3{baseCenter.x + (i % 2) * 10, 0, baseCenter.z + 25 + (i / 2) * 12};
-        barracks.size = Vector3{8, 6, 15};
-        barracks.rotation = 0;
+        barracks.position = Vector3{ baseCenter.x + (i % 2) * 10.0f, 0.0f, baseCenter.z + 25.0f + (i / 2) * 12.0f };
+        barracks.size = Vector3{ 8.0f, 6.0f, 15.0f };
+        barracks.rotation = 0.0f;
         barracks.hasInterior = true;
         barracks.name = TextFormat("Barracks %d", i + 1);
         barracks.isAccessible = true;
         buildings.push_back(barracks);
     }
-    
+
     TraceLog(LOG_INFO, "Generated Military Base");
 }
 
@@ -210,7 +210,7 @@ void EnhancedMapSystem::GenerateHarbor() {
         warehouse.id = nextBuildingId++;
         warehouse.type = BLDG_WAREHOUSE;
         warehouse.zone = ZONE_HARBOR;
-        warehouse.position = Vector3{35 + i * 9, 0, 235};
+        warehouse.position = Vector3{35.0f + i * 9, 0, 235};
         warehouse.size = Vector3{8, 8, 12};
         warehouse.rotation = 0;
         warehouse.hasInterior = false;
@@ -225,58 +225,58 @@ void EnhancedMapSystem::GenerateHarbor() {
 void EnhancedMapSystem::GenerateZoneBuildings(WorldZone zoneType) {
     ZoneDefinition* zone = GetZone(zoneType);
     if (!zone) return;
-    
+
     int buildingCount = (int)(zone->bounds.width * zone->bounds.height * zone->buildingDensity / 100.0f);
-    
+
     for (int i = 0; i < buildingCount; i++) {
         if (zone->allowedBuildings.empty()) continue;
-        
+
         EnhancedBuilding building;
         building.id = nextBuildingId++;
         building.type = zone->allowedBuildings[rand() % zone->allowedBuildings.size()];
         building.zone = zoneType;
-        
-        // Random position within zone
-        building.position.x = zone->bounds.x + (rand() % (int)zone->bounds.width);
-        building.position.y = 0;
-        building.position.z = zone->bounds.y + (rand() % (int)zone->bounds.height);
-        
+
+        // Random position within zone - FIXED: explicit float casts
+        building.position.x = zone->bounds.x + (float)(rand() % (int)zone->bounds.width);
+        building.position.y = 0.0f;
+        building.position.z = zone->bounds.y + (float)(rand() % (int)zone->bounds.height);
+
         // Size based on type
         switch (building.type) {
-            case BLDG_SKYSCRAPER:
-                building.size = Vector3{8, 40 + rand() % 40, 8};
-                break;
-            case BLDG_OFFICE_BUILDING:
-                building.size = Vector3{10, 15 + rand() % 20, 10};
-                break;
-            case BLDG_BANK:
-                building.size = Vector3{12, 12, 12};
-                break;
-            case BLDG_RETAIL_STORE:
-                building.size = Vector3{8, 8, 6};
-                break;
-            case BLDG_FARMHOUSE:
-                building.size = Vector3{6, 6, 8};
-                break;
-            case BLDG_BARN:
-                building.size = Vector3{10, 12, 12};
-                break;
-            case BLDG_BEACH_HOUSE:
-                building.size = Vector3{6, 5, 8};
-                break;
-            case BLDG_FACTORY:
-                building.size = Vector3{15, 10, 20};
-                break;
-            default:
-                building.size = Vector3{8, 8, 8};
-                break;
+        case BLDG_SKYSCRAPER:
+            building.size = Vector3{ 8.0f, 40.0f + (float)(rand() % 40), 8.0f };
+            break;
+        case BLDG_OFFICE_BUILDING:
+            building.size = Vector3{ 10.0f, 15.0f + (float)(rand() % 20), 10.0f };
+            break;
+        case BLDG_BANK:
+            building.size = Vector3{ 12.0f, 12.0f, 12.0f };
+            break;
+        case BLDG_RETAIL_STORE:
+            building.size = Vector3{ 8.0f, 8.0f, 6.0f };
+            break;
+        case BLDG_FARMHOUSE:
+            building.size = Vector3{ 6.0f, 6.0f, 8.0f };
+            break;
+        case BLDG_BARN:
+            building.size = Vector3{ 10.0f, 12.0f, 12.0f };
+            break;
+        case BLDG_BEACH_HOUSE:
+            building.size = Vector3{ 6.0f, 5.0f, 8.0f };
+            break;
+        case BLDG_FACTORY:
+            building.size = Vector3{ 15.0f, 10.0f, 20.0f };
+            break;
+        default:
+            building.size = Vector3{ 8.0f, 8.0f, 8.0f };
+            break;
         }
-        
+
         building.rotation = (float)(rand() % 4) * 90.0f;
         building.hasInterior = (rand() % 3 == 0);
         building.isAccessible = building.hasInterior;
         building.name = TextFormat("%s %d", zone->name.c_str(), i);
-        
+
         buildings.push_back(building);
     }
 }

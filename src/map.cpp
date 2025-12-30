@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <rlgl.h>
 #include "rendering.h"
+#include "enhanced_map_system.h"
 // Global instance definitions
 UpgradedMapRenderer* g_UpgradedMapRenderer = nullptr;
 std::vector<Door> doors;
@@ -32,7 +33,44 @@ UpgradedMapRenderer::UpgradedMapRenderer() : nextPropId(1) {
 UpgradedMapRenderer::~UpgradedMapRenderer() {
     Cleanup();
 }
+void UpgradedMapRenderer::GenerateEnhancedWorld() {
+    TraceLog(LOG_INFO, "Generating enhanced world geometry...");
 
+    worldRenderers.clear();
+
+    // Create large ground plane
+    auto groundRenderer = std::make_unique<MeshRenderer>();
+    groundRenderer->mesh = GenMeshPlane(512.0f, 512.0f, 64, 64);
+    groundRenderer->material = CreateOpaqueMaterial(TEX_GRASS, Color{ 50, 140, 50, 255 });
+    groundRenderer->transform = MatrixTranslate(128.0f, 0.0f, 128.0f);
+    groundRenderer->castShadows = false;
+    groundRenderer->receiveShadows = true;
+    worldRenderers.push_back(std::move(groundRenderer));
+
+    // Generate buildings from enhanced map system
+    if (g_EnhancedMapSystem) {
+        // Get all buildings from enhanced map system
+        // For now, create simple box buildings at each building location
+
+        // This is a temporary visualization - replace with actual building models
+        for (int i = 0; i < 10; i++) {
+            auto buildingRenderer = std::make_unique<MeshRenderer>();
+            buildingRenderer->mesh = GenMeshCube(8.0f, 15.0f, 8.0f);
+            buildingRenderer->material = CreateOpaqueMaterial(TEX_BUILDING_EXTERIOR, Color{ 120, 120, 130, 255 });
+
+            // Place buildings in a grid for testing
+            float x = 100.0f + (i % 5) * 20.0f;
+            float z = 100.0f + (i / 5) * 20.0f;
+            buildingRenderer->transform = MatrixTranslate(x, 7.5f, z);
+
+            buildingRenderer->castShadows = true;
+            buildingRenderer->receiveShadows = true;
+            worldRenderers.push_back(std::move(buildingRenderer));
+        }
+    }
+
+    TraceLog(LOG_INFO, "Enhanced world geometry generated: %d renderers", (int)worldRenderers.size());
+}
 void UpgradedMapRenderer::Initialize() {
     TraceLog(LOG_INFO, "Initializing Map Renderer...");
     InitializeMaterials();

@@ -23,6 +23,7 @@ class MeshRenderer;
 class UpgradedMaterial;
 class UpgradedMapRenderer;
 
+
 // Include rendering.h AFTER forward declarations
 #include "rendering.h"
 // 2. Enums
@@ -150,6 +151,7 @@ public:
     void UpdateDoor(int doorId, float openProgress);
     void AddProp(Vector3 position, ModelID modelId, float scale = 1.0f);
     void RemoveProp(int propId);
+    void GenerateEnhancedWorld();
 
 private:
     std::vector<std::unique_ptr<MeshRenderer>> worldRenderers;

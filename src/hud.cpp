@@ -3,6 +3,7 @@
 #include "rlgl.h"
 #include <cmath>
 #include "rendering.h"
+#include "enhanced_map_system.h"
 HUDManager* g_HUDManager = nullptr;
 
 HUDManager::HUDManager() {

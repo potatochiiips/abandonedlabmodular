@@ -99,19 +99,28 @@ void CloseInGameMenus() {
 }
 
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov) {
-    GenerateMapData(g_MapData);
-    InitializePlayerFromMapStart(g_MapData, g_MapPlayer);
+    // IMPORTANT: Use enhanced map system for new world
     if (g_EnhancedMapSystem) {
         *playerPosition = g_EnhancedMapSystem->GetPlayerSpawnPosition();
         camera->position = *playerPosition;
+
+        // Set player as NOT inside interior (we're spawning in the open world)
+        g_MapPlayer.insideInterior = false;
+        g_MapPlayer.worldX = (int)playerPosition->x;
+        g_MapPlayer.worldY = (int)playerPosition->z;
     }
-	else { // Fallback to legacy player spawn
+    else {
+        // Fallback to legacy system
+        GenerateMapData(g_MapData);
+        InitializePlayerFromMapStart(g_MapData, g_MapPlayer);
         *playerPosition = Vector3{ (float)g_MapPlayer.interiorX, playerHeight, (float)g_MapPlayer.interiorY };
-        *playerVelocity = Vector3{ 0.0f, 0.0f, 0.0f };
         camera->position = *playerPosition;
     }
+
+    *playerVelocity = Vector3{ 0.0f, 0.0f, 0.0f };
     *yaw = -90.0f;
     *pitch = 0.0f;
+
     Vector3 forward;
     forward.x = cosf(DEG2RAD * (*yaw)) * cosf(DEG2RAD * (*pitch));
     forward.y = sinf(DEG2RAD * (*pitch));
@@ -165,9 +174,8 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     int quest1 = g_QuestManager.AddQuest("Welcome to the Lab", "Get familiar with your surroundings", 100);
     g_QuestManager.AddObjective(quest1, QUEST_OBJ_COLLECT, ITEM_WATER_BOTTLE, 2, "Collect 2 water bottles");
 
-    TraceLog(LOG_INFO, "Player spawned inside lab at position: %.1f, %.1f, %.1f", playerPosition->x, playerPosition->y, playerPosition->z);
+    TraceLog(LOG_INFO, "Player spawned at position: %.1f, %.1f, %.1f", playerPosition->x, playerPosition->y, playerPosition->z);
 }
-
 int main() {
     InitializeSoundSystem();
     LoadGraphicsSettings(&graphicsSettings);
