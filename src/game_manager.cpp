@@ -5,6 +5,7 @@
 #include "daynight_system.h"
 #include "weather_system.h"
 #include "zombie_system.h"
+#include "rendering.h"
 
 UpgradedGameManager::UpgradedGameManager() {
 }

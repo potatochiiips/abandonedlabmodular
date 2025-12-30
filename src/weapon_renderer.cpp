@@ -3,7 +3,8 @@
 #include "model_manager.h"
 #include "player.h"
 #include "hands_renderer.h"
-
+#include "rendering.h"
+WeaponState currentState;
 WeaponRenderer::WeaponRenderer() {
     currentState = { ANIM_IDLE, 0.0f, false, 0.0f, {0,0,0}, {0,0,0}, {0,0,0} };
 
@@ -315,5 +316,5 @@ void WeaponRenderer::DrawMuzzleFlash(const Camera3D& camera) {
 }
 
 // Global instances
-extern WeaponRenderer* g_WeaponRenderer;
-extern HandsRenderer* g_HandsRenderer;
+ WeaponRenderer* g_WeaponRenderer;
+ HandsRenderer* g_HandsRenderer;

@@ -12,6 +12,7 @@ WeaponSystem g_WeaponSystem;
 WeaponState g_CurrentWeaponState = {
     ANIM_IDLE, 0.0f, false, 0.0f, {0,0,0}, {0,0,0}, {0,0,0}
 };
+
 // ============================================================================
 // WEAPON SHOOTING INTEGRATION EXAMPLE
 // ============================================================================
@@ -19,17 +20,19 @@ WeaponState g_CurrentWeaponState = {
 void HandleWeaponShooting() {
     extern InventorySlot inventory[TOTAL_INVENTORY_SLOTS];
     extern WeaponRenderer* g_WeaponRenderer;
-    extern UpgradedHUDManager* g_UpgradedHUD;
+    extern HUDManager* g_HUDManager; // Changed from g_UpgradedHUD
 
     bool shootPressed = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
 
     if (shootPressed && inventory[BACKPACK_SLOTS].ammo > 0) {
         // Play weapon animation
-        g_WeaponRenderer->PlayShootAnimation();
+        if (g_WeaponRenderer) {
+            g_WeaponRenderer->PlayShootAnimation();
+        }
 
         // Apply recoil
         WeaponStats* stats = g_WeaponSystem.GetWeaponStats(inventory[BACKPACK_SLOTS].itemId);
-        if (stats) {
+        if (stats && g_WeaponRenderer) {
             g_WeaponRenderer->ApplyRecoil(stats->recoilPitch, stats->recoilYaw);
         }
 
@@ -37,14 +40,17 @@ void HandleWeaponShooting() {
         inventory[BACKPACK_SLOTS].ammo--;
 
         // Raycast for hits
+        extern Camera3D camera;
         Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
 
         // Check zombie hits
-        if (g_ZombieManager) {
+        if (g_ZombieManager && stats) {
             Zombie* hitZombie = g_ZombieManager->GetZombieAt(camera.position, 2.0f);
             if (hitZombie) {
                 g_ZombieManager->DamageZombie(hitZombie->id, stats->damage);
-                g_UpgradedHUD->ShowHitMarker();
+                if (g_HUDManager) {
+                    g_HUDManager->ShowHitMarker();
+                }
             }
         }
 

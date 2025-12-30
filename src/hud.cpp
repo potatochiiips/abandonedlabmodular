@@ -2,6 +2,8 @@
 #include "items.h"
 #include "rlgl.h"
 #include <cmath>
+#include "rendering.h"
+HUDManager* g_HUDManager = nullptr;
 
 HUDManager::HUDManager() {
     lowHealthWarning = false;

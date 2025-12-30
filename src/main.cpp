@@ -19,6 +19,7 @@
 #include "skybox.h"
 #include "vehicle_system.h"
 #include "animation_system.h"
+#include "rendering.h"
 
 // --- GLOBAL VARIABLE DEFINITIONS ---
 Camera3D camera = { 0 };
@@ -525,9 +526,7 @@ int main() {
         Vector3 wPos = g_WeaponSystem.CalculateWeaponPosition(camera, g_CurrentWeaponState, eq == ITEM_M16);
         Vector3 fwd = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
         Vector3 rgt = Vector3Normalize(Vector3CrossProduct(fwd, camera.up));
-        if (eq == ITEM_PISTOL) DrawEnhancedPistol(wPos, fwd, rgt, camera.up, g_CurrentWeaponState);
-        else if (eq == ITEM_M16) DrawM16Rifle(wPos, fwd, rgt, camera.up, g_CurrentWeaponState);
-        else DrawPlayerHands(camera, inventory, 0, 0);
+  
 
         EndMode3D();
         // Draw weather effects after 3D rendering
@@ -543,7 +542,7 @@ int main() {
             int minimapX = screenW - minimapRadius - 20;
             int minimapY = minimapRadius + 20;
             int viewRange = 18; // INCREASED from 15 for better visibility
-            DrawRoundMinimap(map, playerPosition, yaw, minimapX, minimapY, minimapRadius, viewRange);
+           void DrawCompass(int screenW, int screenH, float yaw);
         }
         g_QuestManager.DrawQuestTrackerCompact(screenW, screenH);
 

@@ -7,7 +7,7 @@
 #include <cmath>
 #include <unordered_map>
 #include <rlgl.h>
-
+#include "rendering.h"
 // Global instance definitions
 UpgradedMapRenderer* g_UpgradedMapRenderer = nullptr;
 std::vector<Door> doors;
@@ -447,20 +447,6 @@ struct ItemSpawn {
     std::string itemType;
 };
 
-// Player state in map system
-struct MapPlayerState {
-    bool insideInterior;
-    std::string currentInteriorId;
-    int currentBuildingId;
-    int worldX;
-    int worldY;
-    int interiorX;
-    int interiorY;
-
-    MapPlayerState() : insideInterior(false), currentBuildingId(0),
-        worldX(0), worldY(0), interiorX(0), interiorY(0) {
-    }
-};
 
 // Global map data
 extern MapData g_MapData;

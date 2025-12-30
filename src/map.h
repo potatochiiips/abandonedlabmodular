@@ -5,31 +5,21 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
+#ifndef MAP_CONSTANTS
+#define MAP_CONSTANTS
 
+const int MAP_SIZE = 256;
+const int mapSize = 300; // For menu rendering
+const int menuX = 50;     // Adjust value as needed
+const int menuY = 50;
+const int menuW = 400;
+const int mapX = 50;     // Adjust value as needed
+const int mapY = 50;
 // 1. Forward Declarations
 enum ModelID;
 enum TextureID;
 struct Player;
-
-struct MapPlayerState {
-    Vector3 position;
-    float yaw;
-    bool isInside;
-    int currentBuildingId;
-    int currentFloor;
-
-    // Additional members needed by code
-    bool insideInterior;
-    std::string currentInteriorId;
-    int worldX;
-    int worldY;
-    int interiorX;
-    int interiorY;
-
-    MapPlayerState() : yaw(0), isInside(false), currentBuildingId(0), currentFloor(0),
-        insideInterior(false), worldX(0), worldY(0), interiorX(0), interiorY(0) {
-    }
-};
+class UpgradedMapRenderer;
 // 2. Enums
 enum BuildingType {
     BTYPE_UNKNOWN = 0, BTYPE_LABORATORY, BTYPE_HOUSE, BTYPE_APARTMENT,
@@ -92,13 +82,12 @@ struct Door {
     Vector3 position;
     bool isInteriorDoor;
     bool isLocked;
-    int buildingId;  // Added
+    int buildingId;
 };
 
 struct Building {
     Rectangle footprint;
     int entranceX, entranceY;
-    // Add other fields as needed
 };
 
 struct MapData {
@@ -108,10 +97,41 @@ struct MapData {
     std::vector<Building> buildings;
 };
 
-// 4. Global State Declarations (extern means they are defined in map.cpp)
+struct MapPlayerState {
+    Vector3 position;
+    float yaw;
+    bool isInside;
+    int currentBuildingId;
+    int currentFloor;
+    bool insideInterior;
+    std::string currentInteriorId;
+    int worldX;
+    int worldY;
+    int interiorX;
+    int interiorY;
+
+    MapPlayerState() : yaw(0), isInside(false), currentBuildingId(0), currentFloor(0),
+        insideInterior(false), worldX(0), worldY(0), interiorX(0), interiorY(0) {
+    }
+};
+
+// 4. Global State Declarations
 extern std::vector<Door> doors;
 
-// 5. The Renderer Class
+extern MapData g_MapData;
+
+// 5. Map Functions
+void GenerateMapData(MapData& m);
+void InitializePlayerFromMapStart(MapData& m, MapPlayerState& p);
+bool EnterInterior(MapData& m, MapPlayerState& p, int buildingId);
+bool ExitInterior(MapData& m, MapPlayerState& p);
+const Interior* GetInterior(const MapData& m, const std::string& id);
+void GenerateMap(char map[MAP_SIZE][MAP_SIZE]);
+void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw);
+void UpdateDoors(float deltaTime);
+Door* GetNearestDoor(Vector3 playerPos, float maxDistance);
+
+// 6. The Renderer Class
 class UpgradedMapRenderer {
 public:
     UpgradedMapRenderer();
@@ -146,5 +166,6 @@ private:
     void UpdateVisibility(const Camera3D& camera);
     int nextPropId;
 };
-extern struct MapPlayerState g_MapPlayer; 
-extern struct MapData g_MapData;
+
+extern UpgradedMapRenderer* g_UpgradedMapRenderer;
+#endif // MAP_CONSTANTS

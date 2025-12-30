@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include "game_manager.h"
 
+
 // ----------------------------------------------------------------------------------
 // FORWARD DECLARATIONS
 // ----------------------------------------------------------------------------------
@@ -402,6 +403,7 @@ extern AnimationState playerAnimState;
 extern std::vector<Vehicle> vehicles;
 extern Vehicle* playerVehicle;
 extern AnimationManager* g_AnimationManager;
+extern MapPlayerState g_MapPlayer;
 
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov);
 
