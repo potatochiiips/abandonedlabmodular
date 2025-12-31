@@ -27,6 +27,9 @@ public:
     void Render();
     void Cleanup();
 
+    // FIXED: Add public method to regenerate scene
+    void RegenerateScene() { SetupScene(); }
+
 private:
     // Core systems
     std::unique_ptr<UpgradedMapRenderer> mapRenderer;

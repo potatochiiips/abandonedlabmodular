@@ -77,10 +77,6 @@ void UpgradedGameManager::SetupScene() {
     weaponRenderer->SetEquippedWeapon(inventory[BACKPACK_SLOTS].itemId);
 }
 
-// Also add a public method to allow regenerating the scene:
-// Add this to the public section of UpgradedGameManager class in game_manager.h:
-void RegenerateScene() { SetupScene(); }
-
 void UpgradedGameManager::SetupLighting() {
     // Clear existing lights
     for (auto* light : sceneLights) {

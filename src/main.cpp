@@ -88,20 +88,7 @@ AnimationState playerAnimState = {
 std::vector<Vehicle> vehicles;
 Vehicle* playerVehicle = nullptr;
 //door management
-Door* GetNearestDoor(Vector3 playerPos, float maxDistance) {
-    Door* nearest = nullptr;
-    float minDist = maxDistance;
 
-    for (auto& door : doors) {
-        float dist = Vector3Distance(playerPos, door.position);
-        if (dist < minDist) {
-            minDist = dist;
-            nearest = &door;
-        }
-    }
-
-    return nearest;
-}
 static float frameTimeAccumulator = 0.0f;
 static int frameCount = 0;
 static float avgFrameTime = 0.0f;
@@ -457,7 +444,7 @@ int main() {
                                 camera.position = playerPosition;
 
                                 // Regenerate world geometry
-                                gameManager.SetupScene();
+                                gameManager.RegenerateScene();
 
                                 // Switch music
                                 if (g_SoundManager) {
@@ -499,7 +486,7 @@ int main() {
                                             camera.position = playerPosition;
 
                                             // Regenerate interior geometry
-                                            gameManager.SetupScene();
+                                            gameManager.RegenerateScene();
 
                                             // Switch music
                                             if (g_SoundManager) {
