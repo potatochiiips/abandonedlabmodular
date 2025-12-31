@@ -1,23 +1,14 @@
 #include "hud.h"
 #include "items.h"
-#include "rlgl.h"
-#include <cmath>
-#include "rendering.h"
-#include "enhanced_map_system.h"
+
+// Global instance
 HUDManager* g_HUDManager = nullptr;
 
 HUDManager::HUDManager() {
     lowHealthWarning = false;
     lowHealthPulse = 0.0f;
     notificationTimer = 0.0f;
-
-    // Initialize animations
-    healthBarAnim = { 100.0f, 100.0f, 3.0f, false };
-    staminaBarAnim = { 100.0f, 100.0f, 5.0f, false };
-    hungerBarAnim = { 100.0f, 100.0f, 2.0f, false };
-    thirstBarAnim = { 100.0f, 100.0f, 2.0f, false };
-    damageVignetteAnim = { 0.0f, 0.0f, 5.0f, false };
-    hitMarkerAnim = { 0.0f, 0.0f, 8.0f, false };
+    vignetteTexture = { 0 };
 }
 
 HUDManager::~HUDManager() {
@@ -27,12 +18,7 @@ HUDManager::~HUDManager() {
 }
 
 void HUDManager::Initialize() {
-    TraceLog(LOG_INFO, "Initializing Upgraded HUD Manager...");
-
-    // Create vignette texture
-    vignetteTexture = LoadRenderTexture(1920, 1080);
-
-    TraceLog(LOG_INFO, "Upgraded HUD Manager initialized");
+    TraceLog(LOG_INFO, "HUD Manager initialized");
 }
 
 void HUDManager::Update(float deltaTime) {
@@ -46,7 +32,7 @@ void HUDManager::Update(float deltaTime) {
 
     // Update low health pulse
     if (lowHealthWarning) {
-        lowHealthPulse += deltaTime * 3.0f;
+        lowHealthPulse += deltaTime * 5.0f;
     }
 
     // Update notification timer
@@ -56,176 +42,82 @@ void HUDManager::Update(float deltaTime) {
 }
 
 void HUDManager::Draw(int screenW, int screenH) {
-    // This is called from main render loop
+    // This is called by individual HUD element functions
 }
 
-void HUDManager::DrawPlayerStats(int screenW, int screenH, float health,
-    float stamina, float hunger, float thirst) {
-    // Update animation targets
-    healthBarAnim.SetTarget(health);
-    staminaBarAnim.SetTarget(stamina);
-    hungerBarAnim.SetTarget(hunger);
-    thirstBarAnim.SetTarget(thirst);
-
-    int barWidth = 250;
-    int barHeight = 8;
-    int barSpacing = 18;
-    int startX = 30;
-    int startY = screenH - 140;
-
-    // Modern semi-transparent background panel
-    DrawRectangle(startX - 10, startY - 10, barWidth + 20, 110,
-        Color{ 0, 0, 0, 100 });
-    DrawRectangleLines(startX - 10, startY - 10, barWidth + 20, 110,
-        Color{ 255, 255, 255, 30 });
+void HUDManager::DrawPlayerStats(int screenW, int screenH, float health, float stamina, float hunger, float thirst) {
+    int barX = 20;
+    int barY = screenH - 120;
+    int barWidth = 200;
+    int barHeight = 20;
+    int barSpacing = 25;
 
     // Health bar (red)
-    Color healthColor = health > 30 ? Color{ 255, 60, 60, 255 } : Color{ 255, 30, 30, 255 };
-    if (lowHealthWarning && health < 30) {
-        float pulse = (sinf(lowHealthPulse) + 1.0f) * 0.5f;
-        healthColor.a = (unsigned char)(150 + pulse * 105);
-    }
-    DrawModernBar(startX, startY, barWidth, barHeight, healthBarAnim.current,
-        healthColor, Color{ 40, 20, 20, 180 }, "HEALTH");
+    DrawModernBar(barX, barY, barWidth, barHeight, health / 100.0f,
+        Color{ 220, 50, 50, 255 }, Color{ 40, 10, 10, 200 }, "HP");
 
-    // Stamina bar (yellow)
-    DrawModernBar(startX, startY + barSpacing, barWidth, barHeight,
-        staminaBarAnim.current, Color{ 255, 220, 60, 255 },
-        Color{ 40, 35, 20, 180 }, "STAMINA");
+    // Stamina bar (green)
+    DrawModernBar(barX, barY + barSpacing, barWidth, barHeight, stamina / 100.0f,
+        Color{ 50, 220, 50, 255 }, Color{ 10, 40, 10, 200 }, "STAM");
 
     // Hunger bar (orange)
-    DrawModernBar(startX, startY + barSpacing * 2, barWidth, barHeight,
-        hungerBarAnim.current, Color{ 255, 140, 60, 255 },
-        Color{ 40, 30, 20, 180 }, "HUNGER");
+    DrawModernBar(barX, barY + barSpacing * 2, barWidth, barHeight, hunger / 100.0f,
+        Color{ 220, 150, 50, 255 }, Color{ 40, 30, 10, 200 }, "FOOD");
 
     // Thirst bar (blue)
-    DrawModernBar(startX, startY + barSpacing * 3, barWidth, barHeight,
-        thirstBarAnim.current, Color{ 60, 180, 255, 255 },
-        Color{ 20, 30, 40, 180 }, "THIRST");
-
-    // Numeric values
-    int textY = startY;
-    DrawGlowingText(TextFormat("%d", (int)health), startX + barWidth + 15, textY - 2,
-        16, healthColor, Color{ 0, 0, 0, 100 });
-    textY += barSpacing;
-    DrawGlowingText(TextFormat("%d", (int)stamina), startX + barWidth + 15, textY - 2,
-        16, Color{ 255, 220, 60, 255 }, Color{ 0, 0, 0, 100 });
-    textY += barSpacing;
-    DrawGlowingText(TextFormat("%d", (int)hunger), startX + barWidth + 15, textY - 2,
-        16, Color{ 255, 140, 60, 255 }, Color{ 0, 0, 0, 100 });
-    textY += barSpacing;
-    DrawGlowingText(TextFormat("%d", (int)thirst), startX + barWidth + 15, textY - 2,
-        16, Color{ 60, 180, 255, 255 }, Color{ 0, 0, 0, 100 });
+    DrawModernBar(barX, barY + barSpacing * 3, barWidth, barHeight, thirst / 100.0f,
+        Color{ 50, 150, 220, 255 }, Color{ 10, 30, 40, 200 }, "H2O");
 }
 
 void HUDManager::DrawWeaponInfo(int screenW, int screenH, const InventorySlot& weapon) {
     if (weapon.itemId == ITEM_NONE) return;
 
-    int panelWidth = 280;
-    int panelHeight = 90;
-    int panelX = screenW - panelWidth - 30;
-    int panelY = screenH - panelHeight - 30;
+    int infoX = screenW - 220;
+    int infoY = screenH - 100;
 
-    // Modern weapon info panel
-    DrawRectangle(panelX, panelY, panelWidth, panelHeight, Color{ 0, 0, 0, 120 });
-    DrawRectangleLines(panelX, panelY, panelWidth, panelHeight, Color{ 255, 255, 255, 40 });
-
-    // Weapon name
+    // Draw weapon name
     const char* weaponName = GetItemName(weapon.itemId);
-    DrawGlowingText(weaponName, panelX + 15, panelY + 12, 22,
-        Color{ 255, 255, 255, 255 }, Color{ 100, 150, 255, 100 });
+    DrawText(weaponName, infoX, infoY, 24, PIPBOY_GREEN);
 
-    // Ammo display for weapons
+    // Draw ammo counter
     if (weapon.itemId == ITEM_PISTOL || weapon.itemId == ITEM_M16) {
-        int maxAmmo = weapon.itemId == ITEM_PISTOL ? 15 : 30;
-
-        // Large ammo counter
-        const char* ammoText = TextFormat("%d", weapon.ammo);
-        int ammoTextSize = 48;
-        int ammoTextWidth = MeasureText(ammoText, ammoTextSize);
-
-        Color ammoColor = weapon.ammo > maxAmmo / 3 ? Color{ 255, 255, 255, 255 } :
-            weapon.ammo > 0 ? Color{ 255, 180, 60, 255 } :
-            Color{ 255, 60, 60, 255 };
-
-        DrawGlowingText(ammoText, panelX + panelWidth - ammoTextWidth - 60, panelY + 35,
-            ammoTextSize, ammoColor, Color{ 0, 0, 0, 150 });
-
-        // Magazine count
-        int magId = weapon.itemId == ITEM_PISTOL ? ITEM_MAG : ITEM_M16_MAG;
-        int magCount = 0;
-        extern InventorySlot inventory[TOTAL_INVENTORY_SLOTS];
-        for (int i = 0; i < BACKPACK_SLOTS; i++) {
-            if (inventory[i].itemId == magId) {
-                magCount += inventory[i].quantity;
-            }
-        }
-
-        DrawGlowingText(TextFormat("/ %d", magCount), panelX + panelWidth - 50, panelY + 50,
-            18, Color{ 200, 200, 200, 255 }, Color{ 0, 0, 0, 100 });
-
-        // Reload prompt
-        if (weapon.ammo == 0 && magCount > 0) {
-            float pulse = (sinf((float)GetTime() * 4.0f) + 1.0f) * 0.5f;
-            Color promptColor = Color{ 255, 220, 60, (unsigned char)(150 + pulse * 105) };
-            DrawGlowingText("PRESS R TO RELOAD", panelX + 15, panelY + 62, 14,
-                promptColor, Color{ 80, 70, 20, 100 });
-        }
-
-        // Ammo bar
-        float ammoPercent = (float)weapon.ammo / (float)maxAmmo;
-        int barWidth = panelWidth - 30;
-        int barHeight = 4;
-        int barY = panelY + panelHeight - 12;
-
-        DrawRectangle(panelX + 15, barY, barWidth, barHeight, Color{ 40, 40, 45, 180 });
-        DrawRectangle(panelX + 15, barY, (int)(barWidth * ammoPercent), barHeight, ammoColor);
+        int maxAmmo = (weapon.itemId == ITEM_PISTOL) ? 15 : 30;
+        DrawText(TextFormat("%d / %d", weapon.ammo, maxAmmo),
+            infoX, infoY + 30, 32, WHITE);
     }
 }
 
 void HUDManager::DrawFlashlightStatus(int screenW, int screenH, float battery, bool isOn) {
-    if (!isOn && battery >= 90.0f) return; // Hide when off and full
+    if (!isOn) return;
 
-    int iconSize = 32;
-    int x = screenW - 70;
-    int y = screenH - 140;
+    int iconX = screenW - 100;
+    int iconY = screenH - 150;
 
-    // Icon background
-    Color bgColor = isOn ? Color{ 255, 250, 220, 30 } : Color{ 60, 60, 65, 30 };
-    DrawCircle(x + iconSize / 2, y + iconSize / 2, iconSize / 2 + 4, bgColor);
+    // Draw flashlight icon
+    DrawCircle(iconX, iconY, 15, Color{ 255, 255, 200, 200 });
 
-    // Flashlight icon (simple)
-    Color iconColor = isOn ? Color{ 255, 250, 220, 255 } : Color{ 150, 150, 155, 255 };
-    DrawCircle(x + iconSize / 2, y + iconSize / 2, iconSize / 3, iconColor);
+    // Draw battery bar
+    int barW = 60;
+    int barH = 8;
+    int barX = iconX - barW / 2;
+    int barY = iconY + 20;
 
-    // Battery radial indicator
-    Color batteryColor = battery > 30 ? Color{ 60, 255, 60, 255 } :
-        battery > 10 ? Color{ 255, 180, 60, 255 } :
-        Color{ 255, 60, 60, 255 };
+    Color batteryColor = battery > 50.0f ? PIPBOY_GREEN :
+        battery > 25.0f ? YELLOW : RED;
 
-    DrawRadialBar(x + iconSize / 2, y + iconSize / 2, iconSize / 2 + 2, battery / 100.0f,
-        batteryColor, 3.0f);
-
-    // Battery percentage
-    if (battery < 50.0f || isOn) {
-        DrawGlowingText(TextFormat("%d%%", (int)battery), x + 5, y + iconSize + 5, 12,
-            batteryColor, Color{ 0, 0, 0, 100 });
-    }
+    DrawRectangle(barX, barY, barW, barH, Color{ 40, 40, 40, 200 });
+    DrawRectangle(barX, barY, (int)(barW * (battery / 100.0f)), barH, batteryColor);
+    DrawRectangleLines(barX, barY, barW, barH, PIPBOY_GREEN);
 }
 
 void HUDManager::DrawCrosshair(int screenW, int screenH, bool isAiming) {
     int centerX = screenW / 2;
     int centerY = screenH / 2;
 
-    float spread = isAiming ? 8.0f : 16.0f;
-    Color crosshairColor = Color{ 255, 255, 255, 200 };
+    float spread = isAiming ? 5.0f : 10.0f;
+    Color crosshairColor = PIPBOY_GREEN;
 
     DrawModernCrosshair(centerX, centerY, spread, crosshairColor);
-
-    // ADS dot
-    if (isAiming) {
-        DrawCircle(centerX, centerY, 2, Color{ 255, 60, 60, 200 });
-    }
 }
 
 void HUDManager::DrawHitMarker(int screenW, int screenH) {
@@ -233,226 +125,147 @@ void HUDManager::DrawHitMarker(int screenW, int screenH) {
 
     int centerX = screenW / 2;
     int centerY = screenH / 2;
-
-    float alpha = hitMarkerAnim.current * 255.0f;
-    Color markerColor = Color{ 255, 255, 255, (unsigned char)alpha };
-
     int size = 20;
-    int thickness = 3;
-    int gap = 8;
 
-    // X-shaped hit marker
-    DrawLineEx(Vector2{ (float)(centerX - size), (float)(centerY - size) },
-        Vector2{ (float)(centerX - gap), (float)(centerY - gap) }, thickness, markerColor);
-    DrawLineEx(Vector2{ (float)(centerX + gap), (float)(centerY - gap) },
-        Vector2{ (float)(centerX + size), (float)(centerY - size) }, thickness, markerColor);
-    DrawLineEx(Vector2{ (float)(centerX - size), (float)(centerY + size) },
-        Vector2{ (float)(centerX - gap), (float)(centerY + gap) }, thickness, markerColor);
-    DrawLineEx(Vector2{ (float)(centerX + gap), (float)(centerY + gap) },
-        Vector2{ (float)(centerX + size), (float)(centerY + size) }, thickness, markerColor);
+    unsigned char alpha = (unsigned char)(hitMarkerAnim.current * 255);
+    Color markerColor = Color{ 255, 255, 255, alpha };
+
+    // Draw X shape
+    DrawLine(centerX - size, centerY - size, centerX + size, centerY + size, markerColor);
+    DrawLine(centerX + size, centerY - size, centerX - size, centerY + size, markerColor);
 }
 
 void HUDManager::DrawDamageVignette(int screenW, int screenH, float damageIntensity) {
     if (damageVignetteAnim.current <= 0.0f) return;
 
-    float intensity = damageVignetteAnim.current * damageIntensity;
-    Color vignetteColor = Color{ 255, 0, 0, (unsigned char)(intensity * 80) };
+    unsigned char alpha = (unsigned char)(damageVignetteAnim.current * 150);
+    Color vignetteColor = Color{ 255, 0, 0, alpha };
 
-    // Draw red vignette overlay
-    int edgeWidth = screenW / 6;
-    int edgeHeight = screenH / 6;
-
-    // Top
-    DrawRectangleGradientV(0, 0, screenW, edgeHeight, vignetteColor, BLANK);
-    // Bottom
-    DrawRectangleGradientV(0, screenH - edgeHeight, screenW, edgeHeight, BLANK, vignetteColor);
-    // Left
-    DrawRectangleGradientH(0, 0, edgeWidth, screenH, vignetteColor, BLANK);
-    // Right
-    DrawRectangleGradientH(screenW - edgeWidth, 0, edgeWidth, screenH, BLANK, vignetteColor);
+    // Draw red vignette effect
+    int vignetteSize = 100;
+    DrawRectangleGradientEx(
+        Rectangle{ 0, 0, (float)vignetteSize, (float)screenH },
+        vignetteColor, Color{ 255, 0, 0, 0 }, Color{ 255, 0, 0, 0 }, vignetteColor
+    );
+    DrawRectangleGradientEx(
+        Rectangle{ (float)(screenW - vignetteSize), 0, (float)vignetteSize, (float)screenH },
+        Color{ 255, 0, 0, 0 }, vignetteColor, vignetteColor, Color{ 255, 0, 0, 0 }
+    );
+    DrawRectangleGradientEx(
+        Rectangle{ 0, 0, (float)screenW, (float)vignetteSize },
+        vignetteColor, vignetteColor, Color{ 255, 0, 0, 0 }, Color{ 255, 0, 0, 0 }
+    );
+    DrawRectangleGradientEx(
+        Rectangle{ 0, (float)(screenH - vignetteSize), (float)screenW, (float)vignetteSize },
+        Color{ 255, 0, 0, 0 }, Color{ 255, 0, 0, 0 }, vignetteColor, vignetteColor
+    );
 }
 
 void HUDManager::DrawCompass(int screenW, int screenH, float yaw) {
-    // NEW POSITION: Bottom center of screen
-    int compassWidth = 300;
-    int compassHeight = 40;
-    int compassX = screenW / 2 - compassWidth / 2;
-    int compassY = screenH - compassHeight - 20; // 20px from bottom
+    int compassX = screenW / 2;
+    int compassY = 30;
+    int compassRadius = 50;
 
-    // Background with improved styling
-    DrawRectangle(compassX - 5, compassY - 5, compassWidth + 10, compassHeight + 10, Color{ 0, 0, 0, 160 });
-    DrawRectangleLines(compassX - 5, compassY - 5, compassWidth + 10, compassHeight + 10, PIPBOY_GREEN);
+    DrawCircle(compassX, compassY, compassRadius, Color{ 0, 0, 0, 150 });
+    DrawCircleLines(compassX, compassY, compassRadius, PIPBOY_GREEN);
 
-    // Inner background
-    DrawRectangle(compassX, compassY, compassWidth, compassHeight, Color{ 10, 25, 10, 200 });
+    // Draw cardinal directions
+    const char* directions[] = { "N", "E", "S", "W" };
+    float angles[] = { 0, 90, 180, 270 };
 
-    // Cardinal directions
-    const char* directions[] = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
-    float angles[] = { 0, 45, 90, 135, 180, 225, 270, 315 };
+    for (int i = 0; i < 4; i++) {
+        float angle = (angles[i] - yaw) * DEG2RAD;
+        float dx = sinf(angle) * (compassRadius - 10);
+        float dy = -cosf(angle) * (compassRadius - 10);
 
-    for (int i = 0; i < 8; i++) {
-        float angle = angles[i] - yaw;
-        while (angle < 0) angle += 360;
-        while (angle >= 360) angle -= 360;
-
-        // Map to compass position (-150 to 150 degrees visible)
-        if (angle > 180) angle -= 360;
-
-        if (fabs(angle) < 90) { // Increased visibility range
-            int xPos = compassX + compassWidth / 2 + (int)((angle / 90.0f) * (compassWidth / 2));
-            int yPos = compassY + compassHeight / 2;
-
-            Color dirColor = (i % 2 == 0) ? Color{ 255, 255, 255, 255 } : Color{ 200, 200, 200, 200 };
-            if (i == 0) dirColor = Color{ 255, 60, 60, 255 }; // North is red
-
-            // Draw tick marks
-            int tickHeight = (i % 2 == 0) ? 12 : 8;
-            DrawLine(xPos, compassY + 5, xPos, compassY + 5 + tickHeight, dirColor);
-
-            // Draw direction letter
-            if (i % 2 == 0 || fabs(angle) < 30) { // Show more labels when close
-                DrawGlowingText(directions[i], xPos - MeasureText(directions[i], 16) / 2,
-                    yPos - 8, 16, dirColor, Color{ 0, 0, 0, 100 });
-            }
-        }
-    }
-
-    // Center indicator (player heading)
-    int centerX = compassX + compassWidth / 2;
-    DrawLine(centerX, compassY + 2, centerX, compassY + compassHeight - 2, Color{ 255, 255, 100, 255 });
-    DrawCircle(centerX, compassY + compassHeight / 2, 3, Color{ 255, 255, 100, 255 });
-
-    // Degree display
-    int displayDegree = ((int)yaw + 360) % 360;
-    const char* degreeText = TextFormat("%d°", displayDegree);
-    int degreeWidth = MeasureText(degreeText, 14);
-    DrawRectangle(centerX - degreeWidth / 2 - 5, compassY - 20, degreeWidth + 10, 18, Color{ 0, 0, 0, 180 });
-    DrawText(degreeText, centerX - degreeWidth / 2, compassY - 18, 14, PIPBOY_GREEN);
-}
-void DrawMinimapHUD(int screenW, int screenH, Vector3 playerPos, float playerYaw) {
-    if (g_EnhancedMapSystem) {
-        int minimapRadius = 100;
-        int minimapX = screenW - minimapRadius - 20;
-        int minimapY = minimapRadius + 20;
-
-        g_EnhancedMapSystem->DrawMinimap(minimapX, minimapY, minimapRadius, playerPos, playerYaw);
-
-        // Zone label
-        WorldZone currentZone = g_EnhancedMapSystem->GetZoneAt(playerPos.x, playerPos.z);
-        ZoneDefinition* zone = g_EnhancedMapSystem->GetZone(currentZone);
-        if (zone) {
-            int labelWidth = MeasureText(zone->name.c_str(), 16);
-            int labelX = minimapX - labelWidth / 2;
-            int labelY = minimapY + minimapRadius + 15;
-
-            DrawRectangle(labelX - 5, labelY - 2, labelWidth + 10, 20, Color{ 0, 0, 0, 180 });
-            DrawText(zone->name.c_str(), labelX, labelY, 16, PIPBOY_GREEN);
-        }
-
-        // Coordinates display
-        const char* coords = TextFormat("X:%.0f Z:%.0f", playerPos.x, playerPos.z);
-        int coordWidth = MeasureText(coords, 12);
-        int coordX = minimapX - coordWidth / 2;
-        int coordY = minimapY - minimapRadius - 25;
-
-        DrawRectangle(coordX - 3, coordY - 2, coordWidth + 6, 16, Color{ 0, 0, 0, 180 });
-        DrawText(coords, coordX, coordY, 12, PIPBOY_DIM);
+        DrawText(directions[i],
+            compassX + (int)dx - 5,
+            compassY + (int)dy - 5,
+            20, PIPBOY_GREEN);
     }
 }
+
 void HUDManager::DrawNotification(const std::string& message, float duration) {
     currentNotification = message;
     notificationTimer = duration;
 }
 
 void HUDManager::ShowDamageIndicator(float damage) {
-    damageVignetteAnim.SetTarget(1.0f, 10.0f);
-    damageVignetteAnim.SetTarget(0.0f, 3.0f);
+    damageVignetteAnim.SetTarget(1.0f, 3.0f);
+    damageVignetteAnim.current = 1.0f;
 }
 
 void HUDManager::ShowHitMarker() {
+    hitMarkerAnim.SetTarget(1.0f, 2.0f);
     hitMarkerAnim.current = 1.0f;
-    hitMarkerAnim.SetTarget(0.0f, 8.0f);
 }
 
 void HUDManager::SetLowHealthWarning(bool enabled) {
     lowHealthWarning = enabled;
-    if (!enabled) {
-        lowHealthPulse = 0.0f;
-    }
 }
 
-// Helper drawing functions
 void HUDManager::DrawModernBar(int x, int y, int width, int height, float value,
     Color fillColor, Color bgColor, const char* label) {
     // Background
     DrawRectangle(x, y, width, height, bgColor);
 
     // Fill
-    int fillWidth = (int)((value / 100.0f) * width);
+    int fillWidth = (int)(width * value);
     DrawRectangle(x, y, fillWidth, height, fillColor);
 
-    // Shine effect
-    int shineHeight = height / 3;
-    DrawRectangleGradientV(x, y, fillWidth, shineHeight,
-        Color{ 255, 255, 255, 40 }, BLANK);
-
     // Border
-    DrawRectangleLines(x, y, width, height, Color{ 255, 255, 255, 60 });
+    DrawRectangleLines(x, y, width, height, PIPBOY_GREEN);
 
     // Label
-    DrawText(label, x, y - 14, 11, Color{ 200, 200, 200, 255 });
+    if (label) {
+        DrawText(label, x + 5, y + 3, 14, WHITE);
+    }
+
+    // Value text
+    DrawText(TextFormat("%.0f%%", value * 100.0f),
+        x + width - 45, y + 3, 14, WHITE);
 }
 
 void HUDManager::DrawRadialBar(int centerX, int centerY, float radius, float value,
     Color color, float thickness) {
-    int segments = 32;
-    float angleStep = 360.0f / segments;
-    float fillAngle = value * 360.0f;
+    float angle = value * 360.0f;
 
-    for (int i = 0; i < segments; i++) {
-        float angle1 = (i * angleStep - 90) * DEG2RAD;
-        float angle2 = ((i + 1) * angleStep - 90) * DEG2RAD;
+    for (float a = 0; a < angle; a += 1.0f) {
+        float rad = a * DEG2RAD;
+        float x1 = centerX + cosf(rad) * (radius - thickness);
+        float y1 = centerY + sinf(rad) * (radius - thickness);
+        float x2 = centerX + cosf(rad) * radius;
+        float y2 = centerY + sinf(rad) * radius;
 
-        if (i * angleStep < fillAngle) {
-            Vector2 p1 = { centerX + cosf(angle1) * radius, centerY + sinf(angle1) * radius };
-            Vector2 p2 = { centerX + cosf(angle2) * radius, centerY + sinf(angle2) * radius };
-            DrawLineEx(p1, p2, thickness, color);
-        }
+        DrawLine((int)x1, (int)y1, (int)x2, (int)y2, color);
     }
 }
 
 void HUDManager::DrawGlowingText(const char* text, int x, int y, int fontSize,
     Color color, Color glowColor) {
-    // Glow
-    for (int ox = -1; ox <= 1; ox++) {
-        for (int oy = -1; oy <= 1; oy++) {
-            if (ox != 0 || oy != 0) {
-                DrawText(text, x + ox, y + oy, fontSize, glowColor);
-            }
-        }
-    }
-    // Main text
+    // Draw glow
+    DrawText(text, x - 1, y - 1, fontSize, glowColor);
+    DrawText(text, x + 1, y - 1, fontSize, glowColor);
+    DrawText(text, x - 1, y + 1, fontSize, glowColor);
+    DrawText(text, x + 1, y + 1, fontSize, glowColor);
+
+    // Draw main text
     DrawText(text, x, y, fontSize, color);
 }
 
 void HUDManager::DrawModernCrosshair(int centerX, int centerY, float spread, Color color) {
-    int lineLength = 12;
-    int thickness = 2;
+    int lineLength = 8;
     int gap = (int)spread;
 
     // Top
-    DrawLineEx(Vector2{ (float)centerX, (float)(centerY - gap) },
-        Vector2{ (float)centerX, (float)(centerY - gap - lineLength) }, thickness, color);
+    DrawLine(centerX, centerY - gap - lineLength, centerX, centerY - gap, color);
     // Bottom
-    DrawLineEx(Vector2{ (float)centerX, (float)(centerY + gap) },
-        Vector2{ (float)centerX, (float)(centerY + gap + lineLength) }, thickness, color);
+    DrawLine(centerX, centerY + gap, centerX, centerY + gap + lineLength, color);
     // Left
-    DrawLineEx(Vector2{ (float)(centerX - gap), (float)centerY },
-        Vector2{ (float)(centerX - gap - lineLength), (float)centerY }, thickness, color);
+    DrawLine(centerX - gap - lineLength, centerY, centerX - gap, centerY, color);
     // Right
-    DrawLineEx(Vector2{ (float)(centerX + gap), (float)centerY },
-        Vector2{ (float)(centerX + gap + lineLength), (float)centerY }, thickness, color);
-}
+    DrawLine(centerX + gap, centerY, centerX + gap + lineLength, centerY, color);
 
-// Global instance
-extern HUDManager* g_UpgradedHUD;
+    // Center dot
+    DrawCircle(centerX, centerY, 2, color);
+}

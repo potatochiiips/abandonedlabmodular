@@ -70,25 +70,36 @@ ModelID GetModelIDFromItem(int itemId) {
     }
 }
 
+// FIXED: Improved DrawPlayerHands function
 void DrawPlayerHands(Camera3D camera, InventorySlot* inventory, float pistolRecoilPitch, float pistolRecoilYaw) {
     int itemId = inventory[BACKPACK_SLOTS].itemId;
     if (itemId == ITEM_NONE) return;
 
     extern bool isFlashlightOn;
+    extern WeaponState g_CurrentWeaponState;
 
     Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
     Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
     Vector3 up = Vector3Normalize(camera.up);
 
+    // Base hand position
     float handDistance = 0.45f;
     float handRightOffset = 0.22f;
     float handDownOffset = -0.25f;
+
+    // Adjust for ADS
+    if (g_CurrentWeaponState.isADS) {
+        handDistance -= 0.15f * g_CurrentWeaponState.adsProgress;
+        handRightOffset -= 0.1f * g_CurrentWeaponState.adsProgress;
+        handDownOffset += 0.1f * g_CurrentWeaponState.adsProgress;
+    }
 
     Vector3 basePos = camera.position;
     basePos = Vector3Add(basePos, Vector3Scale(forward, handDistance));
     basePos = Vector3Add(basePos, Vector3Scale(right, handRightOffset));
     basePos = Vector3Add(basePos, Vector3Scale(up, handDownOffset));
 
+    // Apply recoil
     if (pistolRecoilPitch > 0.01f || pistolRecoilYaw > 0.01f) {
         Vector3 recoilOffset = Vector3Scale(forward, -pistolRecoilPitch * 0.002f);
         Vector3 recoilUp = Vector3Scale(up, pistolRecoilPitch * 0.003f);
@@ -99,10 +110,41 @@ void DrawPlayerHands(Camera3D camera, InventorySlot* inventory, float pistolReco
         basePos = Vector3Add(basePos, recoilRight);
     }
 
+    // Apply weapon bob
+    static float bobTime = 0.0f;
+    extern Vector3 playerVelocity;
+    float speed = Vector3Length(Vector3{ playerVelocity.x, 0, playerVelocity.z });
+
+    if (speed > 0.1f && !g_CurrentWeaponState.isADS) {
+        bobTime += GetFrameTime() * 8.0f;
+        float bobX = sinf(bobTime) * 0.01f;
+        float bobY = sinf(bobTime * 2.0f) * 0.01f;
+
+        basePos = Vector3Add(basePos, Vector3Scale(right, bobX));
+        basePos = Vector3Add(basePos, Vector3Scale(up, bobY));
+    }
+    else {
+        bobTime = 0.0f;
+    }
+
+    // Draw the item/weapon using model manager
     if (g_ModelManager) {
         ModelID modelId = GetModelIDFromItem(itemId);
-        g_ModelManager->DrawModel(modelId, basePos, forward, right, up, WHITE);
 
+        // Adjust model scale based on item type
+        float scale = 1.0f;
+        if (itemId == ITEM_PISTOL || itemId == ITEM_M16) {
+            scale = 0.8f; // Make weapons slightly smaller in first person
+        }
+
+        // Create scaled vectors for model drawing
+        Vector3 scaledForward = Vector3Scale(forward, scale);
+        Vector3 scaledRight = Vector3Scale(right, scale);
+        Vector3 scaledUp = Vector3Scale(up, scale);
+
+        g_ModelManager->DrawModel(modelId, basePos, scaledForward, scaledRight, scaledUp, WHITE);
+
+        // Special effects for flashlight
         if (itemId == ITEM_FLASHLIGHT && isFlashlightOn) {
             Vector3 glowPos = Vector3Add(basePos, Vector3Scale(forward, 0.08f));
             DrawSphere(glowPos, 0.04f, Color{ 255, 255, 220, 100 });
@@ -111,6 +153,7 @@ void DrawPlayerHands(Camera3D camera, InventorySlot* inventory, float pistolReco
         }
     }
     else {
+        // Fallback: draw simple cube if model manager not available
         DrawCube(basePos, 0.05f, 0.05f, 0.05f, GRAY);
     }
 }

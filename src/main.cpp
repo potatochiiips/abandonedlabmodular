@@ -98,19 +98,60 @@ void CloseInGameMenus() {
     isMapOpen = false;
 }
 
+// FIXED: DrawMinimapHUD implementation
+void DrawMinimapHUD(int screenW, int screenH, Vector3 playerPos, float playerYaw) {
+    if (!g_EnhancedMapSystem) return;
+
+    int minimapSize = 200;
+    int minimapX = screenW - minimapSize - 20;
+    int minimapY = 20;
+
+    g_EnhancedMapSystem->DrawMinimap(minimapX + minimapSize / 2, minimapY + minimapSize / 2,
+        minimapSize / 2, playerPos, playerYaw);
+}
+
+// FIXED: DrawCompass implementation
+void DrawCompass(int screenW, int screenH, float yaw) {
+    int compassX = screenW / 2;
+    int compassY = 30;
+    int compassRadius = 50;
+
+    DrawCircle(compassX, compassY, compassRadius, Color{ 0, 0, 0, 150 });
+    DrawCircleLines(compassX, compassY, compassRadius, PIPBOY_GREEN);
+
+    // Draw cardinal directions
+    const char* directions[] = { "N", "E", "S", "W" };
+    float angles[] = { 0, 90, 180, 270 };
+
+    for (int i = 0; i < 4; i++) {
+        float angle = (angles[i] - yaw) * DEG2RAD;
+        float dx = sinf(angle) * (compassRadius - 10);
+        float dy = -cosf(angle) * (compassRadius - 10);
+
+        DrawText(directions[i],
+            compassX + (int)dx - 5,
+            compassY + (int)dy - 5,
+            20, PIPBOY_GREEN);
+    }
+
+    // Draw player arrow
+    DrawTriangle(
+        Vector2{ (float)compassX, (float)(compassY - 15) },
+        Vector2{ (float)(compassX - 8), (float)(compassY - 5) },
+        Vector2{ (float)(compassX + 8), (float)(compassY - 5) },
+        RED
+    );
+}
+
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov) {
-    // IMPORTANT: Use enhanced map system for new world
     if (g_EnhancedMapSystem) {
         *playerPosition = g_EnhancedMapSystem->GetPlayerSpawnPosition();
         camera->position = *playerPosition;
-
-		// Initialize g_MapPlayer state
         g_MapPlayer.insideInterior = false;
         g_MapPlayer.worldX = (int)playerPosition->x;
         g_MapPlayer.worldY = (int)playerPosition->z;
     }
     else {
-        // Fallback to legacy system
         GenerateMapData(g_MapData);
         InitializePlayerFromMapStart(g_MapData, g_MapPlayer);
         *playerPosition = Vector3{ (float)g_MapPlayer.interiorX, playerHeight, (float)g_MapPlayer.interiorY };
@@ -176,6 +217,7 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
 
     TraceLog(LOG_INFO, "Player spawned at position: %.1f, %.1f, %.1f", playerPosition->x, playerPosition->y, playerPosition->z);
 }
+
 int main() {
     InitializeSoundSystem();
     LoadGraphicsSettings(&graphicsSettings);
@@ -233,10 +275,15 @@ int main() {
     InitializeWeatherSystem();
     InitializeZombieSystem();
     InitializeEnhancedMapSystem();
+
+    // IMPORTANT: Initialize Upgraded pipeline BEFORE game manager
+    InitializeUpgradedPipeline();
+
     UpgradedGameManager gameManager;
     gameManager.Initialize();
 
     InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov);
+
     if (g_SoundManager) {
         MusicID currentMusic = g_MapPlayer.insideInterior ? MUS_AMBIENT_INSIDE : MUS_AMBIENT_OUTSIDE;
         g_SoundManager->PlayMusic(currentMusic, true, 3.0f);
@@ -256,16 +303,20 @@ int main() {
             avgFrameTime = frameTimeAccumulator / frameCount;
             frameTimeAccumulator = 0.0f;
             frameCount = 0;
-            if (g_DayNightCycle) g_DayNightCycle->Update(deltaTime);
-            if (g_WeatherSystem) g_WeatherSystem->Update(deltaTime, playerPosition);
-            if (g_ZombieManager) g_ZombieManager->Update(deltaTime, playerPosition);
+        }
+
+        if (g_DayNightCycle) g_DayNightCycle->Update(deltaTime);
+        if (g_WeatherSystem) g_WeatherSystem->Update(deltaTime, playerPosition);
+        if (g_ZombieManager) g_ZombieManager->Update(deltaTime, playerPosition);
+
+        // Update game manager
+        if (gameState == GameState::Gameplay) {
             gameManager.Update(deltaTime);
         }
 
         bool isAnyMenuOpen = (inventoryOpen || isCraftingOpen || isMapOpen);
         bool useController = isControllerEnabled && IsGamepadAvailable(0);
 
-        // Cursor handling
         bool shouldCaptureCursor = (gameState == GameState::Gameplay && !isAnyMenuOpen && gameState != GameState::Console);
 
         static bool prevCursorCaptured = false;
@@ -280,7 +331,6 @@ int main() {
             prevCursorCaptured = shouldCaptureCursor;
         }
 
-        // ESC handling
         if (IsKeyPressed(KEY_ESCAPE) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_START))) {
             if (gameState == GameState::Gameplay && !isAnyMenuOpen) {
                 gameState = GameState::Paused;
@@ -315,11 +365,11 @@ int main() {
                 gameState = GameState::Gameplay;
             }
         }
-        // UPDATE SOUND SYSTEM
+
         if (g_SoundManager) {
             g_SoundManager->Update(deltaTime);
         }
-        // Gameplay Logic
+
         if (gameState == GameState::Gameplay) {
             if (IsKeyPressed(KEY_I) || (useController && IsActionPressed(ACTION_INVENTORY, bindings))) {
                 CloseInGameMenus();
@@ -380,18 +430,18 @@ int main() {
                     isReloading = true;
                     WeaponStats* s = g_WeaponSystem.GetWeaponStats(inventory[BACKPACK_SLOTS].itemId);
                     reloadTimer = s ? s->reloadTime : 1.5f;
-                    // Play reload sound
                     if (g_SoundManager) {
                         g_SoundManager->PlaySound(SND_RELOAD, 0.5f);
                     }
-
-                    if (isReloading) {
-                        reloadTimer -= deltaTime;
-                        if (reloadTimer <= 0) isReloading = false;
-                    }
                 }
+
+                if (isReloading) {
+                    reloadTimer -= deltaTime;
+                    if (reloadTimer <= 0) isReloading = false;
+                }
+
                 g_WeaponSystem.UpdateWeapon(g_CurrentWeaponState, deltaTime);
-                // SHOOTING LOGIC - FIXED
+
                 bool shootPressed = IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ||
                     (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_TRIGGER_2));
 
@@ -403,15 +453,12 @@ int main() {
                         g_CurrentWeaponState.animState = ANIM_SHOOT;
                         g_CurrentWeaponState.animTimer = 0.2f;
 
-                        // Weapon recoil
                         g_CurrentWeaponState.recoilOffset.y = -0.05f;
                         g_CurrentWeaponState.recoilOffset.z = -0.02f;
 
-                        // Camera recoil
                         pitch -= s->recoilPitch;
                         yaw += (rand() % 100 - 50) / 100.0f * s->recoilYaw;
 
-                        // Play weapon sound
                         if (g_SoundManager) {
                             if (eq == ITEM_PISTOL) {
                                 g_SoundManager->PlaySound(SND_PISTOL_SHOT, 0.7f);
@@ -421,10 +468,8 @@ int main() {
                             }
                         }
 
-                        // Raycast for hit detection
                         Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
 
-                        // Check zombie hits
                         if (g_ZombieManager) {
                             Zombie* hitZombie = g_ZombieManager->GetZombieAt(camera.position, 2.0f);
                             if (hitZombie) {
@@ -433,7 +478,6 @@ int main() {
                         }
                     }
                     else if (s) {
-                        // Empty click
                         if (g_SoundManager) {
                             g_SoundManager->PlaySound(SND_EMPTY_CLICK, 0.5f);
                         }
@@ -447,20 +491,6 @@ int main() {
             }
             if (g_VehicleManager) g_VehicleManager->Update(deltaTime);
             if (g_AnimationManager) g_AnimationManager->UpdateAll(deltaTime);
-        }
-        // Update day/night cycle
-        if (g_DayNightCycle) {
-            g_DayNightCycle->Update(deltaTime);
-        }
-
-        // Update weather system
-        if (g_WeatherSystem) {
-            g_WeatherSystem->Update(deltaTime, playerPosition);
-        }
-
-        // Update zombie system
-        if (g_ZombieManager) {
-            g_ZombieManager->Update(deltaTime, playerPosition);
         }
         else if (gameState == GameState::Console) {
             int key = GetCharPressed();
@@ -507,61 +537,36 @@ int main() {
 
         // RENDERING
         BeginDrawing();
-        ClearBackground(Color{ 5, 10, 15, 255 });
+        ClearBackground(Color{ 135, 206, 235, 255 }); // Sky blue
 
         if (gameState == GameState::Gameplay) {
-            // Use Upgraded-style rendering
+            // FIXED: Render game world properly
             gameManager.Render();
+
+            // FIXED: Draw HUD elements
+            if (!isAnyMenuOpen) {
+                // Draw player weapon/hands in first person
+                DrawPlayerHands(camera, inventory, pistolRecoilPitch, pistolRecoilYaw);
+            }
         }
         else if (gameState == GameState::MainMenu) {
-            // Draw menu
             std::vector<std::string> opts = { "New Game", "Load Game", "Settings", "Exit" };
             DrawMenu(GetScreenWidth(), GetScreenHeight(), opts, &mainMenuSelection,
                 false, "ECHOES OF TIME");
         }
-        if (g_ShaderManager) {
-            g_ShaderManager->UpdateLighting(camera, { MAP_SIZE / 2.0f, 100, MAP_SIZE / 2.0f },
-                isFlashlightOn, camera.position,
-                Vector3Normalize(Vector3Subtract(camera.target, camera.position)),
-                (flashlightBattery / 100.0f) * 5.0f);
+
+        // FIXED: Draw minimap correctly
+        if (gameState == GameState::Gameplay && showMinimap && !isAnyMenuOpen) {
+            DrawMinimapHUD(screenW, screenH, playerPosition, yaw);
         }
 
-        BeginMode3D(camera);
-        // Draw skybox first
-        if (g_SkyboxManager) {
-            g_SkyboxManager->Draw(camera);
-        }
-
-        // Draw zombies
-        if (g_ZombieManager) {
-            g_ZombieManager->Draw(camera);
-        }
-
-        g_WaypointManager.DrawIn3D(playerPosition, 100.0f);
-        int eq = inventory[BACKPACK_SLOTS].itemId;
-        Vector3 wPos = g_WeaponSystem.CalculateWeaponPosition(camera, g_CurrentWeaponState, eq == ITEM_M16);
-        Vector3 fwd = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
-        Vector3 rgt = Vector3Normalize(Vector3CrossProduct(fwd, camera.up));
-  
-
-        EndMode3D();
-        // Draw weather effects after 3D rendering
-        if (g_WeatherSystem) {
-            g_WeatherSystem->Draw(camera);
-        }
-        if (g_UpscalingManager && graphicsSettings.upscalingMode != UPSCALING_NONE)
-            g_UpscalingManager->EndUpscaledRender(screenW, screenH);
-
-		//minimap-HUD toggle
-        if (showMinimap) {
-            void DrawMinimapHUD(int screenW, int screenH, Vector3 playerPos, float playerYaw); 
-        }
         g_QuestManager.DrawQuestTrackerCompact(screenW, screenH);
-		
-        //compass-HUD toggle
-        if (showcompass) {
-            void DrawCompass(int screenW, int screenH, float yaw);
+
+        // FIXED: Draw compass correctly
+        if (gameState == GameState::Gameplay && showcompass && !isAnyMenuOpen) {
+            DrawCompass(screenW, screenH, yaw);
         }
+
         if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
         if (isCraftingOpen) DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
         if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
@@ -571,7 +576,6 @@ int main() {
             std::vector<std::string> opts = { "Continue", "Save Game", "Settings", "Main Menu" };
             DrawMenu(screenW, screenH, opts, &pauseMenuSelection, useController, "PAUSED");
         }
-
         else if (gameState == GameState::Console) {
             DrawConsole(screenW, screenH, consoleHistory, consoleInput, consoleInputLength);
         }
@@ -607,6 +611,7 @@ int main() {
     CleanupVehicleSystem();
     CleanupSkyboxSystem();
     CleanupEnhancedMapSystem();
+    CleanupUpgradedPipeline();
     gameManager.Cleanup();
     CloseWindow();
     return 0;

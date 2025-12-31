@@ -7,6 +7,9 @@
 #include "zombie_system.h"
 #include "rendering.h"
 #include "enhanced_map_system.h"
+#include "rlgl.h"
+#include "vehicle_system.h"
+#include "skybox.h"
 
 UpgradedGameManager::UpgradedGameManager() {
 }
@@ -18,9 +21,6 @@ UpgradedGameManager::~UpgradedGameManager() {
 void UpgradedGameManager::Initialize() {
     TraceLog(LOG_INFO, "Initializing Game Manager...");
 
-    // Initialize rendering pipeline
-    InitializeUpgradedPipeline();
-
     // Create subsystems
     mapRenderer = std::make_unique<UpgradedMapRenderer>();
     hudManager = std::make_unique<HUDManager>();
@@ -31,6 +31,7 @@ void UpgradedGameManager::Initialize() {
     mapRenderer->Initialize();
     hudManager->Initialize();
     weaponRenderer->Initialize();
+    handsRenderer->Initialize();
 
     // Setup scene
     SetupScene();
@@ -41,26 +42,25 @@ void UpgradedGameManager::Initialize() {
 
 void UpgradedGameManager::SetupScene() {
     // Setup main camera
-    mainCamera.camera = camera; // Use existing global camera
-    mainCamera.clearColor = Color{ 135, 206, 235, 255 }; // Sky blue
+    mainCamera.camera = camera;
+    mainCamera.clearColor = Color{ 135, 206, 235, 255 };
     mainCamera.nearClip = 0.1f;
     mainCamera.farClip = 1000.0f;
     mainCamera.depth = 0;
     mainCamera.cullingMask = -1;
 
-    // FIXED: Generate map geometry from enhanced map system
+    // Generate world geometry from enhanced map system
     if (g_EnhancedMapSystem && !g_MapPlayer.insideInterior) {
-        // Use enhanced map system for new world
         TraceLog(LOG_INFO, "Generating world geometry from Enhanced Map System");
         mapRenderer->GenerateEnhancedWorld();
-    } else if (g_MapPlayer.insideInterior) {
-        // Inside an interior
+    }
+    else if (g_MapPlayer.insideInterior) {
         const Interior* interior = GetInterior(g_MapData, g_MapPlayer.currentInteriorId);
         if (interior) {
             mapRenderer->GenerateInteriorGeometry(*interior);
         }
-    } else {
-        // Fallback: Use old map system
+    }
+    else {
         mapRenderer->GenerateWorldGeometry(g_MapData);
     }
 
@@ -82,7 +82,7 @@ void UpgradedGameManager::SetupLighting() {
     mainLight->direction = Vector3{ 0.5f, -1.0f, 0.3f };
     mainLight->color = Color{ 255, 250, 220, 255 };
     mainLight->intensity = 1.0f;
-    mainLight->castShadows = true;
+    mainLight->castShadows = false; // Disable shadows for performance
     mainLight->shadowResolution = 2048;
     sceneLights.push_back(mainLight);
 
@@ -102,11 +102,14 @@ void UpgradedGameManager::SetupLighting() {
     }
 
     // Set ambient lighting
-    Color ambientColor = Color{ 54, 58, 66, 255 };
+    Color ambientColor = Color{ 100, 110, 120, 255 };
     if (g_DayNightCycle) {
         ambientColor = g_DayNightCycle->GetAmbientColor();
     }
-    g_UpgradedPipeline->SetAmbientLight(ambientColor, 0.3f);
+
+    if (g_UpgradedPipeline) {
+        g_UpgradedPipeline->SetAmbientLight(ambientColor, 0.5f);
+    }
 
     // Set fog
     bool fogEnabled = false;
@@ -119,7 +122,9 @@ void UpgradedGameManager::SetupLighting() {
         fogDensity = g_WeatherSystem->GetFogDensity();
     }
 
-    g_UpgradedPipeline->SetFog(fogEnabled, fogColor, fogDensity);
+    if (g_UpgradedPipeline) {
+        g_UpgradedPipeline->SetFog(fogEnabled, fogColor, fogDensity);
+    }
 }
 
 void UpgradedGameManager::Update(float deltaTime) {
@@ -156,7 +161,6 @@ void UpgradedGameManager::Update(float deltaTime) {
 }
 
 void UpgradedGameManager::UpdateCamera() {
-    // Sync main camera with global camera
     mainCamera.camera = camera;
 }
 
@@ -167,17 +171,14 @@ void UpgradedGameManager::UpdateWeaponRendering() {
 
     int equippedItem = inventory[BACKPACK_SLOTS].itemId;
 
-    // Handle weapon changes
     static int lastEquipped = ITEM_NONE;
     if (equippedItem != lastEquipped) {
         weaponRenderer->SetEquippedWeapon(equippedItem);
         lastEquipped = equippedItem;
     }
 
-    // Update weapon state
     weaponRenderer->SetAimingDownSights(isAimingDownSights);
 
-    // Handle reload animation
     if (isReloading) {
         static bool wasReloading = false;
         if (!wasReloading) {
@@ -201,36 +202,75 @@ void UpgradedGameManager::CollectRenderables(std::vector<MeshRenderer*>& rendere
     if (weapon) {
         renderers.push_back(weapon);
     }
-
-    // Add zombie renderers (if zombie system is active)
-    // This would require converting zombie drawing to Upgraded-style
 }
 
 void UpgradedGameManager::Render() {
-    // Collect all renderables
-    std::vector<MeshRenderer*> allRenderers;
-    CollectRenderables(allRenderers);
+    int screenW = GetScreenWidth();
+    int screenH = GetScreenHeight();
 
-    // Render using Upgraded pipeline
-    g_UpgradedPipeline->Render(allRenderers, sceneLights, mainCamera);
+    // FIXED: Use traditional rendering instead of Upgraded pipeline
+    // The Upgraded pipeline is too complex and causing white screen issues
 
-    // Draw HUD on top (2D overlay)
+    BeginMode3D(mainCamera.camera);
+
+    // Draw skybox first
+    if (g_SkyboxManager) {
+        g_SkyboxManager->Draw(camera);
+    }
+
+    // FIXED: Draw world using traditional method
+    // Draw map geometry directly
+    std::vector<MeshRenderer*> renderers = mapRenderer->GetActiveRenderers();
+    for (auto* renderer : renderers) {
+        if (!renderer->enabled) continue;
+
+        rlPushMatrix();
+        rlMultMatrixf(MatrixToFloat(renderer->transform));
+
+        // Draw mesh with material colors
+        if (renderer->material) {
+            BeginShaderMode(renderer->material->GetShader());
+            DrawMesh(renderer->mesh, LoadMaterialDefault(), MatrixIdentity());
+            EndShaderMode();
+        }
+        else {
+            DrawMesh(renderer->mesh, LoadMaterialDefault(), MatrixIdentity());
+        }
+
+        rlPopMatrix();
+    }
+
+    // Draw zombies
+    if (g_ZombieManager) {
+        g_ZombieManager->Draw(camera);
+    }
+
+    // Draw vehicles
+    if (g_VehicleManager) {
+        g_VehicleManager->Draw();
+    }
+
+    // Draw waypoints
+    g_WaypointManager.DrawIn3D(playerPosition, 100.0f);
+
+    EndMode3D();
+
+    // Draw weather effects after 3D rendering
+    if (g_WeatherSystem) {
+        g_WeatherSystem->Draw(camera);
+    }
+
+    // FIXED: Draw HUD elements
     extern float health, stamina, hunger, thirst;
     extern float flashlightBattery;
     extern bool isFlashlightOn;
     extern InventorySlot inventory[TOTAL_INVENTORY_SLOTS];
     extern float yaw;
-    extern bool isAimingDownSights;
-
-    int screenW = GetScreenWidth();
-    int screenH = GetScreenHeight();
 
     hudManager->DrawPlayerStats(screenW, screenH, health, stamina, hunger, thirst);
     hudManager->DrawWeaponInfo(screenW, screenH, inventory[BACKPACK_SLOTS]);
     hudManager->DrawFlashlightStatus(screenW, screenH, flashlightBattery, isFlashlightOn);
     hudManager->DrawCrosshair(screenW, screenH, isAimingDownSights);
-    hudManager->DrawCompass(screenW, screenH, yaw);
-    hudManager->DrawHitMarker(screenW, screenH);
 
     // Damage vignette
     static float lastHealth = 100.0f;
@@ -240,13 +280,6 @@ void UpgradedGameManager::Render() {
     lastHealth = health;
 
     hudManager->DrawDamageVignette(screenW, screenH, 1.0f);
-
-    // Draw hands for non-weapon items
-    if (inventory[BACKPACK_SLOTS].itemId != ITEM_PISTOL &&
-        inventory[BACKPACK_SLOTS].itemId != ITEM_M16 &&
-        inventory[BACKPACK_SLOTS].itemId != ITEM_KNIFE) {
-        handsRenderer->DrawHands(mainCamera.camera, false);
-    }
 }
 
 void UpgradedGameManager::Cleanup() {
@@ -255,11 +288,6 @@ void UpgradedGameManager::Cleanup() {
         delete light;
     }
     sceneLights.clear();
-
-    // Subsystems cleanup automatically via unique_ptr
-
-    // Cleanup rendering pipeline
-    CleanupUpgradedPipeline();
 
     TraceLog(LOG_INFO, "Upgraded Game Manager cleaned up");
 }
