@@ -49,18 +49,26 @@ void UpgradedGameManager::SetupScene() {
     mainCamera.depth = 0;
     mainCamera.cullingMask = -1;
 
-    // Generate world geometry from enhanced map system
-    if (g_EnhancedMapSystem && !g_MapPlayer.insideInterior) {
+    // Generate world geometry from enhanced map system OR interior
+    if (g_MapPlayer.insideInterior && g_EnhancedMapSystem) {
+        // Player is inside an interior - load interior geometry
+        const Interior* interior = g_EnhancedMapSystem->GetLabInterior();
+        if (interior) {
+            TraceLog(LOG_INFO, "Loading interior geometry: %s", interior->id.c_str());
+            mapRenderer->GenerateInteriorGeometry(*interior);
+        }
+        else {
+            TraceLog(LOG_WARNING, "Interior not found, falling back to world geometry");
+            mapRenderer->GenerateEnhancedWorld();
+        }
+    }
+    else if (g_EnhancedMapSystem) {
+        // Player is outside - load world geometry
         TraceLog(LOG_INFO, "Generating world geometry from Enhanced Map System");
         mapRenderer->GenerateEnhancedWorld();
     }
-    else if (g_MapPlayer.insideInterior) {
-        const Interior* interior = GetInterior(g_MapData, g_MapPlayer.currentInteriorId);
-        if (interior) {
-            mapRenderer->GenerateInteriorGeometry(*interior);
-        }
-    }
     else {
+        // Fallback to old system
         mapRenderer->GenerateWorldGeometry(g_MapData);
     }
 
@@ -68,6 +76,10 @@ void UpgradedGameManager::SetupScene() {
     extern InventorySlot inventory[TOTAL_INVENTORY_SLOTS];
     weaponRenderer->SetEquippedWeapon(inventory[BACKPACK_SLOTS].itemId);
 }
+
+// Also add a public method to allow regenerating the scene:
+// Add this to the public section of UpgradedGameManager class in game_manager.h:
+void RegenerateScene() { SetupScene(); }
 
 void UpgradedGameManager::SetupLighting() {
     // Clear existing lights

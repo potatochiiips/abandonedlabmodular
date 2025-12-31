@@ -178,7 +178,7 @@ void UpgradedMapRenderer::GenerateWorldGeometry(const MapData& mapData) {
 }
 
 void UpgradedMapRenderer::GenerateInteriorGeometry(const Interior& interior) {
-    TraceLog(LOG_INFO, "Generating interior geometry...");
+    TraceLog(LOG_INFO, "Generating interior geometry for: %s", interior.id.c_str());
 
     interiorRenderers.clear();
 
@@ -187,7 +187,7 @@ void UpgradedMapRenderer::GenerateInteriorGeometry(const Interior& interior) {
             int tile = interior.tiles[y * interior.width + x];
             Vector3 pos = { (float)x, 0.0f, (float)y };
 
-            // Floor
+            // Floor (draw everywhere except empty)
             if (tile != IT_EMPTY) {
                 CreateFloor(pos, 1.0f, TEX_FLOOR_TILE);
             }
@@ -200,38 +200,65 @@ void UpgradedMapRenderer::GenerateInteriorGeometry(const Interior& interior) {
             // Props using model manager
             if (g_ModelManager) {
                 Vector3 propPos = { (float)x, 0.0f, (float)y };
+                ModelID modelId = MODEL_PISTOL; // Default
+                bool shouldDraw = false;
+                float scale = 1.0f;
 
                 switch (tile) {
                 case IT_CRYOPOD_BROKEN:
-                    AddProp(propPos, MODEL_CRYOPOD, 1.0f);
+                    modelId = MODEL_CRYOPOD;
+                    shouldDraw = true;
+                    scale = 1.0f;
                     break;
                 case IT_CONSOLE:
-                    AddProp(propPos, MODEL_CONSOLE_TERMINAL, 1.0f);
+                    modelId = MODEL_CONSOLE_TERMINAL;
+                    shouldDraw = true;
+                    scale = 1.0f;
                     break;
                 case IT_BED:
-                    AddProp(propPos, MODEL_BED, 1.0f);
+                    modelId = MODEL_BED;
+                    shouldDraw = true;
+                    scale = 1.0f;
                     break;
                 case IT_DESK:
-                    AddProp(propPos, MODEL_DESK, 1.0f);
+                    modelId = MODEL_DESK;
+                    shouldDraw = true;
+                    scale = 1.0f;
                     break;
                 case IT_CHAIR:
-                    AddProp(propPos, MODEL_CHAIR, 1.0f);
+                    modelId = MODEL_CHAIR;
+                    shouldDraw = true;
+                    scale = 1.0f;
                     break;
                 case IT_TABLE:
-                    AddProp(propPos, MODEL_TABLE, 1.0f);
+                    modelId = MODEL_TABLE;
+                    shouldDraw = true;
+                    scale = 1.0f;
                     break;
                 case IT_SHELF:
-                    AddProp(propPos, MODEL_SHELF, 1.0f);
+                    modelId = MODEL_SHELF;
+                    shouldDraw = true;
+                    scale = 1.0f;
                     break;
                 case IT_LOCKER:
-                    AddProp(propPos, MODEL_LOCKER, 1.0f);
+                    modelId = MODEL_LOCKER;
+                    shouldDraw = true;
+                    scale = 1.0f;
                     break;
                 case IT_CABINET:
-                    AddProp(propPos, MODEL_CABINET, 1.0f);
+                    modelId = MODEL_CABINET;
+                    shouldDraw = true;
+                    scale = 1.0f;
                     break;
                 case IT_CRATE:
-                    AddProp(propPos, MODEL_CRATE, 1.0f);
+                    modelId = MODEL_CRATE;
+                    shouldDraw = true;
+                    scale = 1.0f;
                     break;
+                }
+
+                if (shouldDraw) {
+                    AddProp(propPos, modelId, scale);
                 }
             }
         }

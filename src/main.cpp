@@ -87,7 +87,21 @@ AnimationState playerAnimState = {
 
 std::vector<Vehicle> vehicles;
 Vehicle* playerVehicle = nullptr;
+//door management
+Door* GetNearestDoor(Vector3 playerPos, float maxDistance) {
+    Door* nearest = nullptr;
+    float minDist = maxDistance;
 
+    for (auto& door : doors) {
+        float dist = Vector3Distance(playerPos, door.position);
+        if (dist < minDist) {
+            minDist = dist;
+            nearest = &door;
+        }
+    }
+
+    return nearest;
+}
 static float frameTimeAccumulator = 0.0f;
 static int frameCount = 0;
 static float avgFrameTime = 0.0f;
@@ -142,14 +156,22 @@ void DrawCompass(int screenW, int screenH, float yaw) {
         RED
     );
 }
-
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov) {
     if (g_EnhancedMapSystem) {
+        // Spawn player inside the laboratory
         *playerPosition = g_EnhancedMapSystem->GetPlayerSpawnPosition();
         camera->position = *playerPosition;
-        g_MapPlayer.insideInterior = false;
-        g_MapPlayer.worldX = (int)playerPosition->x;
-        g_MapPlayer.worldY = (int)playerPosition->z;
+
+        // Set player state to be inside the laboratory interior
+        g_MapPlayer.insideInterior = true;
+        g_MapPlayer.currentInteriorId = "lab_1";
+        g_MapPlayer.currentBuildingId = 1;
+        g_MapPlayer.interiorX = 10;
+        g_MapPlayer.interiorY = 15;
+        g_MapPlayer.worldX = 87;
+        g_MapPlayer.worldY = 87;
+
+        TraceLog(LOG_INFO, "Player spawned inside laboratory interior");
     }
     else {
         GenerateMapData(g_MapData);
@@ -212,12 +234,22 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     };
     for (int i = 0; i < ACTION_COUNT; i++) bindings[i] = defaultBindings[i];
 
-    int quest1 = g_QuestManager.AddQuest("Welcome to the Lab", "Get familiar with your surroundings", 100);
-    g_QuestManager.AddObjective(quest1, QUEST_OBJ_COLLECT, ITEM_WATER_BOTTLE, 2, "Collect 2 water bottles");
+    int quest1 = g_QuestManager.AddQuest(
+        "Escape the Laboratory",
+        "Find a way out of the cryogenic facility",
+        100
+    );
+    g_QuestManager.AddObjective(
+        quest1,
+        QUEST_OBJ_REACH_LOCATION,
+        0,
+        1,
+        "Find the exit door"
+    );
 
-    TraceLog(LOG_INFO, "Player spawned at position: %.1f, %.1f, %.1f", playerPosition->x, playerPosition->y, playerPosition->z);
+    TraceLog(LOG_INFO, "New game initialized - Player spawned at position: %.1f, %.1f, %.1f (inside laboratory)", playerPosition->x, playerPosition->y, playerPosition->z);
 }
-
+Door* GetNearestDoor(Vector3 playerPos, float maxDistance);
 int main() {
     InitializeSoundSystem();
     LoadGraphicsSettings(&graphicsSettings);
@@ -401,20 +433,104 @@ int main() {
                 else {
                     UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
                 }
-
+                // Door interaction (E key)
                 if (IsKeyPressed(KEY_E)) {
                     if (g_VehicleManager && !g_VehicleManager->TryEnterVehicle(playerPosition)) {
+                        // Check for nearby door
                         Door* nearDoor = GetNearestDoor(playerPosition, 2.5f);
+
                         if (nearDoor) {
-                            if (g_MapPlayer.insideInterior) ExitInterior(g_MapData, g_MapPlayer);
-                            else EnterInterior(g_MapData, g_MapPlayer, nearDoor->buildingId);
-                            playerPosition = g_MapPlayer.insideInterior ?
-                                Vector3{ (float)g_MapPlayer.interiorX, playerHeight, (float)g_MapPlayer.interiorY } :
-                                Vector3{ (float)g_MapPlayer.worldX, playerHeight, (float)g_MapPlayer.worldY };
-                            camera.position = playerPosition;
+                            if (nearDoor->isInteriorDoor) {
+                                // ===== EXIT INTERIOR =====
+                                TraceLog(LOG_INFO, "Exiting interior via door at (%.1f, %.1f, %.1f)",
+                                    nearDoor->position.x, nearDoor->position.y, nearDoor->position.z);
+
+                                // Set player state to exterior
+                                g_MapPlayer.insideInterior = false;
+
+                                // Restore world position (outside the building)
+                                playerPosition = Vector3{
+                                    (float)g_MapPlayer.worldX,
+                                    playerHeight,
+                                    (float)g_MapPlayer.worldY
+                                };
+                                camera.position = playerPosition;
+
+                                // Regenerate world geometry
+                                gameManager.SetupScene();
+
+                                // Switch music
+                                if (g_SoundManager) {
+                                    g_SoundManager->PlayMusic(MUS_AMBIENT_OUTSIDE, true, 2.0f);
+                                }
+
+                                TraceLog(LOG_INFO, "Player exited to world position: (%.1f, %.1f, %.1f)",
+                                    playerPosition.x, playerPosition.y, playerPosition.z);
+                            }
+                            else {
+                                // ===== ENTER INTERIOR =====
+                                TraceLog(LOG_INFO, "Entering building %d via door at (%.1f, %.1f, %.1f)",
+                                    nearDoor->buildingId, nearDoor->position.x, nearDoor->position.y, nearDoor->position.z);
+
+                                // Store current world position
+                                g_MapPlayer.worldX = (int)playerPosition.x;
+                                g_MapPlayer.worldY = (int)playerPosition.z;
+
+                                // Get the building's interior
+                                if (g_EnhancedMapSystem) {
+                                    const Interior* interior = g_EnhancedMapSystem->GetLabInterior();
+
+                                    if (interior) {
+                                        // Set player state to interior
+                                        g_MapPlayer.insideInterior = true;
+                                        g_MapPlayer.currentInteriorId = interior->id;
+                                        g_MapPlayer.currentBuildingId = nearDoor->buildingId;
+
+                                        // Spawn at interior entrance
+                                        if (!interior->floors.empty()) {
+                                            g_MapPlayer.interiorX = interior->floors[0].playerSpawnX;
+                                            g_MapPlayer.interiorY = interior->floors[0].playerSpawnY;
+
+                                            playerPosition = Vector3{
+                                                (float)g_MapPlayer.interiorX,
+                                                playerHeight,
+                                                (float)g_MapPlayer.interiorY
+                                            };
+                                            camera.position = playerPosition;
+
+                                            // Regenerate interior geometry
+                                            gameManager.SetupScene();
+
+                                            // Switch music
+                                            if (g_SoundManager) {
+                                                g_SoundManager->PlayMusic(MUS_AMBIENT_INSIDE, true, 2.0f);
+                                            }
+
+                                            TraceLog(LOG_INFO, "Player entered interior at: (%.1f, %.1f, %.1f)",
+                                                playerPosition.x, playerPosition.y, playerPosition.z);
+                                        }
+                                    }
+                                    else {
+                                        TraceLog(LOG_WARNING, "Interior not found for building %d", nearDoor->buildingId);
+                                    }
+                                }
+                                else {
+                                    TraceLog(LOG_ERROR, "Enhanced map system not initialized!");
+                                }
+                            }
+
+                            // Play door sound
+                            if (g_SoundManager) {
+                                g_SoundManager->PlaySound(SND_DOOR_OPEN, 0.5f);
+                            }
+                        }
+                        else {
+                            // No door nearby - try other interactions
+                            TraceLog(LOG_INFO, "No door nearby (closest is > 2.5 units away)");
                         }
                     }
                 }
+
 
                 UpdateDoors(deltaTime);
                 if (IsKeyPressed(KEY_F) && !g_VehicleManager->IsPlayerInVehicle())
@@ -565,6 +681,23 @@ int main() {
         // FIXED: Draw compass correctly
         if (gameState == GameState::Gameplay && showcompass && !isAnyMenuOpen) {
             DrawCompass(screenW, screenH, yaw);
+        }
+
+        // Also add a visual indicator when near a door (in the HUD drawing section):
+        if (gameState == GameState::Gameplay && !isAnyMenuOpen) {
+            Door* nearbyDoor = GetNearestDoor(playerPosition, 2.5f);
+            if (nearbyDoor) {
+                const char* doorText = nearbyDoor->isInteriorDoor ?
+                    "Press E to Exit Building" :
+                    "Press E to Enter Building";
+
+                int textWidth = MeasureText(doorText, 20);
+                DrawText(doorText,
+                    screenW / 2 - textWidth / 2,
+                    screenH - 100,
+                    20,
+                    PIPBOY_GREEN);
+            }
         }
 
         if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);

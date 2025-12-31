@@ -1,19 +1,21 @@
 #pragma once
 #include "globals.h"
+#include "map.h"
 #include <vector>
 #include <string>
+#include <map>
 
 // Enhanced world zones for the new map layout
 enum WorldZone {
-    ZONE_CENTRAL_CITY,        // Dense urban core with skyscrapers
-    ZONE_LABORATORY,          // Large cryogenic lab (player spawn)
-    ZONE_HOSPITAL,            // Northeast medical complex
-    ZONE_BUSINESS_DISTRICT,   // Banks, corporate HQs, retail
-    ZONE_WESTERN_FARMLANDS,   // Agricultural area with farms
-    ZONE_EASTERN_COAST,       // Beach, pier, seaside houses
-    ZONE_NORTHERN_MOUNTAINS,  // Mountain range with military base
-    ZONE_SOUTHERN_INDUSTRIAL, // Factories and heavy industry
-    ZONE_HARBOR,              // Deep-water port with cargo ships
+    ZONE_CENTRAL_CITY,
+    ZONE_LABORATORY,
+    ZONE_HOSPITAL,
+    ZONE_BUSINESS_DISTRICT,
+    ZONE_WESTERN_FARMLANDS,
+    ZONE_EASTERN_COAST,
+    ZONE_NORTHERN_MOUNTAINS,
+    ZONE_SOUTHERN_INDUSTRIAL,
+    ZONE_HARBOR,
     ZONE_COUNT
 };
 
@@ -53,7 +55,7 @@ struct EnhancedBuilding {
 // Zone definition with boundaries
 struct ZoneDefinition {
     WorldZone type;
-    Rectangle bounds;  // x, y, width, height in world coordinates
+    Rectangle bounds;
     std::string name;
     Color mapColor;
     float buildingDensity;
@@ -65,44 +67,49 @@ class EnhancedMapSystem {
 public:
     EnhancedMapSystem();
     ~EnhancedMapSystem();
-    
+
     void Initialize();
     void GenerateWorldMap();
-    
+
     // Zone management
     ZoneDefinition* GetZone(WorldZone type);
     WorldZone GetZoneAt(float worldX, float worldZ);
-    
+
     // Building management
     EnhancedBuilding* GetBuilding(int id);
     std::vector<EnhancedBuilding*> GetBuildingsInZone(WorldZone zone);
-    
+
     // Player spawn
     Vector3 GetPlayerSpawnPosition();
-    
+
+    // Interior access
+    const Interior* GetLabInterior();
+
     // Minimap rendering
     void DrawMinimap(int x, int y, int radius, Vector3 playerPos, float playerYaw);
-    
+
     // Full map rendering
     void DrawFullMap(int screenW, int screenH, Vector3 playerPos);
-    
+
 private:
     std::vector<ZoneDefinition> zones;
     std::vector<EnhancedBuilding> buildings;
     std::vector<Vector3> riverPath;
     std::vector<Vector3> roadNetwork;
-    
+    std::map<std::string, Interior> interiors; // Store interiors by ID
+
     int nextBuildingId;
-    
+
     void InitializeZones();
     void GenerateZoneBuildings(WorldZone zone);
     void GenerateRiverSystem();
     void GenerateRoadNetwork();
     void GenerateLaboratory();
+    void GenerateLabInterior(EnhancedBuilding& building);
     void GenerateHospital();
     void GenerateMilitaryBase();
     void GenerateHarbor();
-    
+
     Color GetZoneColor(WorldZone zone);
     void DrawMinimapZone(int centerX, int centerY, float scale, const ZoneDefinition& zone, Vector3 playerPos);
 };
