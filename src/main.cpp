@@ -87,7 +87,6 @@ AnimationState playerAnimState = {
 
 std::vector<Vehicle> vehicles;
 Vehicle* playerVehicle = nullptr;
-//door management
 
 static float frameTimeAccumulator = 0.0f;
 static int frameCount = 0;
@@ -99,43 +98,29 @@ void CloseInGameMenus() {
     isMapOpen = false;
 }
 
-// FIXED: DrawMinimapHUD implementation
 void DrawMinimapHUD(int screenW, int screenH, Vector3 playerPos, float playerYaw) {
     if (!g_EnhancedMapSystem) return;
-
     int minimapSize = 200;
     int minimapX = screenW - minimapSize - 20;
     int minimapY = 20;
-
     g_EnhancedMapSystem->DrawMinimap(minimapX + minimapSize / 2, minimapY + minimapSize / 2,
         minimapSize / 2, playerPos, playerYaw);
 }
 
-// FIXED: DrawCompass implementation
 void DrawCompass(int screenW, int screenH, float yaw) {
     int compassX = screenW / 2;
     int compassY = 30;
     int compassRadius = 50;
-
     DrawCircle(compassX, compassY, compassRadius, Color{ 0, 0, 0, 150 });
     DrawCircleLines(compassX, compassY, compassRadius, PIPBOY_GREEN);
-
-    // Draw cardinal directions
     const char* directions[] = { "N", "E", "S", "W" };
     float angles[] = { 0, 90, 180, 270 };
-
     for (int i = 0; i < 4; i++) {
         float angle = (angles[i] - yaw) * DEG2RAD;
         float dx = sinf(angle) * (compassRadius - 10);
         float dy = -cosf(angle) * (compassRadius - 10);
-
-        DrawText(directions[i],
-            compassX + (int)dx - 5,
-            compassY + (int)dy - 5,
-            20, PIPBOY_GREEN);
+        DrawText(directions[i], compassX + (int)dx - 5, compassY + (int)dy - 5, 20, PIPBOY_GREEN);
     }
-
-    // Draw player arrow
     DrawTriangle(
         Vector2{ (float)compassX, (float)(compassY - 15) },
         Vector2{ (float)(compassX - 8), (float)(compassY - 5) },
@@ -143,13 +128,11 @@ void DrawCompass(int screenW, int screenH, float yaw) {
         RED
     );
 }
+
 void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVelocity, float* health, float* stamina, float* hunger, float* thirst, float* yaw, float* pitch, bool* onGround, InventorySlot* inventory, float* flashlightBattery, bool* isFlashlightOn, char map[MAP_SIZE][MAP_SIZE], float* fov) {
     if (g_EnhancedMapSystem) {
-        // Spawn player inside the laboratory
         *playerPosition = g_EnhancedMapSystem->GetPlayerSpawnPosition();
         camera->position = *playerPosition;
-
-        // Set player state to be inside the laboratory interior
         g_MapPlayer.insideInterior = true;
         g_MapPlayer.currentInteriorId = "lab_1";
         g_MapPlayer.currentBuildingId = 1;
@@ -157,7 +140,6 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
         g_MapPlayer.interiorY = 15;
         g_MapPlayer.worldX = 87;
         g_MapPlayer.worldY = 87;
-
         TraceLog(LOG_INFO, "Player spawned inside laboratory interior");
     }
     else {
@@ -176,7 +158,6 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     forward.y = sinf(DEG2RAD * (*pitch));
     forward.z = sinf(DEG2RAD * (*yaw)) * cosf(DEG2RAD * (*pitch));
     camera->target = Vector3Add(camera->position, forward);
-
     camera->up = Vector3{ 0.0f, 1.0f, 0.0f };
     camera->fovy = *fov;
 
@@ -192,7 +173,6 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     for (int i = 0; i < TOTAL_INVENTORY_SLOTS; i++) inventory[i] = { ITEM_NONE, 0, 0 };
     inventory[BACKPACK_SLOTS] = { ITEM_PISTOL, 1, 7 };
     inventory[BACKPACK_SLOTS + 1] = { ITEM_FLASHLIGHT, 1, 0 };
-
     inventory[0] = { ITEM_WATER_BOTTLE, 2, 0 };
     inventory[1] = { ITEM_WOOD, 1, 0 };
     inventory[2] = { ITEM_STONE, 2, 0 };
@@ -226,17 +206,13 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
         "Find a way out of the cryogenic facility",
         100
     );
-    g_QuestManager.AddObjective(
-        quest1,
-        QUEST_OBJ_REACH_LOCATION,
-        0,
-        1,
-        "Find the exit door"
-    );
+    g_QuestManager.AddObjective(quest1, QUEST_OBJ_REACH_LOCATION, 0, 1, "Find the exit door");
 
-    TraceLog(LOG_INFO, "New game initialized - Player spawned at position: %.1f, %.1f, %.1f (inside laboratory)", playerPosition->x, playerPosition->y, playerPosition->z);
+    TraceLog(LOG_INFO, "New game initialized");
 }
+
 Door* GetNearestDoor(Vector3 playerPos, float maxDistance);
+
 int main() {
     InitializeSoundSystem();
     LoadGraphicsSettings(&graphicsSettings);
@@ -255,32 +231,23 @@ int main() {
     SetExitKey(KEY_NULL);
 
     Texture2D splashTexture = LoadTexture("assets/splash.png");
-
     float splashTime = 2.5f;
     while (splashTime > 0 && !WindowShouldClose()) {
         float dt = GetFrameTime();
         splashTime -= dt;
-
         BeginDrawing();
         ClearBackground(BLACK);
-
         if (splashTexture.id > 0) {
-            DrawTexturePro(
-                splashTexture,
+            DrawTexturePro(splashTexture,
                 Rectangle{ 0, 0, (float)splashTexture.width, (float)splashTexture.height },
                 Rectangle{ 0, 0, (float)GetScreenWidth(), (float)GetScreenHeight() },
-                Vector2{ 0, 0 },
-                0.0f,
-                WHITE
-            );
+                Vector2{ 0, 0 }, 0.0f, WHITE);
         }
-
         const char* loadingText = "LOADING...";
         int textWidth = MeasureText(loadingText, 40);
         DrawText(loadingText, GetScreenWidth() / 2 - textWidth / 2, GetScreenHeight() - 80, 40, WHITE);
         EndDrawing();
     }
-
     if (splashTexture.id > 0) UnloadTexture(splashTexture);
 
     InitializeUpscalingSystem(initialRes.width, initialRes.height);
@@ -294,21 +261,15 @@ int main() {
     InitializeWeatherSystem();
     InitializeZombieSystem();
     InitializeEnhancedMapSystem();
-
-    // IMPORTANT: Initialize Upgraded pipeline BEFORE game manager
     InitializeUpgradedPipeline();
 
     UpgradedGameManager gameManager;
     gameManager.Initialize();
 
-    InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst, &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov);
-
-    if (g_SoundManager) {
-        MusicID currentMusic = g_MapPlayer.insideInterior ? MUS_AMBIENT_INSIDE : MUS_AMBIENT_OUTSIDE;
-        g_SoundManager->PlayMusic(currentMusic, true, 3.0f);
-    }
+    // FIXED: Start main menu music immediately
     if (g_SoundManager) {
         g_SoundManager->PlayMusic(MUS_MENU, true, 2.0f);
+        TraceLog(LOG_INFO, "Main menu music started");
     }
 
     while (!WindowShouldClose()) {
@@ -324,18 +285,21 @@ int main() {
             frameCount = 0;
         }
 
+        // Update sound system
+        if (g_SoundManager) {
+            g_SoundManager->Update(deltaTime);
+        }
+
         if (g_DayNightCycle) g_DayNightCycle->Update(deltaTime);
         if (g_WeatherSystem) g_WeatherSystem->Update(deltaTime, playerPosition);
         if (g_ZombieManager) g_ZombieManager->Update(deltaTime, playerPosition);
 
-        // Update game manager
         if (gameState == GameState::Gameplay) {
             gameManager.Update(deltaTime);
         }
 
         bool isAnyMenuOpen = (inventoryOpen || isCraftingOpen || isMapOpen);
         bool useController = isControllerEnabled && IsGamepadAvailable(0);
-
         bool shouldCaptureCursor = (gameState == GameState::Gameplay && !isAnyMenuOpen && gameState != GameState::Console);
 
         static bool prevCursorCaptured = false;
@@ -350,7 +314,21 @@ int main() {
             prevCursorCaptured = shouldCaptureCursor;
         }
 
-        if (IsKeyPressed(KEY_ESCAPE) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_START))) {
+        // FIXED: Input handling with proper control flow
+        if (gameState == GameState::Console) {
+            // Console input
+            UpdateConsoleInput(&health, &stamina, &hunger, &thirst, &isNoclip, &fov);
+
+            if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_GRAVE)) {
+                gameState = GameState::Gameplay;
+                TraceLog(LOG_INFO, "Console closed");
+            }
+        }
+        else if (IsKeyPressed(KEY_GRAVE)) {
+            gameState = GameState::Console;
+            TraceLog(LOG_INFO, "Console opened");
+        }
+        else if (IsKeyPressed(KEY_ESCAPE) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_START))) {
             if (gameState == GameState::Gameplay && !isAnyMenuOpen) {
                 gameState = GameState::Paused;
                 pauseMenuSelection = 0;
@@ -362,9 +340,6 @@ int main() {
             else if (isAnyMenuOpen) {
                 CloseInGameMenus();
             }
-            else if (gameState == GameState::Console) {
-                gameState = GameState::Gameplay;
-            }
             else if (gameState == GameState::LoadMenu) {
                 gameState = stateBeforeSettings;
             }
@@ -375,54 +350,7 @@ int main() {
                 gameState = stateBeforeSettings;
             }
         }
-        if (IsKeyPressed(KEY_GRAVE)) {
-            if (gameState == GameState::Gameplay) {
-                gameState = GameState::Console;
-                TraceLog(LOG_INFO, "Console opened");
-            }
-            else if (gameState == GameState::Console) {
-                gameState = GameState::Gameplay;
-                TraceLog(LOG_INFO, "Console closed");
-            }
-        
-
-        // FIXED: Escape key handling for console
-        if (IsKeyPressed(KEY_ESCAPE)) {
-            if (gameState == GameState::Console) {
-                // Close console with ESC
-                gameState = GameState::Gameplay;
-                TraceLog(LOG_INFO, "Console closed via ESC");
-            }
-            else if (gameState == GameState::Gameplay && !isAnyMenuOpen) {
-                gameState = GameState::Paused;
-                pauseMenuSelection = 0;
-                stateBeforeSettings = GameState::Paused;
-            }
-            else if (gameState == GameState::Paused) {
-                gameState = GameState::Gameplay;
-            }
-            else if (isAnyMenuOpen) {
-                CloseInGameMenus();
-            }
-            else if (gameState == GameState::LoadMenu) {
-                gameState = stateBeforeSettings;
-            }
-            else if (gameState == GameState::Settings ||
-                gameState == GameState::GraphicsSettings ||
-                gameState == GameState::AudioSettings ||
-                gameState == GameState::ControllerBindings) {
-                gameState = stateBeforeSettings;
-            }
-        }
-
-        // Update sound manager
-        if (g_SoundManager) {
-            g_SoundManager->Update(deltaTime);
-        }
-
-        // FIXED: Console input handling - only when console is open
         else if (gameState == GameState::Gameplay) {
-            // Regular gameplay input handling
             if (IsKeyPressed(KEY_I) || (useController && IsActionPressed(ACTION_INVENTORY, bindings))) {
                 CloseInGameMenus();
                 inventoryOpen = !inventoryOpen;
@@ -454,85 +382,46 @@ int main() {
                     UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
                 }
 
-                // Door interaction (E key)
                 if (IsKeyPressed(KEY_E)) {
                     if (g_VehicleManager && !g_VehicleManager->TryEnterVehicle(playerPosition)) {
                         Door* nearDoor = GetNearestDoor(playerPosition, 2.5f);
-
                         if (nearDoor) {
                             if (nearDoor->isInteriorDoor) {
-                                TraceLog(LOG_INFO, "Exiting interior via door at (%.1f, %.1f, %.1f)",
-                                    nearDoor->position.x, nearDoor->position.y, nearDoor->position.z);
-
+                                TraceLog(LOG_INFO, "Exiting interior");
                                 g_MapPlayer.insideInterior = false;
-
-                                playerPosition = Vector3{
-                                    (float)g_MapPlayer.worldX,
-                                    playerHeight,
-                                    (float)g_MapPlayer.worldY
-                                };
+                                playerPosition = Vector3{ (float)g_MapPlayer.worldX, playerHeight, (float)g_MapPlayer.worldY };
                                 camera.position = playerPosition;
-
                                 gameManager.RegenerateScene();
-
                                 if (g_SoundManager) {
                                     g_SoundManager->PlayMusic(MUS_AMBIENT_OUTSIDE, true, 2.0f);
                                 }
-
-                                TraceLog(LOG_INFO, "Player exited to world position: (%.1f, %.1f, %.1f)",
-                                    playerPosition.x, playerPosition.y, playerPosition.z);
                             }
                             else {
-                                TraceLog(LOG_INFO, "Entering building %d via door at (%.1f, %.1f, %.1f)",
-                                    nearDoor->buildingId, nearDoor->position.x, nearDoor->position.y, nearDoor->position.z);
-
+                                TraceLog(LOG_INFO, "Entering building %d", nearDoor->buildingId);
                                 g_MapPlayer.worldX = (int)playerPosition.x;
                                 g_MapPlayer.worldY = (int)playerPosition.z;
-
                                 if (g_EnhancedMapSystem) {
                                     const Interior* interior = g_EnhancedMapSystem->GetLabInterior();
-
                                     if (interior) {
                                         g_MapPlayer.insideInterior = true;
                                         g_MapPlayer.currentInteriorId = interior->id;
                                         g_MapPlayer.currentBuildingId = nearDoor->buildingId;
-
                                         if (!interior->floors.empty()) {
                                             g_MapPlayer.interiorX = interior->floors[0].playerSpawnX;
                                             g_MapPlayer.interiorY = interior->floors[0].playerSpawnY;
-
-                                            playerPosition = Vector3{
-                                                (float)g_MapPlayer.interiorX,
-                                                playerHeight,
-                                                (float)g_MapPlayer.interiorY
-                                            };
+                                            playerPosition = Vector3{ (float)g_MapPlayer.interiorX, playerHeight, (float)g_MapPlayer.interiorY };
                                             camera.position = playerPosition;
-
                                             gameManager.RegenerateScene();
-
                                             if (g_SoundManager) {
                                                 g_SoundManager->PlayMusic(MUS_AMBIENT_INSIDE, true, 2.0f);
                                             }
-
-                                            TraceLog(LOG_INFO, "Player entered interior at: (%.1f, %.1f, %.1f)",
-                                                playerPosition.x, playerPosition.y, playerPosition.z);
                                         }
                                     }
-                                    else {
-                                        TraceLog(LOG_WARNING, "Interior not found for building %d", nearDoor->buildingId);
-                                    }
-                                }
-                                else {
-                                    TraceLog(LOG_ERROR, "Enhanced map system not initialized!");
                                 }
                             }
-
                             if (g_SoundManager) {
                                 g_SoundManager->PlaySound(SND_DOOR_OPEN, 0.5f);
                             }
-                        }
-                        else {
-                            TraceLog(LOG_INFO, "No door nearby (closest is > 2.5 units away)");
                         }
                     }
                 }
@@ -562,8 +451,6 @@ int main() {
                 }
 
                 g_WeaponSystem.UpdateWeapon(g_CurrentWeaponState, deltaTime);
-
-                // FIXED: Call the weapon shooting handler
                 HandleWeaponShooting();
 
                 hunger = fmaxf(0, hunger - 0.5f * deltaTime);
@@ -571,29 +458,8 @@ int main() {
                 if (health <= 0) gameState = GameState::GameOver;
                 shotTimer = fmaxf(0, shotTimer - deltaTime);
             }
-            }
             if (g_VehicleManager) g_VehicleManager->Update(deltaTime);
             if (g_AnimationManager) g_AnimationManager->UpdateAll(deltaTime);
-        }
-        else if (gameState == GameState::Console) {
-            int key = GetCharPressed();
-            while (key > 0) {
-                if (key >= 32 && key <= 126 && consoleInputLength < MAX_COMMAND_LENGTH - 1) {
-                    consoleInput[consoleInputLength] = (char)key;
-                    consoleInputLength++;
-                    consoleInput[consoleInputLength] = '\0';
-                }
-                key = GetCharPressed();
-            }
-
-            if (IsKeyPressed(KEY_BACKSPACE) && consoleInputLength > 0) {
-                consoleInputLength--;
-                consoleInput[consoleInputLength] = '\0';
-            }
-
-            if (IsKeyPressed(KEY_ENTER)) {
-                ProcessConsoleCommand(consoleHistory, &health, &stamina, &hunger, &thirst, &isNoclip, &fov);
-            }
         }
         else if (gameState == GameState::LoadMenu) {
             if (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))) {
@@ -620,51 +486,35 @@ int main() {
 
         // RENDERING
         BeginDrawing();
-        ClearBackground(Color{ 135, 206, 235, 255 }); // Sky blue
+        ClearBackground(BLACK); // FIXED: Changed from sky blue to black
 
         if (gameState == GameState::Gameplay) {
-            // FIXED: Render game world properly
             gameManager.Render();
-
-            // FIXED: Draw HUD elements
             if (!isAnyMenuOpen) {
-                // Draw player weapon/hands in first person
                 DrawPlayerHands(camera, inventory, pistolRecoilPitch, pistolRecoilYaw);
+            }
+
+            if (showMinimap && !isAnyMenuOpen) {
+                DrawMinimapHUD(screenW, screenH, playerPosition, yaw);
+            }
+
+            g_QuestManager.DrawQuestTrackerCompact(screenW, screenH);
+
+            if (showcompass && !isAnyMenuOpen) {
+                DrawCompass(screenW, screenH, yaw);
+            }
+
+            Door* nearbyDoor = GetNearestDoor(playerPosition, 2.5f);
+            if (nearbyDoor && !isAnyMenuOpen) {
+                const char* doorText = nearbyDoor->isInteriorDoor ?
+                    "Press E to Exit Building" : "Press E to Enter Building";
+                int textWidth = MeasureText(doorText, 20);
+                DrawText(doorText, screenW / 2 - textWidth / 2, screenH - 100, 20, PIPBOY_GREEN);
             }
         }
         else if (gameState == GameState::MainMenu) {
             std::vector<std::string> opts = { "New Game", "Load Game", "Settings", "Exit" };
-            DrawMenu(GetScreenWidth(), GetScreenHeight(), opts, &mainMenuSelection,
-                false, "ECHOES OF TIME");
-        }
-
-        // FIXED: Draw minimap correctly
-        if (gameState == GameState::Gameplay && showMinimap && !isAnyMenuOpen) {
-            DrawMinimapHUD(screenW, screenH, playerPosition, yaw);
-        }
-
-        g_QuestManager.DrawQuestTrackerCompact(screenW, screenH);
-
-        // FIXED: Draw compass correctly
-        if (gameState == GameState::Gameplay && showcompass && !isAnyMenuOpen) {
-            DrawCompass(screenW, screenH, yaw);
-        }
-
-        // Also add a visual indicator when near a door (in the HUD drawing section):
-        if (gameState == GameState::Gameplay && !isAnyMenuOpen) {
-            Door* nearbyDoor = GetNearestDoor(playerPosition, 2.5f);
-            if (nearbyDoor) {
-                const char* doorText = nearbyDoor->isInteriorDoor ?
-                    "Press E to Exit Building" :
-                    "Press E to Enter Building";
-
-                int textWidth = MeasureText(doorText, 20);
-                DrawText(doorText,
-                    screenW / 2 - textWidth / 2,
-                    screenH - 100,
-                    20,
-                    PIPBOY_GREEN);
-            }
+            DrawMenu(GetScreenWidth(), GetScreenHeight(), opts, &mainMenuSelection, false, "ECHOES OF TIME");
         }
 
         if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
