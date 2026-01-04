@@ -116,49 +116,62 @@ void VehicleManager::UpdateVehiclePhysics(Vehicle& vehicle, float deltaTime) {
 
 void VehicleManager::HandleVehicleInput(float deltaTime, bool useController) {
     if (!currentVehicle) return;
-    
+
     float throttle = 0.0f;
     float brake = 0.0f;
     float steer = 0.0f;
-    
+
     // Keyboard/controller input
     if (useController && IsGamepadAvailable(0)) {
         throttle = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER);
         brake = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_TRIGGER);
         steer = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
-    } else {
+    }
+    else {
         if (IsKeyDown(KEY_W)) throttle = 1.0f;
         if (IsKeyDown(KEY_S)) brake = 1.0f;
         if (IsKeyDown(KEY_A)) steer = -1.0f;
         if (IsKeyDown(KEY_D)) steer = 1.0f;
     }
-    
-    // Apply acceleration
+
+    // FIXED: Better acceleration with deltaTime
     if (throttle > 0.1f) {
-        currentVehicle->speed += currentVehicle->acceleration * throttle * deltaTime;
+        currentVehicle->speed += currentVehicle->acceleration * throttle * deltaTime * 10.0f; // Scale up
         currentVehicle->speed = fminf(currentVehicle->speed, currentVehicle->maxSpeed);
     }
-    
-    // Apply braking
+
+    // FIXED: Better braking
     if (brake > 0.1f) {
-        float brakePower = currentVehicle->braking * brake * deltaTime;
+        float brakePower = currentVehicle->braking * brake * deltaTime * 10.0f; // Scale up
         if (currentVehicle->speed > 0) {
             currentVehicle->speed -= brakePower;
             currentVehicle->speed = fmaxf(currentVehicle->speed, 0.0f);
-        } else {
+        }
+        else {
+            // Reverse
             currentVehicle->speed += brakePower * 0.5f;
             currentVehicle->speed = fminf(currentVehicle->speed, 0.0f);
         }
     }
-    
-    // Apply friction
-    currentVehicle->speed *= 0.98f;
-    
-    // Apply steering
+
+    // FIXED: Better friction when coasting
+    if (throttle < 0.1f && brake < 0.1f) {
+        currentVehicle->speed *= 0.95f; // Friction
+        if (fabsf(currentVehicle->speed) < 0.1f) {
+            currentVehicle->speed = 0.0f;
+        }
+    }
+
+    // FIXED: Better steering
     if (fabsf(steer) > 0.1f && fabsf(currentVehicle->speed) > 0.5f) {
         currentVehicle->steeringAngle = steer * 30.0f;
-        float turnRate = currentVehicle->handling * steer * deltaTime * 60.0f;
-        currentVehicle->rotation += turnRate * (currentVehicle->speed / currentVehicle->maxSpeed);
+        float turnRate = currentVehicle->handling * steer * deltaTime * 100.0f; // Scale up
+        float speedFactor = fabsf(currentVehicle->speed) / currentVehicle->maxSpeed;
+        currentVehicle->rotation += turnRate * speedFactor;
+    }
+    else {
+        // Decay steering
+        currentVehicle->steeringAngle *= 0.8f;
     }
 }
 

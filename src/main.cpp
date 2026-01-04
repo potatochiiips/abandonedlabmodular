@@ -370,66 +370,41 @@ int main() {
                     g_VehicleManager->HandleVehicleInput(deltaTime, useController);
                     Vehicle* v = g_VehicleManager->GetPlayerVehicle();
                     if (v) {
-                        camera.position = Vector3{ v->position.x, v->position.y + 3.0f, v->position.z - 5.0f };
-                        camera.target = v->position;
+                        // FIXED: Better camera following
+                        float radians = v->rotation * DEG2RAD;
+                        Vector3 behindOffset = { -sinf(radians) * 8.0f, 0.0f, -cosf(radians) * 8.0f };
+
+                        camera.position = Vector3Add(v->position, behindOffset);
+                        camera.position.y = v->position.y + 4.0f; // Height above vehicle
+                        camera.target = Vector3Add(v->position, Vector3{ 0, 1.0f, 0 });
+
+                        // Update player position to match vehicle
+                        playerPosition = v->position;
                     }
                     if (IsKeyPressed(KEY_F) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT))) {
                         g_VehicleManager->ExitVehicle();
                         playerPosition = v->position;
+                        playerPosition.y = playerHeight; // Reset to ground level
                     }
                 }
-                else {
-                    UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
-                }
+                // FIXED: Apply zombie damage to player
+                if (g_ZombieManager && !isAnyMenuOpen) {
+                    const auto& zombies = g_ZombieManager->GetZombies();
+                    for (const auto& zombie : zombies) {
+                        if (!zombie.isAlive) continue;
 
-                if (IsKeyPressed(KEY_E)) {
-                    if (g_VehicleManager && !g_VehicleManager->TryEnterVehicle(playerPosition)) {
-                        Door* nearDoor = GetNearestDoor(playerPosition, 2.5f);
-                        if (nearDoor) {
-                            if (nearDoor->isInteriorDoor) {
-                                TraceLog(LOG_INFO, "Exiting interior");
-                                g_MapPlayer.insideInterior = false;
-                                playerPosition = Vector3{ (float)g_MapPlayer.worldX, playerHeight, (float)g_MapPlayer.worldY };
-                                camera.position = playerPosition;
-                                gameManager.RegenerateScene();
-                                if (g_SoundManager) {
-                                    g_SoundManager->PlayMusic(MUS_AMBIENT_OUTSIDE, true, 2.0f);
-                                }
-                            }
-                            else {
-                                TraceLog(LOG_INFO, "Entering building %d", nearDoor->buildingId);
-                                g_MapPlayer.worldX = (int)playerPosition.x;
-                                g_MapPlayer.worldY = (int)playerPosition.z;
-                                if (g_EnhancedMapSystem) {
-                                    const Interior* interior = g_EnhancedMapSystem->GetLabInterior();
-                                    if (interior) {
-                                        g_MapPlayer.insideInterior = true;
-                                        g_MapPlayer.currentInteriorId = interior->id;
-                                        g_MapPlayer.currentBuildingId = nearDoor->buildingId;
-                                        if (!interior->floors.empty()) {
-                                            g_MapPlayer.interiorX = interior->floors[0].playerSpawnX;
-                                            g_MapPlayer.interiorY = interior->floors[0].playerSpawnY;
-                                            playerPosition = Vector3{ (float)g_MapPlayer.interiorX, playerHeight, (float)g_MapPlayer.interiorY };
-                                            camera.position = playerPosition;
-                                            gameManager.RegenerateScene();
-                                            if (g_SoundManager) {
-                                                g_SoundManager->PlayMusic(MUS_AMBIENT_INSIDE, true, 2.0f);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            if (g_SoundManager) {
-                                g_SoundManager->PlaySound(SND_DOOR_OPEN, 0.5f);
+                        float dist = Vector3Distance(playerPosition, zombie.position);
+                        if (dist < zombie.attackRange && zombie.attackCooldown <= 0.0f) {
+                            health -= zombie.attackDamage;
+                            if (health < 0) health = 0;
+                            TraceLog(LOG_INFO, "Zombie attacked! Health: %.1f", health);
+
+                            if (g_HUDManager) {
+                                g_HUDManager->ShowDamageIndicator(zombie.attackDamage);
                             }
                         }
                     }
                 }
-
-                UpdateDoors(deltaTime);
-                if (IsKeyPressed(KEY_F) && !g_VehicleManager->IsPlayerInVehicle())
-                    isFlashlightOn = !isFlashlightOn;
-
                 int eq = inventory[BACKPACK_SLOTS].itemId;
                 if (eq == ITEM_PISTOL || eq == ITEM_M16) {
                     g_CurrentWeaponState.isADS = IsMouseButtonDown(MOUSE_RIGHT_BUTTON) ||

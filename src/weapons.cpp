@@ -21,6 +21,7 @@ void HandleWeaponShooting() {
     extern HUDManager* g_HUDManager;
     extern Camera3D camera;
     extern bool isReloading;
+    extern float pistolRecoilPitch, pistolRecoilYaw;
 
     // Check if we can shoot
     if (isReloading) return;
@@ -39,6 +40,9 @@ void HandleWeaponShooting() {
         }
 
         // Apply recoil
+        pistolRecoilPitch += stats->recoilPitch;
+        pistolRecoilYaw += (rand() % 100 - 50) / 100.0f * stats->recoilYaw;
+
         if (g_WeaponRenderer) {
             g_WeaponRenderer->ApplyRecoil(stats->recoilPitch, stats->recoilYaw);
         }
@@ -50,30 +54,34 @@ void HandleWeaponShooting() {
         Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
         Vector3 shootOrigin = camera.position;
 
-        // Raycast for hits
+        // FIXED: Proper raycast for zombie hits
         bool didHit = false;
 
-        // Check zombie hits - FIXED: Proper raycast
         if (g_ZombieManager) {
             const auto& zombies = g_ZombieManager->GetZombies();
-            float closestDist = 100.0f;
+            float closestDist = 1000.0f;
             Zombie* hitZombie = nullptr;
 
             for (const auto& zombie : zombies) {
                 if (!zombie.isAlive) continue;
 
-                // Check if ray hits zombie
-                float dist = Vector3Distance(shootOrigin, zombie.position);
-                if (dist > closestDist) continue;
-
-                // Simple sphere collision check
+                // Raycast to zombie
                 Vector3 toZombie = Vector3Subtract(zombie.position, shootOrigin);
-                float dotProduct = Vector3DotProduct(Vector3Normalize(toZombie), forward);
+                float distance = Vector3Length(toZombie);
 
-                if (dotProduct > 0.99f && dist < 50.0f) { // Within 50 units and looking at zombie
-                    closestDist = dist;
-                    hitZombie = const_cast<Zombie*>(&zombie);
-                    didHit = true;
+                if (distance > 100.0f) continue; // Max range
+
+                Vector3 toZombieNorm = Vector3Normalize(toZombie);
+                float alignment = Vector3DotProduct(forward, toZombieNorm);
+
+                // Check if looking at zombie (more lenient check)
+                if (alignment > 0.95f) { // Within ~18 degree cone
+                    // Check if this is the closest zombie in our aim
+                    if (distance < closestDist) {
+                        closestDist = distance;
+                        hitZombie = const_cast<Zombie*>(&zombie);
+                        didHit = true;
+                    }
                 }
             }
 
@@ -84,10 +92,9 @@ void HandleWeaponShooting() {
             }
         }
 
-        // FIXED: Show hit marker when we hit something
+        // Show hit marker when we hit
         if (didHit && g_HUDManager) {
             g_HUDManager->ShowHitMarker();
-            TraceLog(LOG_INFO, "Showing hit marker!");
         }
 
         // Play sound
