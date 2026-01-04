@@ -10,6 +10,7 @@
 #include "rlgl.h"
 #include "vehicle_system.h"
 #include "skybox.h"
+#include "hud.h"
 
 UpgradedGameManager::UpgradedGameManager() {
 }
@@ -51,7 +52,6 @@ void UpgradedGameManager::SetupScene() {
 
     // Generate world geometry from enhanced map system OR interior
     if (g_MapPlayer.insideInterior && g_EnhancedMapSystem) {
-        // Player is inside an interior - load interior geometry
         const Interior* interior = g_EnhancedMapSystem->GetLabInterior();
         if (interior) {
             TraceLog(LOG_INFO, "Loading interior geometry: %s", interior->id.c_str());
@@ -63,12 +63,10 @@ void UpgradedGameManager::SetupScene() {
         }
     }
     else if (g_EnhancedMapSystem) {
-        // Player is outside - load world geometry
         TraceLog(LOG_INFO, "Generating world geometry from Enhanced Map System");
         mapRenderer->GenerateEnhancedWorld();
     }
     else {
-        // Fallback to old system
         mapRenderer->GenerateWorldGeometry(g_MapData);
     }
 
@@ -78,23 +76,20 @@ void UpgradedGameManager::SetupScene() {
 }
 
 void UpgradedGameManager::SetupLighting() {
-    // Clear existing lights
     for (auto* light : sceneLights) {
         delete light;
     }
     sceneLights.clear();
 
-    // Main directional light (sun/moon)
     UpgradedLight* mainLight = new UpgradedLight();
     mainLight->type = LIGHT_DIRECTIONAL;
     mainLight->direction = Vector3{ 0.5f, -1.0f, 0.3f };
     mainLight->color = Color{ 255, 250, 220, 255 };
     mainLight->intensity = 1.0f;
-    mainLight->castShadows = false; // Disable shadows for performance
+    mainLight->castShadows = false;
     mainLight->shadowResolution = 2048;
     sceneLights.push_back(mainLight);
 
-    // Flashlight (spot light)
     extern bool isFlashlightOn;
     if (isFlashlightOn) {
         UpgradedLight* flashlight = new UpgradedLight();
@@ -109,7 +104,6 @@ void UpgradedGameManager::SetupLighting() {
         sceneLights.push_back(flashlight);
     }
 
-    // Set ambient lighting
     Color ambientColor = Color{ 100, 110, 120, 255 };
     if (g_DayNightCycle) {
         ambientColor = g_DayNightCycle->GetAmbientColor();
@@ -119,7 +113,6 @@ void UpgradedGameManager::SetupLighting() {
         g_UpgradedPipeline->SetAmbientLight(ambientColor, 0.5f);
     }
 
-    // Set fog
     bool fogEnabled = false;
     Color fogColor = Color{ 128, 128, 128, 255 };
     float fogDensity = 0.05f;
@@ -138,14 +131,12 @@ void UpgradedGameManager::SetupLighting() {
 void UpgradedGameManager::Update(float deltaTime) {
     UpdateCamera();
 
-    // Update subsystems
     mapRenderer->Update(deltaTime, mainCamera.camera);
     hudManager->Update(deltaTime);
     weaponRenderer->Update(deltaTime, mainCamera.camera);
 
     UpdateWeaponRendering();
 
-    // Update lighting based on day/night cycle
     if (g_DayNightCycle && !sceneLights.empty()) {
         UpgradedLight* sun = sceneLights[0];
         sun->direction = g_DayNightCycle->GetSunDirection();
@@ -153,7 +144,6 @@ void UpgradedGameManager::Update(float deltaTime) {
         sun->intensity = g_DayNightCycle->GetLightIntensity();
     }
 
-    // Update flashlight position
     extern bool isFlashlightOn;
     for (auto* light : sceneLights) {
         if (light->type == LIGHT_SPOT) {
@@ -163,7 +153,6 @@ void UpgradedGameManager::Update(float deltaTime) {
         }
     }
 
-    // Check for low health warning
     extern float health;
     hudManager->SetLowHealthWarning(health < 30.0f);
 }
@@ -201,11 +190,9 @@ void UpgradedGameManager::UpdateWeaponRendering() {
 }
 
 void UpgradedGameManager::CollectRenderables(std::vector<MeshRenderer*>& renderers) {
-    // Collect map geometry
     std::vector<MeshRenderer*> mapRenderers = mapRenderer->GetActiveRenderers();
     renderers.insert(renderers.end(), mapRenderers.begin(), mapRenderers.end());
 
-    // Add weapon renderer
     MeshRenderer* weapon = weaponRenderer->GetWeaponRenderer();
     if (weapon) {
         renderers.push_back(weapon);
@@ -216,18 +203,14 @@ void UpgradedGameManager::Render() {
     int screenW = GetScreenWidth();
     int screenH = GetScreenHeight();
 
-    // FIXED: Use traditional rendering instead of Upgraded pipeline
-    // The Upgraded pipeline is too complex and causing white screen issues
-
     BeginMode3D(mainCamera.camera);
 
-    // Draw skybox first
-    if (g_SkyboxManager) {
+    // Draw skybox first - ONLY if outside
+    if (!g_MapPlayer.insideInterior && g_SkyboxManager) {
         g_SkyboxManager->Draw(camera);
     }
 
-    // FIXED: Draw world using traditional method
-    // Draw map geometry directly
+    // Draw map geometry
     std::vector<MeshRenderer*> renderers = mapRenderer->GetActiveRenderers();
     for (auto* renderer : renderers) {
         if (!renderer->enabled) continue;
@@ -235,7 +218,6 @@ void UpgradedGameManager::Render() {
         rlPushMatrix();
         rlMultMatrixf(MatrixToFloat(renderer->transform));
 
-        // Draw mesh with material colors
         if (renderer->material) {
             BeginShaderMode(renderer->material->GetShader());
             DrawMesh(renderer->mesh, LoadMaterialDefault(), MatrixIdentity());
@@ -263,22 +245,66 @@ void UpgradedGameManager::Render() {
 
     EndMode3D();
 
-    // Draw weather effects after 3D rendering
+    // Draw weather effects AFTER 3D
     if (g_WeatherSystem) {
         g_WeatherSystem->Draw(camera);
     }
 
-    // FIXED: Draw HUD elements
+    // FIXED: Draw weapon in first person AFTER 3D scene
+    extern InventorySlot inventory[TOTAL_INVENTORY_SLOTS];
+    extern float pistolRecoilPitch, pistolRecoilYaw;
+    extern bool inventoryOpen, isCraftingOpen, isMapOpen;
+
+    bool isAnyMenuOpen = (inventoryOpen || isCraftingOpen || isMapOpen);
+
+    if (!isAnyMenuOpen && inventory[BACKPACK_SLOTS].itemId != ITEM_NONE) {
+        // Draw weapon using the weapon renderer directly
+        BeginMode3D(mainCamera.camera);
+
+        // Get weapon model and draw it manually
+        if (g_ModelManager) {
+            ModelID modelId = GetModelIDFromItem(inventory[BACKPACK_SLOTS].itemId);
+
+            Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+            Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
+            Vector3 up = Vector3Normalize(camera.up);
+
+            // Weapon position in first person
+            float handDistance = 0.5f;
+            float handRightOffset = 0.2f;
+            float handDownOffset = -0.25f;
+
+            Vector3 weaponPos = camera.position;
+            weaponPos = Vector3Add(weaponPos, Vector3Scale(forward, handDistance));
+            weaponPos = Vector3Add(weaponPos, Vector3Scale(right, handRightOffset));
+            weaponPos = Vector3Add(weaponPos, Vector3Scale(up, handDownOffset));
+
+            // Apply recoil
+            if (pistolRecoilPitch > 0.01f || pistolRecoilYaw > 0.01f) {
+                weaponPos = Vector3Add(weaponPos, Vector3Scale(forward, -pistolRecoilPitch * 0.002f));
+                weaponPos = Vector3Add(weaponPos, Vector3Scale(up, pistolRecoilPitch * 0.003f));
+            }
+
+            // Draw weapon
+            g_ModelManager->DrawModel(modelId, weaponPos, forward, right, up, WHITE);
+        }
+
+        EndMode3D();
+    }
+
+    // Draw HUD
     extern float health, stamina, hunger, thirst;
     extern float flashlightBattery;
     extern bool isFlashlightOn;
-    extern InventorySlot inventory[TOTAL_INVENTORY_SLOTS];
     extern float yaw;
 
     hudManager->DrawPlayerStats(screenW, screenH, health, stamina, hunger, thirst);
     hudManager->DrawWeaponInfo(screenW, screenH, inventory[BACKPACK_SLOTS]);
     hudManager->DrawFlashlightStatus(screenW, screenH, flashlightBattery, isFlashlightOn);
     hudManager->DrawCrosshair(screenW, screenH, isAimingDownSights);
+
+    // FIXED: Draw hit marker
+    hudManager->DrawHitMarker(screenW, screenH);
 
     // Damage vignette
     static float lastHealth = 100.0f;
@@ -291,7 +317,6 @@ void UpgradedGameManager::Render() {
 }
 
 void UpgradedGameManager::Cleanup() {
-    // Cleanup scene lights
     for (auto* light : sceneLights) {
         delete light;
     }

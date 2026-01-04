@@ -2,6 +2,7 @@
 #include "daynight_system.h"
 #include "weather_system.h"
 #include "zombie_system.h"
+#include "vehicle_system.h"
 #include "player.h"
 #include <algorithm>
 #include <sstream>
@@ -33,11 +34,12 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
         history.push_back("  setfov <value> - Set FOV (30-120)");
         history.push_back("  god - Toggle god mode");
         history.push_back("  spawn <item> - Spawn item");
+        history.push_back("  spawnvehicle <type> - Spawn vehicle (sedan/suv/pickup/van)");
+        history.push_back("  spawnzombie [count] - Spawn zombie(s) nearby");
         history.push_back("  clear - Clear console");
         history.push_back("  teleport <x> <y> <z> - Teleport");
         history.push_back("  time <hour> - Set time (0-24)");
         history.push_back("  weather <type> - Set weather");
-        history.push_back("  spawnzombie - Spawn zombie nearby");
     }
     else if (command == "noclip" && isNoclip) {
         *isNoclip = !(*isNoclip);
@@ -122,6 +124,88 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
             }
         }
     }
+    else if (command == "spawnvehicle") {
+        std::string vehicleType;
+        ss >> vehicleType;
+
+        if (vehicleType.empty()) {
+            history.push_back("Usage: spawnvehicle <type>");
+            history.push_back("Types: sedan, suv, pickup, van");
+        }
+        else {
+            std::transform(vehicleType.begin(), vehicleType.end(), vehicleType.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+            VehicleType type = VEHICLE_SEDAN;
+            bool validType = true;
+
+            if (vehicleType == "sedan") type = VEHICLE_SEDAN;
+            else if (vehicleType == "suv") type = VEHICLE_SUV;
+            else if (vehicleType == "pickup") type = VEHICLE_PICKUP;
+            else if (vehicleType == "van") type = VEHICLE_VAN;
+            else validType = false;
+
+            if (validType && g_VehicleManager) {
+                extern Vector3 playerPosition;
+                extern Camera3D camera;
+
+                // Spawn vehicle 5 units in front of player
+                Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
+                Vector3 spawnPos = Vector3Add(playerPosition, Vector3Scale(forward, 5.0f));
+                spawnPos.y = 1.0f; // Ground level
+
+                extern float yaw;
+                int vehicleId = g_VehicleManager->SpawnVehicle(type, spawnPos, yaw);
+
+                history.push_back(TextFormat("Spawned %s (ID: %d) at (%.1f, %.1f, %.1f)",
+                    vehicleType.c_str(), vehicleId,
+                    spawnPos.x, spawnPos.y, spawnPos.z));
+            }
+            else if (!validType) {
+                history.push_back(TextFormat("Unknown vehicle type: %s", vehicleType.c_str()));
+                history.push_back("Valid types: sedan, suv, pickup, van");
+            }
+            else {
+                history.push_back("Vehicle system not available!");
+            }
+        }
+    }
+    else if (command == "spawnzombie") {
+        int count = 1;
+        ss >> count;
+
+        if (ss.fail()) count = 1;
+        if (count < 1) count = 1;
+        if (count > 10) {
+            history.push_back("Maximum 10 zombies at once!");
+            count = 10;
+        }
+
+        if (g_ZombieManager) {
+            extern Vector3 playerPosition;
+
+            for (int i = 0; i < count; i++) {
+                // Spawn zombies in a circle around player
+                float angle = (i / (float)count) * 2.0f * PI;
+                float distance = 8.0f + (rand() % 5);
+
+                Vector3 spawnPos;
+                spawnPos.x = playerPosition.x + cosf(angle) * distance;
+                spawnPos.y = 1.0f;
+                spawnPos.z = playerPosition.z + sinf(angle) * distance;
+
+                int zombieId = g_ZombieManager->SpawnZombie(spawnPos);
+
+                if (i == 0) {
+                    history.push_back(TextFormat("Spawned %d zombie%s nearby",
+                        count, count > 1 ? "s" : ""));
+                }
+            }
+        }
+        else {
+            history.push_back("Zombie system not available!");
+        }
+    }
     else if (command == "teleport") {
         float x, y, z;
         ss >> x >> y >> z;
@@ -174,18 +258,6 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
             }
         }
     }
-    else if (command == "spawnzombie") {
-        if (g_ZombieManager) {
-            extern Vector3 playerPosition;
-            Vector3 spawnPos = playerPosition;
-            spawnPos.x += 5.0f;
-            g_ZombieManager->SpawnZombie(spawnPos);
-            history.push_back("Zombie spawned nearby");
-        }
-        else {
-            history.push_back("Zombie system not available");
-        }
-    }
     else {
         history.push_back("Unknown command. Type 'help' for list of commands.");
     }
@@ -214,9 +286,9 @@ void DrawConsole(int screenW, int screenH, const std::vector<std::string>& histo
     DrawText(TextFormat("] %s_", input ? input : ""), 10, screenH / 2 - 25, 18, PIPBOY_GREEN);
 }
 
-// FIXED: Console input handling - check game state properly
+// FIXED: Proper console input handling
 void UpdateConsoleInput(float* health, float* stamina, float* hunger, float* thirst, bool* isNoclip, float* fov) {
-    // FIXED: Only process typed characters, not special keys
+    // Get typed characters
     int key = GetCharPressed();
     while (key > 0) {
         // Only accept printable characters (space to ~)
@@ -228,13 +300,13 @@ void UpdateConsoleInput(float* health, float* stamina, float* hunger, float* thi
         key = GetCharPressed();
     }
 
-    // Handle backspace separately
+    // Handle backspace
     if (IsKeyPressed(KEY_BACKSPACE) && consoleInputLength > 0) {
         consoleInputLength--;
         consoleInput[consoleInputLength] = '\0';
     }
 
-    // Handle enter separately
+    // Handle enter
     if (IsKeyPressed(KEY_ENTER)) {
         ProcessConsoleCommand(consoleHistory, health, stamina, hunger, thirst, isNoclip, fov);
     }

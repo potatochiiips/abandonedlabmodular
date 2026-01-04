@@ -375,21 +375,57 @@ int main() {
                 gameState = stateBeforeSettings;
             }
         }
-
         if (IsKeyPressed(KEY_GRAVE)) {
             if (gameState == GameState::Gameplay) {
                 gameState = GameState::Console;
+                TraceLog(LOG_INFO, "Console opened");
             }
             else if (gameState == GameState::Console) {
                 gameState = GameState::Gameplay;
+                TraceLog(LOG_INFO, "Console closed");
             }
         }
 
+        // FIXED: Escape key handling for console
+        if (IsKeyPressed(KEY_ESCAPE)) {
+            if (gameState == GameState::Console) {
+                // Close console with ESC
+                gameState = GameState::Gameplay;
+                TraceLog(LOG_INFO, "Console closed via ESC");
+            }
+            else if (gameState == GameState::Gameplay && !isAnyMenuOpen) {
+                gameState = GameState::Paused;
+                pauseMenuSelection = 0;
+                stateBeforeSettings = GameState::Paused;
+            }
+            else if (gameState == GameState::Paused) {
+                gameState = GameState::Gameplay;
+            }
+            else if (isAnyMenuOpen) {
+                CloseInGameMenus();
+            }
+            else if (gameState == GameState::LoadMenu) {
+                gameState = stateBeforeSettings;
+            }
+            else if (gameState == GameState::Settings ||
+                gameState == GameState::GraphicsSettings ||
+                gameState == GameState::AudioSettings ||
+                gameState == GameState::ControllerBindings) {
+                gameState = stateBeforeSettings;
+            }
+        }
+
+        // Update sound manager
         if (g_SoundManager) {
             g_SoundManager->Update(deltaTime);
         }
 
-        if (gameState == GameState::Gameplay) {
+        // FIXED: Console input handling - only when console is open
+        if (gameState == GameState::Console) {
+            UpdateConsoleInput(&health, &stamina, &hunger, &thirst, &isNoclip, &fov);
+        }
+        else if (gameState == GameState::Gameplay) {
+            // Regular gameplay input handling
             if (IsKeyPressed(KEY_I) || (useController && IsActionPressed(ACTION_INVENTORY, bindings))) {
                 CloseInGameMenus();
                 inventoryOpen = !inventoryOpen;
@@ -420,22 +456,19 @@ int main() {
                 else {
                     UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
                 }
+
                 // Door interaction (E key)
                 if (IsKeyPressed(KEY_E)) {
                     if (g_VehicleManager && !g_VehicleManager->TryEnterVehicle(playerPosition)) {
-                        // Check for nearby door
                         Door* nearDoor = GetNearestDoor(playerPosition, 2.5f);
 
                         if (nearDoor) {
                             if (nearDoor->isInteriorDoor) {
-                                // ===== EXIT INTERIOR =====
                                 TraceLog(LOG_INFO, "Exiting interior via door at (%.1f, %.1f, %.1f)",
                                     nearDoor->position.x, nearDoor->position.y, nearDoor->position.z);
 
-                                // Set player state to exterior
                                 g_MapPlayer.insideInterior = false;
 
-                                // Restore world position (outside the building)
                                 playerPosition = Vector3{
                                     (float)g_MapPlayer.worldX,
                                     playerHeight,
@@ -443,10 +476,8 @@ int main() {
                                 };
                                 camera.position = playerPosition;
 
-                                // Regenerate world geometry
                                 gameManager.RegenerateScene();
 
-                                // Switch music
                                 if (g_SoundManager) {
                                     g_SoundManager->PlayMusic(MUS_AMBIENT_OUTSIDE, true, 2.0f);
                                 }
@@ -455,25 +486,20 @@ int main() {
                                     playerPosition.x, playerPosition.y, playerPosition.z);
                             }
                             else {
-                                // ===== ENTER INTERIOR =====
                                 TraceLog(LOG_INFO, "Entering building %d via door at (%.1f, %.1f, %.1f)",
                                     nearDoor->buildingId, nearDoor->position.x, nearDoor->position.y, nearDoor->position.z);
 
-                                // Store current world position
                                 g_MapPlayer.worldX = (int)playerPosition.x;
                                 g_MapPlayer.worldY = (int)playerPosition.z;
 
-                                // Get the building's interior
                                 if (g_EnhancedMapSystem) {
                                     const Interior* interior = g_EnhancedMapSystem->GetLabInterior();
 
                                     if (interior) {
-                                        // Set player state to interior
                                         g_MapPlayer.insideInterior = true;
                                         g_MapPlayer.currentInteriorId = interior->id;
                                         g_MapPlayer.currentBuildingId = nearDoor->buildingId;
 
-                                        // Spawn at interior entrance
                                         if (!interior->floors.empty()) {
                                             g_MapPlayer.interiorX = interior->floors[0].playerSpawnX;
                                             g_MapPlayer.interiorY = interior->floors[0].playerSpawnY;
@@ -485,10 +511,8 @@ int main() {
                                             };
                                             camera.position = playerPosition;
 
-                                            // Regenerate interior geometry
                                             gameManager.RegenerateScene();
 
-                                            // Switch music
                                             if (g_SoundManager) {
                                                 g_SoundManager->PlayMusic(MUS_AMBIENT_INSIDE, true, 2.0f);
                                             }
@@ -506,18 +530,15 @@ int main() {
                                 }
                             }
 
-                            // Play door sound
                             if (g_SoundManager) {
                                 g_SoundManager->PlaySound(SND_DOOR_OPEN, 0.5f);
                             }
                         }
                         else {
-                            // No door nearby - try other interactions
                             TraceLog(LOG_INFO, "No door nearby (closest is > 2.5 units away)");
                         }
                     }
                 }
-
 
                 UpdateDoors(deltaTime);
                 if (IsKeyPressed(KEY_F) && !g_VehicleManager->IsPlayerInVehicle())
@@ -545,52 +566,14 @@ int main() {
 
                 g_WeaponSystem.UpdateWeapon(g_CurrentWeaponState, deltaTime);
 
-                bool shootPressed = IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ||
-                    (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_TRIGGER_2));
-
-                if (shootPressed && shotTimer <= 0 && !isReloading) {
-                    WeaponStats* s = g_WeaponSystem.GetWeaponStats(eq);
-                    if (s && inventory[BACKPACK_SLOTS].ammo > 0) {
-                        shotTimer = s->fireRate;
-                        inventory[BACKPACK_SLOTS].ammo--;
-                        g_CurrentWeaponState.animState = ANIM_SHOOT;
-                        g_CurrentWeaponState.animTimer = 0.2f;
-
-                        g_CurrentWeaponState.recoilOffset.y = -0.05f;
-                        g_CurrentWeaponState.recoilOffset.z = -0.02f;
-
-                        pitch -= s->recoilPitch;
-                        yaw += (rand() % 100 - 50) / 100.0f * s->recoilYaw;
-
-                        if (g_SoundManager) {
-                            if (eq == ITEM_PISTOL) {
-                                g_SoundManager->PlaySound(SND_PISTOL_SHOT, 0.7f);
-                            }
-                            else if (eq == ITEM_M16) {
-                                g_SoundManager->PlaySound(SND_RIFLE_SHOT, 0.7f);
-                            }
-                        }
-
-                        Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
-
-                        if (g_ZombieManager) {
-                            Zombie* hitZombie = g_ZombieManager->GetZombieAt(camera.position, 2.0f);
-                            if (hitZombie) {
-                                g_ZombieManager->DamageZombie(hitZombie->id, s->damage);
-                            }
-                        }
-                    }
-                    else if (s) {
-                        if (g_SoundManager) {
-                            g_SoundManager->PlaySound(SND_EMPTY_CLICK, 0.5f);
-                        }
-                    }
-                }
+                // FIXED: Call the weapon shooting handler
+                HandleWeaponShooting();
 
                 hunger = fmaxf(0, hunger - 0.5f * deltaTime);
                 thirst = fmaxf(0, thirst - 0.7f * deltaTime);
                 if (health <= 0) gameState = GameState::GameOver;
                 shotTimer = fmaxf(0, shotTimer - deltaTime);
+            }
             }
             if (g_VehicleManager) g_VehicleManager->Update(deltaTime);
             if (g_AnimationManager) g_AnimationManager->UpdateAll(deltaTime);

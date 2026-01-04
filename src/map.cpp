@@ -9,23 +9,20 @@
 #include <rlgl.h>
 #include "rendering.h"
 #include "enhanced_map_system.h"
+
 // Global instance definitions
 UpgradedMapRenderer* g_UpgradedMapRenderer = nullptr;
 std::vector<Door> doors;
 MapPlayerState g_MapPlayer;
 MapData g_MapData;
-// Forward declaration
-struct Player;
 
-// Define MAP_WIDTH/HEIGHT for map.cpp
 #define MAP_WIDTH MAP_SIZE
 #define MAP_HEIGHT MAP_SIZE
 
-// Wall heights
 #define WALL_HEIGHT 3.0f
 #define DOOR_HEIGHT 2.5f
 #define CEILING_HEIGHT 3.0f
-#define FLOOR_HEIGHT 4.0f  // Distance between floors
+#define FLOOR_HEIGHT 4.0f
 
 UpgradedMapRenderer::UpgradedMapRenderer() : nextPropId(1) {
 }
@@ -33,6 +30,7 @@ UpgradedMapRenderer::UpgradedMapRenderer() : nextPropId(1) {
 UpgradedMapRenderer::~UpgradedMapRenderer() {
     Cleanup();
 }
+
 void UpgradedMapRenderer::GenerateEnhancedWorld() {
     TraceLog(LOG_INFO, "Generating enhanced world geometry...");
 
@@ -49,16 +47,11 @@ void UpgradedMapRenderer::GenerateEnhancedWorld() {
 
     // Generate buildings from enhanced map system
     if (g_EnhancedMapSystem) {
-        // Get all buildings from enhanced map system
-        // For now, create simple box buildings at each building location
-
-        // This is a temporary visualization - replace with actual building models
         for (int i = 0; i < 10; i++) {
             auto buildingRenderer = std::make_unique<MeshRenderer>();
             buildingRenderer->mesh = GenMeshCube(8.0f, 15.0f, 8.0f);
             buildingRenderer->material = CreateOpaqueMaterial(TEX_BUILDING_EXTERIOR, Color{ 120, 120, 130, 255 });
 
-            // Place buildings in a grid for testing
             float x = 100.0f + (i % 5) * 20.0f;
             float z = 100.0f + (i / 5) * 20.0f;
             buildingRenderer->transform = MatrixTranslate(x, 7.5f, z);
@@ -71,36 +64,25 @@ void UpgradedMapRenderer::GenerateEnhancedWorld() {
 
     TraceLog(LOG_INFO, "Enhanced world geometry generated: %d renderers", (int)worldRenderers.size());
 }
+
 void UpgradedMapRenderer::Initialize() {
     TraceLog(LOG_INFO, "Initializing Map Renderer...");
     InitializeMaterials();
 }
 
 void UpgradedMapRenderer::InitializeMaterials() {
-    // Wall material
-    wallMaterial = CreateOpaqueMaterial(TEX_WALL_CONCRETE, WHITE);
-
-    // Floor material
-    floorMaterial = CreateOpaqueMaterial(TEX_FLOOR_TILE, WHITE);
-
-    // Door material
+    // FIXED: Use proper textures for interiors
+    wallMaterial = CreateOpaqueMaterial(TEX_WALL_CONCRETE, Color{ 200, 200, 205, 255 });
+    floorMaterial = CreateOpaqueMaterial(TEX_FLOOR_TILE, Color{ 220, 220, 220, 255 });
     doorMaterial = CreateOpaqueMaterial(TEX_DOOR_METAL, Color{ 100, 100, 110, 255 });
-
-    // Concrete material
     concreteMaterial = CreateOpaqueMaterial(TEX_FLOOR_CONCRETE, Color{ 120, 120, 125, 255 });
-
-    // Grass material
     grassMaterial = CreateOpaqueMaterial(TEX_GRASS, Color{ 50, 140, 50, 255 });
-
-    // Water material (transparent)
     waterMaterial = CreateTransparentMaterial(TEX_GRASS, Color{ 30, 60, 120, 180 });
     waterMaterial->SetRenderQueue(QUEUE_TRANSPARENT);
-
-    // Glass material (transparent)
     glassMaterial = CreateTransparentMaterial(TEX_WINDOW_GLASS, Color{ 135, 206, 235, 100 });
     glassMaterial->SetRenderQueue(QUEUE_TRANSPARENT);
 
-    TraceLog(LOG_INFO, "Map materials initialized");
+    TraceLog(LOG_INFO, "Map materials initialized with proper textures");
 }
 
 std::shared_ptr<UpgradedMaterial> UpgradedMapRenderer::CreateOpaqueMaterial(TextureID texture, Color tint) {
@@ -134,7 +116,6 @@ void UpgradedMapRenderer::GenerateWorldGeometry(const MapData& mapData) {
 
     worldRenderers.clear();
 
-    // Generate terrain/ground
     for (int z = 0; z < mapData.height; z++) {
         for (int x = 0; x < mapData.width; x++) {
             int tile = mapData.tiles[z * mapData.width + x];
@@ -155,19 +136,16 @@ void UpgradedMapRenderer::GenerateWorldGeometry(const MapData& mapData) {
                 break;
 
             case WT_BUILDING_FOOTPRINT:
-                // Buildings handled separately
                 CreateFloor(pos, 1.0f, TEX_FLOOR_CONCRETE);
                 break;
             }
         }
     }
 
-    // Generate buildings
     for (const Building& building : mapData.buildings) {
         CreateBuilding(building);
     }
 
-    // Generate exterior doors
     for (const Door& door : doors) {
         if (!door.isInteriorDoor) {
             CreateDoor(door);
@@ -182,25 +160,46 @@ void UpgradedMapRenderer::GenerateInteriorGeometry(const Interior& interior) {
 
     interiorRenderers.clear();
 
+    // FIXED: Use proper materials for interior
     for (int y = 0; y < interior.height; y++) {
         for (int x = 0; x < interior.width; x++) {
             int tile = interior.tiles[y * interior.width + x];
             Vector3 pos = { (float)x, 0.0f, (float)y };
 
-            // Floor (draw everywhere except empty)
+            // Floor - use FLOOR material
             if (tile != IT_EMPTY) {
-                CreateFloor(pos, 1.0f, TEX_FLOOR_TILE);
+                auto floorRenderer = std::make_unique<MeshRenderer>();
+                floorRenderer->mesh = GenMeshCube(1.0f, 0.1f, 1.0f);
+                floorRenderer->material = floorMaterial; // Use floor material
+
+                Vector3 floorPos = pos;
+                floorPos.y = 0.05f;
+                floorRenderer->transform = MatrixTranslate(floorPos.x, floorPos.y, floorPos.z);
+
+                floorRenderer->castShadows = false;
+                floorRenderer->receiveShadows = true;
+                interiorRenderers.push_back(std::move(floorRenderer));
             }
 
-            // Walls
+            // Walls - use WALL material
             if (tile == IT_WALL) {
-                CreateWall(pos, TEX_WALL_CONCRETE);
+                auto wallRenderer = std::make_unique<MeshRenderer>();
+                wallRenderer->mesh = GenMeshCube(1.0f, WALL_HEIGHT, 1.0f);
+                wallRenderer->material = wallMaterial; // Use wall material
+
+                Vector3 wallPos = pos;
+                wallPos.y = WALL_HEIGHT / 2.0f;
+                wallRenderer->transform = MatrixTranslate(wallPos.x, wallPos.y, wallPos.z);
+
+                wallRenderer->castShadows = true;
+                wallRenderer->receiveShadows = true;
+                interiorRenderers.push_back(std::move(wallRenderer));
             }
 
             // Props using model manager
             if (g_ModelManager) {
                 Vector3 propPos = { (float)x, 0.0f, (float)y };
-                ModelID modelId = MODEL_PISTOL; // Default
+                ModelID modelId = MODEL_PISTOL;
                 bool shouldDraw = false;
                 float scale = 1.0f;
 
@@ -264,7 +263,7 @@ void UpgradedMapRenderer::GenerateInteriorGeometry(const Interior& interior) {
         }
     }
 
-    // Interior ceiling
+    // Interior ceiling - use proper ceiling texture
     Vector3 ceilingCenter = {
         interior.width / 2.0f,
         CEILING_HEIGHT,
@@ -293,7 +292,6 @@ void UpgradedMapRenderer::GenerateInteriorGeometry(const Interior& interior) {
 void UpgradedMapRenderer::CreateWall(Vector3 position, TextureID texture) {
     auto renderer = std::make_unique<MeshRenderer>();
     renderer->mesh = GenMeshCube(1.0f, WALL_HEIGHT, 1.0f);
-
     renderer->material = CreateOpaqueMaterial(texture, WHITE);
 
     Vector3 wallPos = position;
@@ -314,7 +312,6 @@ void UpgradedMapRenderer::CreateWall(Vector3 position, TextureID texture) {
 void UpgradedMapRenderer::CreateFloor(Vector3 position, float size, TextureID texture) {
     auto renderer = std::make_unique<MeshRenderer>();
     renderer->mesh = GenMeshCube(size, 0.1f, size);
-
     renderer->material = CreateOpaqueMaterial(texture, WHITE);
 
     Vector3 floorPos = position;
@@ -333,7 +330,6 @@ void UpgradedMapRenderer::CreateFloor(Vector3 position, float size, TextureID te
 }
 
 void UpgradedMapRenderer::CreateBuilding(const Building& building) {
-    // Draw building walls (perimeter only)
     for (int z = building.footprint.y; z < building.footprint.y + building.footprint.height; z++) {
         for (int x = building.footprint.x; x < building.footprint.x + building.footprint.width; x++) {
             bool isPerimeter = (x == building.footprint.x ||
@@ -349,10 +345,8 @@ void UpgradedMapRenderer::CreateBuilding(const Building& building) {
         }
     }
 
-    // Building roof
     auto roofRenderer = std::make_unique<MeshRenderer>();
     roofRenderer->mesh = GenMeshCube((float)building.footprint.width, 0.2f, (float)building.footprint.height);
-
     roofRenderer->material = CreateOpaqueMaterial(TEX_ROOF_SHINGLES, Color{ 80, 50, 50, 255 });
 
     Vector3 roofCenter = {
@@ -388,7 +382,6 @@ void UpgradedMapRenderer::CreateDoor(const Door& door) {
 void UpgradedMapRenderer::CreateWaterTile(Vector3 position) {
     auto renderer = std::make_unique<MeshRenderer>();
     renderer->mesh = GenMeshCube(1.0f, 0.2f, 1.0f);
-
     renderer->material = waterMaterial;
 
     Vector3 waterPos = position;
@@ -404,7 +397,6 @@ void UpgradedMapRenderer::CreateWaterTile(Vector3 position) {
 void UpgradedMapRenderer::CreateRoadTile(Vector3 position) {
     auto renderer = std::make_unique<MeshRenderer>();
     renderer->mesh = GenMeshCube(1.0f, 0.05f, 1.0f);
-
     renderer->material = CreateOpaqueMaterial(TEX_ROAD_ASPHALT, Color{ 60, 60, 65, 255 });
 
     Vector3 roadPos = position;
@@ -425,7 +417,6 @@ void UpgradedMapRenderer::AddProp(Vector3 position, ModelID modelId, float scale
 
     if (model.meshCount > 0) {
         propRenderer->mesh = model.meshes[0];
-
         propRenderer->material = CreateOpaqueMaterial(TEX_WALL_CONCRETE, WHITE);
 
         Matrix scaleMatrix = MatrixScale(scale, scale, scale);
@@ -440,19 +431,15 @@ void UpgradedMapRenderer::AddProp(Vector3 position, ModelID modelId, float scale
 }
 
 void UpgradedMapRenderer::UpdateDoor(int doorId, float openProgress) {
-    // Update door position based on open progress
-    // This would animate doors opening/closing
 }
 
 void UpgradedMapRenderer::RemoveProp(int propId) {
-    // Remove a prop by ID
 }
 
 std::vector<MeshRenderer*> UpgradedMapRenderer::GetActiveRenderers() {
     std::vector<MeshRenderer*> active;
 
     if (g_MapPlayer.insideInterior) {
-        // Return interior renderers
         for (auto& renderer : interiorRenderers) {
             active.push_back(renderer.get());
         }
@@ -461,13 +448,11 @@ std::vector<MeshRenderer*> UpgradedMapRenderer::GetActiveRenderers() {
         }
     }
     else {
-        // Return world renderers
         for (auto& renderer : worldRenderers) {
             active.push_back(renderer.get());
         }
     }
 
-    // Always add doors
     for (auto& renderer : doorRenderers) {
         active.push_back(renderer.get());
     }
@@ -480,7 +465,6 @@ void UpgradedMapRenderer::Update(float deltaTime, const Camera3D& camera) {
 }
 
 void UpgradedMapRenderer::UpdateVisibility(const Camera3D& camera) {
-    // Simple frustum culling based on distance
     Vector3 camPos = camera.position;
     float viewDistance = 100.0f;
 
@@ -501,48 +485,3 @@ void UpgradedMapRenderer::Cleanup() {
     propRenderers.clear();
     doorRenderers.clear();
 }
-
-// Global instance
-extern UpgradedMapRenderer* g_UpgradedMapRenderer;
-
-// Item spawn structure
-struct ItemSpawn {
-    int x;
-    int y;
-    std::string itemType;
-};
-
-
-// Global map data
-extern MapData g_MapData;
-extern MapPlayerState g_MapPlayer;
-
-// Global building and door management
-extern std::vector<Door> doors;
-extern std::vector<Building> buildings;
-extern int currentFloor;
-extern int currentBuildingIndex;
-
-// Map generation functions
-void GenerateMapData(MapData& m);
-void InitializePlayerFromMapStart(MapData& m, MapPlayerState& p);
-bool EnterInterior(MapData& m, MapPlayerState& p, int buildingId);
-bool ExitInterior(MapData& m, MapPlayerState& p);
-const Interior* GetInterior(const MapData& m, const std::string& id);
-
-// Legacy compatibility functions
-void GenerateMap(char map[MAP_SIZE][MAP_SIZE]);
-void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw);
-void UpdateDoors(float deltaTime);
-Door* GetNearestDoor(Vector3 playerPos, float maxDistance);
-
-// Collision detection
-bool CheckWallCollision(Vector3 position, float radius, const MapData& mapData, const MapPlayerState& playerState);
-
-// Frustum culling helper
-struct AABB {
-    Vector3 min;
-    Vector3 max;
-};
-
-bool IsAABBInFrustum(const Camera3D& camera, const AABB& box);
