@@ -266,11 +266,6 @@ int main() {
     UpgradedGameManager gameManager;
     gameManager.Initialize();
 
-    // FIXED: Start main menu music immediately
-    if (g_SoundManager) {
-        g_SoundManager->PlayMusic(MUS_MENU, true, 2.0f);
-        TraceLog(LOG_INFO, "Main menu music started");
-    }
 
     while (!WindowShouldClose()) {
         float deltaTime = GetFrameTime();
@@ -313,7 +308,11 @@ int main() {
             }
             prevCursorCaptured = shouldCaptureCursor;
         }
-
+        // FIXED: Start main menu music immediately
+        if (g_SoundManager) {
+            g_SoundManager->PlayMusic(MUS_MENU, true, 2.0f);
+            TraceLog(LOG_INFO, "Main menu music started");
+        }
         // FIXED: Input handling with proper control flow
         if (gameState == GameState::Console) {
             // Console input
@@ -461,7 +460,17 @@ int main() {
 
         // RENDERING
         BeginDrawing();
-        ClearBackground(BLACK); // FIXED: Changed from sky blue to black
+
+        // FIXED: Clear to proper color based on location
+        if (g_MapPlayer.insideInterior) {
+            ClearBackground(Color{ 40, 45, 50, 255 }); // Dark gray for interior
+        }
+        else if (g_DayNightCycle) {
+            ClearBackground(g_DayNightCycle->GetSkyColor());
+        }
+        else {
+            ClearBackground(Color{ 135, 206, 235, 255 }); // Sky blue default
+        }
 
         if (gameState == GameState::Gameplay) {
             gameManager.Render();
