@@ -11,6 +11,7 @@
 #include "vehicle_system.h"
 #include "skybox.h"
 #include "hud.h"
+#include "player.h"
 
 UpgradedGameManager::UpgradedGameManager() {
 }

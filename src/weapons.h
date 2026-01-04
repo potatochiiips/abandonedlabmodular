@@ -177,7 +177,8 @@ private:
     std::map<int, WeaponStats> weapons;
 };
 
-
+// Handle weapon shooting logic (called from main loop)
+void HandleWeaponShooting();
 // Global weapon system
 extern WeaponSystem g_WeaponSystem;
 extern WeaponState g_CurrentWeaponState;

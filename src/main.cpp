@@ -384,7 +384,7 @@ int main() {
                 gameState = GameState::Gameplay;
                 TraceLog(LOG_INFO, "Console closed");
             }
-        }
+        
 
         // FIXED: Escape key handling for console
         if (IsKeyPressed(KEY_ESCAPE)) {
@@ -421,9 +421,6 @@ int main() {
         }
 
         // FIXED: Console input handling - only when console is open
-        if (gameState == GameState::Console) {
-            UpdateConsoleInput(&health, &stamina, &hunger, &thirst, &isNoclip, &fov);
-        }
         else if (gameState == GameState::Gameplay) {
             // Regular gameplay input handling
             if (IsKeyPressed(KEY_I) || (useController && IsActionPressed(ACTION_INVENTORY, bindings))) {
