@@ -1,11 +1,12 @@
 #include "enhanced_map_system.h"
+#include "weather_system.h"
 #include <cmath>
 #include <cstdlib>
 
 EnhancedMapSystem* g_EnhancedMapSystem = nullptr;
 
-EnhancedMapSystem::EnhancedMapSystem() {
-    nextBuildingId = 1;
+EnhancedMapSystem::EnhancedMapSystem() 
+    : nextBuildingId(1) {
 }
 
 EnhancedMapSystem::~EnhancedMapSystem() {
@@ -429,12 +430,61 @@ EnhancedBuilding* EnhancedMapSystem::GetBuilding(int id) {
     return nullptr;
 }
 
-void EnhancedMapSystem::DrawMinimap(int centerX, int centerY, int radius, Vector3 playerPos, float playerYaw) {
-    DrawCircle(centerX, centerY, radius, Color{ 0, 0, 0, 180 });
-    DrawCircle(centerX, centerY, radius, Color{ 50, 50, 60, 150 });
-    DrawCircleLines(centerX, centerY, radius, PIPBOY_GREEN);
+std::vector<EnhancedBuilding*> EnhancedMapSystem::GetBuildingsInZone(WorldZone zone) {
+    std::vector<EnhancedBuilding*> result;
+    for (auto& building : buildings) {
+        if (building.zone == zone) {
+            result.push_back(&building);
+        }
+    }
+    return result;
+}
 
-    float scale = radius / 50.0f;
+void EnhancedMapSystem::GenerateNPCs() {
+    // Generate NPCs for various zones
+    // TODO: Implement NPC generation based on zone types
+}
+
+std::vector<NPC*> EnhancedMapSystem::GetNPCsInZone(WorldZone zone) {
+    std::vector<NPC*> result;
+    // TODO: Implement NPC zone lookup
+    return result;
+}
+
+NPC* EnhancedMapSystem::GetNearestNPC(Vector3 position, float maxDistance) {
+    // TODO: Implement nearest NPC search
+    return nullptr;
+}
+
+void EnhancedMapSystem::DrawFullMap(int screenW, int screenH, Vector3 playerPos) {
+    // TODO: Implement full map drawing
+}
+
+std::vector<PointOfInterest> EnhancedMapSystem::GetAllPOIs() const {
+    std::vector<PointOfInterest> result;
+    // TODO: Implement POI retrieval
+    return result;
+}
+
+PointOfInterest* EnhancedMapSystem::GetNearestPOI(Vector3 position, float maxDistance) {
+    // TODO: Implement nearest POI search
+    return nullptr;
+}
+
+void EnhancedMapSystem::DiscoverPOI(int poiId) {
+    // TODO: Implement POI discovery
+}
+
+void EnhancedMapSystem::DrawPOIsOnMinimap(int centerX, int centerY, int radius, Vector3 playerPos) {
+    // TODO: Implement POI minimap drawing
+}
+
+void EnhancedMapSystem::DrawMinimap(int centerX, int centerY, int radius, Vector3 playerPos, float playerYaw) {
+    DrawCircle(centerX, centerY, (float)radius, Color{ 0, 0, 0, 180 });
+    DrawCircle(centerX, centerY, (float)radius, Color{ 50, 50, 60, 150 });
+    DrawCircleLines(centerX, centerY, (float)radius, PIPBOY_GREEN);
+
+    float scale = (float)radius / 50.0f;
 
     for (auto& zone : zones) {
         DrawMinimapZone(centerX, centerY, scale, zone, playerPos);
@@ -497,6 +547,74 @@ Color EnhancedMapSystem::GetZoneColor(WorldZone zone) {
     ZoneDefinition* zoneDef = GetZone(zone);
     if (zoneDef) return zoneDef->mapColor;
     return GRAY;
+}
+
+void InteractiveMapUI::Initialize() {
+    zoomLevel = 1.0f;
+    mapCenter = Vector3{ 128.0f, 0.0f, 128.0f };
+    selectedMarker = -1;
+}
+
+void InteractiveMapUI::Update(float deltaTime) {
+    // TODO: Implement map UI update logic
+}
+
+void InteractiveMapUI::Draw(int screenW, int screenH) {
+    // TODO: Implement map UI drawing
+}
+
+void InteractiveMapUI::SetZoomLevel(float zoom) {
+    zoomLevel = zoom;
+}
+
+void InteractiveMapUI::SetMapCenter(Vector3 pos) {
+    mapCenter = pos;
+}
+
+void InteractiveMapUI::PlaceMarker(Vector3 pos, const std::string& name) {
+    markers.push_back(std::make_pair(pos, name));
+}
+
+void InteractiveMapUI::RemoveMarker(int id) {
+    if (id >= 0 && id < (int)markers.size()) {
+        markers.erase(markers.begin() + id);
+    }
+}
+
+void InteractiveMapUI::ShowQuestRoute(int questId) {
+    // TODO: Implement quest route display
+}
+
+bool InteractiveMapUI::IsMapOpen() const {
+    return isMapOpen;
+}
+
+Vector3 InteractiveMapUI::GetScreenToWorldPos(Vector2 screenPos) {
+    // TODO: Implement screen to world coordinate conversion
+    return Vector3{ 0.0f, 0.0f, 0.0f };
+}
+
+void FastTravelSystem::RegisterTravelPoint(Vector3 pos, const std::string& name) {
+    // TODO: Implement travel point registration
+}
+
+void FastTravelSystem::DiscoverPoint(int id) {
+    // TODO: Implement travel point discovery
+}
+
+bool FastTravelSystem::TravelTo(int targetId, Vector3& outPos) {
+    // TODO: Implement travel to point
+    return false;
+}
+
+std::vector<FastTravelPoint> FastTravelSystem::GetAvailableDestinations() const {
+    std::vector<FastTravelPoint> result;
+    // TODO: Implement available destinations retrieval
+    return result;
+}
+
+void FastTravelSystem::DrawFastTravelUI(int screenW, int screenH) {
+    // TODO: Implement fast travel UI drawing
 }
 
 void InitializeEnhancedMapSystem() {

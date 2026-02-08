@@ -266,7 +266,6 @@ int main() {
     UpgradedGameManager gameManager;
     gameManager.Initialize();
 
-
     while (!WindowShouldClose()) {
         float deltaTime = GetFrameTime();
         int screenW = GetScreenWidth();
@@ -289,10 +288,7 @@ int main() {
         if (g_WeatherSystem) g_WeatherSystem->Update(deltaTime, playerPosition);
         if (g_ZombieManager) g_ZombieManager->Update(deltaTime, playerPosition);
 
-        if (gameState == GameState::Gameplay) {
-            gameManager.Update(deltaTime);
-        }
-
+        // Handle all game states
         bool isAnyMenuOpen = (inventoryOpen || isCraftingOpen || isMapOpen);
         bool useController = isControllerEnabled && IsGamepadAvailable(0);
         bool shouldCaptureCursor = (gameState == GameState::Gameplay && !isAnyMenuOpen && gameState != GameState::Console);
@@ -308,14 +304,14 @@ int main() {
             }
             prevCursorCaptured = shouldCaptureCursor;
         }
-        // FIXED: Start main menu music immediately
+
+        // Main menu music
         if (g_SoundManager) {
             g_SoundManager->PlayMusic(MUS_MENU, true, 2.0f);
-            TraceLog(LOG_INFO, "Main menu music started");
         }
-        // FIXED: Input handling with proper control flow
+
+        // Input handling for all states
         if (gameState == GameState::Console) {
-            // Console input
             UpdateConsoleInput(&health, &stamina, &hunger, &thirst, &isNoclip, &fov);
 
             if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_GRAVE)) {
@@ -350,6 +346,7 @@ int main() {
             }
         }
         else if (gameState == GameState::Gameplay) {
+            // Gameplay-specific input
             if (IsKeyPressed(KEY_I) || (useController && IsActionPressed(ACTION_INVENTORY, bindings))) {
                 CloseInGameMenus();
                 inventoryOpen = !inventoryOpen;
@@ -369,24 +366,22 @@ int main() {
                     g_VehicleManager->HandleVehicleInput(deltaTime, useController);
                     Vehicle* v = g_VehicleManager->GetPlayerVehicle();
                     if (v) {
-                        // FIXED: Better camera following
                         float radians = v->rotation * DEG2RAD;
                         Vector3 behindOffset = { -sinf(radians) * 8.0f, 0.0f, -cosf(radians) * 8.0f };
 
                         camera.position = Vector3Add(v->position, behindOffset);
-                        camera.position.y = v->position.y + 4.0f; // Height above vehicle
+                        camera.position.y = v->position.y + 4.0f;
                         camera.target = Vector3Add(v->position, Vector3{ 0, 1.0f, 0 });
 
-                        // Update player position to match vehicle
                         playerPosition = v->position;
                     }
                     if (IsKeyPressed(KEY_F) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT))) {
                         g_VehicleManager->ExitVehicle();
                         playerPosition = v->position;
-                        playerPosition.y = playerHeight; // Reset to ground level
+                        playerPosition.y = playerHeight;
                     }
                 }
-                // FIXED: Apply zombie damage to player
+
                 if (g_ZombieManager && !isAnyMenuOpen) {
                     const auto& zombies = g_ZombieManager->GetZombies();
                     for (const auto& zombie : zombies) {
@@ -404,6 +399,7 @@ int main() {
                         }
                     }
                 }
+
                 int eq = inventory[BACKPACK_SLOTS].itemId;
                 if (eq == ITEM_PISTOL || eq == ITEM_M16) {
                     g_CurrentWeaponState.isADS = IsMouseButtonDown(MOUSE_RIGHT_BUTTON) ||
@@ -432,8 +428,37 @@ int main() {
                 if (health <= 0) gameState = GameState::GameOver;
                 shotTimer = fmaxf(0, shotTimer - deltaTime);
             }
+
+            gameManager.Update(deltaTime);
             if (g_VehicleManager) g_VehicleManager->Update(deltaTime);
             if (g_AnimationManager) g_AnimationManager->UpdateAll(deltaTime);
+        }
+        else if (gameState == GameState::MainMenu) {
+            // Handle main menu input
+            if (IsKeyPressed(KEY_ENTER) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
+                if (mainMenuSelection == 0) {
+                    InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst,
+                        &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov);
+                    gameState = GameState::Gameplay;
+                }
+                else if (mainMenuSelection == 1) {
+                    gameState = GameState::LoadMenu;
+                    stateBeforeSettings = GameState::MainMenu;
+                }
+                else if (mainMenuSelection == 2) {
+                    gameState = GameState::Settings;
+                    stateBeforeSettings = GameState::MainMenu;
+                }
+                else if (mainMenuSelection == 3) {
+                    break;
+                }
+            }
+            if (IsKeyPressed(KEY_UP) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_UP)) {
+                mainMenuSelection = (mainMenuSelection - 1 + 4) % 4;
+            }
+            if (IsKeyPressed(KEY_DOWN) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_DOWN)) {
+                mainMenuSelection = (mainMenuSelection + 1) % 4;
+            }
         }
         else if (gameState == GameState::LoadMenu) {
             if (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))) {
@@ -458,18 +483,18 @@ int main() {
             }
         }
 
-        // RENDERING
+        // RENDERING - happens for ALL game states
         BeginDrawing();
 
-        // FIXED: Clear to proper color based on location
+        // Clear background based on location
         if (g_MapPlayer.insideInterior) {
-            ClearBackground(Color{ 40, 45, 50, 255 }); // Dark gray for interior
+            ClearBackground(Color{ 40, 45, 50, 255 });
         }
         else if (g_DayNightCycle) {
             ClearBackground(g_DayNightCycle->GetSkyColor());
         }
         else {
-            ClearBackground(Color{ 135, 206, 235, 255 }); // Sky blue default
+            ClearBackground(Color{ 135, 206, 235, 255 });
         }
 
         if (gameState == GameState::Gameplay) {
@@ -535,6 +560,7 @@ int main() {
         EndDrawing();
     }
 
+    // Cleanup
     CleanupZombieSystem();
     CleanupSoundSystem();
     CleanupWeatherSystem();

@@ -82,12 +82,12 @@ void UpgradedGameManager::SetupLighting() {
     }
     sceneLights.clear();
 
-    // FIXED: Brighter directional light
+    // FIXED: Brighter directional light for better visibility
     UpgradedLight* mainLight = new UpgradedLight();
     mainLight->type = LIGHT_DIRECTIONAL;
-    mainLight->direction = Vector3{ 0.5f, -1.0f, 0.3f };
+    mainLight->direction = Vector3Normalize(Vector3{ 0.5f, -1.0f, 0.3f });  // ADDED NORMALIZE
     mainLight->color = Color{ 255, 250, 220, 255 };
-    mainLight->intensity = 1.5f; // INCREASED from 1.0f
+    mainLight->intensity = 2.0f;  // INCREASED from 1.5f
     mainLight->castShadows = false;
     mainLight->shadowResolution = 2048;
     sceneLights.push_back(mainLight);
@@ -99,25 +99,25 @@ void UpgradedGameManager::SetupLighting() {
         flashlight->position = camera.position;
         flashlight->direction = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
         flashlight->color = Color{ 255, 250, 220, 255 };
-        flashlight->intensity = 2.0f;
-        flashlight->range = 25.0f;
-        flashlight->spotAngle = 25.0f;
+        flashlight->intensity = 2.5f;
+        flashlight->range = 35.0f;
+        flashlight->spotAngle = 30.0f;
         flashlight->castShadows = false;
         sceneLights.push_back(flashlight);
     }
 
-    // FIXED: Brighter ambient for interiors
-    Color ambientColor = Color{ 100, 110, 120, 255 };
-    float ambientIntensity = 0.5f; // Default
+    // MUCH brighter ambient lighting for visibility
+    Color ambientColor = Color{ 200, 210, 220, 255 };
+    float ambientIntensity = 0.9f;
 
     if (g_MapPlayer.insideInterior) {
-        // MUCH brighter ambient lighting inside
-        ambientColor = Color{ 180, 190, 200, 255 };
-        ambientIntensity = 0.8f; // Much brighter
+        // MUCH brighter ambient for interiors
+        ambientColor = Color{ 220, 225, 230, 255 };
+        ambientIntensity = 1.0f;
     }
     else if (g_DayNightCycle) {
         ambientColor = g_DayNightCycle->GetAmbientColor();
-        ambientIntensity = 0.5f;
+        ambientIntensity = 0.7f;
     }
 
     if (g_UpgradedPipeline) {
@@ -126,8 +126,8 @@ void UpgradedGameManager::SetupLighting() {
 
     // Fog only outside
     bool fogEnabled = false;
-    Color fogColor = Color{ 128, 128, 128, 255 };
-    float fogDensity = 0.05f;
+    Color fogColor = Color{ 180, 180, 180, 255 };
+    float fogDensity = 0.02f;
 
     if (!g_MapPlayer.insideInterior && g_WeatherSystem && g_WeatherSystem->GetCurrentWeather() != WEATHER_CLEAR) {
         fogEnabled = true;
