@@ -4,6 +4,9 @@
 #include "zombie_system.h"
 #include "vehicle_system.h"
 #include "player.h"
+#include "enhanced_map_system.h"
+#include "game_manager.h"
+#include "texture_manager.h"
 #include <algorithm>
 #include <sstream>
 #include <cctype>
@@ -13,6 +16,9 @@
 char consoleInput[MAX_COMMAND_LENGTH] = "";
 int consoleInputLength = 0;
 std::vector<std::string> consoleHistory;
+
+// Global game manager pointer (set from main.cpp)
+UpgradedGameManager* g_GameManagerInstance = nullptr;
 
 void ProcessConsoleCommand(std::vector<std::string>& history, float* health, float* stamina, float* hunger, float* thirst, bool* isNoclip, float* fov) {
     if (consoleInputLength == 0) return;
@@ -37,11 +43,17 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
         history.push_back("  spawnvehicle <type> - Spawn vehicle (sedan/suv/pickup/van)");
         history.push_back("  spawnzombie [count] - Spawn zombie(s) nearby");
         history.push_back("  clear - Clear console");
-        history.push_back("  teleport <x> <y> <z> - Teleport");
+        history.push_back("  teleport <x> <y> <z> - Teleport to coordinates");
+        history.push_back("  goto <location> - Teleport to location");
+        history.push_back("    Locations: lab/hospital/city/coast/mountains");
+        history.push_back("    /harbor/industrial");
+        history.push_back("  interior - Enter laboratory interior");
+        history.push_back("  exterior - Exit to exterior world");
+        history.push_back("  testzone - Visit test zone with all models");
         history.push_back("  time <hour> - Set time (0-24)");
-        history.push_back("  weather <type> - Set weather");
+        history.push_back("  weather <type> - Set weather (clear/rain/fog/storm)");
     }
-    else if (command == "noclip" && isNoclip) {
+    else if (command == "noclip") {
         *isNoclip = !(*isNoclip);
         history.push_back(TextFormat("Noclip %s", *isNoclip ? "enabled." : "disabled."));
     }
@@ -77,7 +89,7 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
             else history.push_back(TextFormat("%s set to %.0f", statName.c_str(), value));
         }
     }
-    else if (command == "setfov" && fov) {
+    else if (command == "setfov") {
         float value;
         ss >> value;
         if (ss.fail() || value < 30.0f || value > 120.0f) {
@@ -111,7 +123,7 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
             else if (itemName == "knife") itemId = ITEM_KNIFE;
 
             if (itemId != ITEM_NONE) {
-                extern bool AddItemToInventory(InventorySlot * inventory, int itemId, int quantity, int ammo);
+                extern bool AddItemToInventory(InventorySlot* inventory, int itemId, int quantity, int ammo);
                 if (AddItemToInventory(inventory, itemId, 1, 0)) {
                     history.push_back(TextFormat("Spawned %s", itemName.c_str()));
                 }
@@ -149,10 +161,9 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
                 extern Vector3 playerPosition;
                 extern Camera3D camera;
 
-                // Spawn vehicle 5 units in front of player
                 Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
                 Vector3 spawnPos = Vector3Add(playerPosition, Vector3Scale(forward, 5.0f));
-                spawnPos.y = 1.0f; // Ground level
+                spawnPos.y = 1.0f;
 
                 extern float yaw;
                 int vehicleId = g_VehicleManager->SpawnVehicle(type, spawnPos, yaw);
@@ -185,7 +196,6 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
             extern Vector3 playerPosition;
 
             for (int i = 0; i < count; i++) {
-                // Spawn zombies in a circle around player
                 float angle = (i / (float)count) * 2.0f * PI;
                 float distance = 8.0f + (rand() % 5);
 
@@ -218,6 +228,98 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
             playerPosition = Vector3{ x, y, z };
             camera.position = playerPosition;
             history.push_back(TextFormat("Teleported to (%.1f, %.1f, %.1f)", x, y, z));
+        }
+    }
+    else if (command == "goto") {
+        std::string location;
+        ss >> location;
+        
+        if (location.empty()) {
+            history.push_back("Usage: goto <location>");
+            history.push_back("Locations: lab, hospital, city, coast, mountains, harbor, industrial");
+        }
+        else {
+            std::transform(location.begin(), location.end(), location.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+            extern Vector3 playerPosition;
+            extern Camera3D camera;
+            extern MapPlayerState g_MapPlayer;
+
+            Vector3 newPos = playerPosition;
+            bool found = true;
+
+            if (location == "lab") {
+                newPos = Vector3{ 87, 1.8f, 87 };
+                g_MapPlayer.insideInterior = true;
+                g_MapPlayer.currentInteriorId = "lab_1";
+                history.push_back("Teleported to Laboratory");
+            }
+            else if (location == "hospital") {
+                newPos = Vector3{ 170, 5, 90 };
+                g_MapPlayer.insideInterior = false;
+                history.push_back("Teleported to Hospital");
+            }
+            else if (location == "city") {
+                newPos = Vector3{ 128, 5, 128 };
+                g_MapPlayer.insideInterior = false;
+                history.push_back("Teleported to Central City");
+            }
+            else if (location == "coast") {
+                newPos = Vector3{ 210, 5, 130 };
+                g_MapPlayer.insideInterior = false;
+                history.push_back("Teleported to Eastern Coast");
+            }
+            else if (location == "mountains") {
+                newPos = Vector3{ 128, 10, 30 };
+                g_MapPlayer.insideInterior = false;
+                history.push_back("Teleported to Northern Mountains");
+            }
+            else if (location == "harbor") {
+                newPos = Vector3{ 60, 2, 240 };
+                g_MapPlayer.insideInterior = false;
+                history.push_back("Teleported to Harbor");
+            }
+            else if (location == "industrial") {
+                newPos = Vector3{ 120, 5, 220 };
+                g_MapPlayer.insideInterior = false;
+                history.push_back("Teleported to Industrial District");
+            }
+            else {
+                history.push_back(TextFormat("Unknown location: %s", location.c_str()));
+                found = false;
+            }
+
+            if (found) {
+                playerPosition = newPos;
+                camera.position = newPos;
+                if (g_GameManagerInstance) {
+                    g_GameManagerInstance->RegenerateScene();
+                }
+            }
+        }
+    }
+    else if (command == "interior") {
+        extern MapPlayerState g_MapPlayer;
+        extern Camera3D camera;
+
+        g_MapPlayer.insideInterior = true;
+        g_MapPlayer.currentInteriorId = "lab_1";
+        camera.position = Vector3{ 10, 1.8f, 15 };
+        history.push_back("Entered laboratory interior");
+        if (g_GameManagerInstance) {
+            g_GameManagerInstance->RegenerateScene();
+        }
+    }
+    else if (command == "exterior") {
+        extern MapPlayerState g_MapPlayer;
+        extern Camera3D camera;
+
+        g_MapPlayer.insideInterior = false;
+        camera.position = Vector3{ 128, 5, 128 };
+        history.push_back("Exited to exterior (Central City)");
+        if (g_GameManagerInstance) {
+            g_GameManagerInstance->RegenerateScene();
         }
     }
     else if (command == "time") {
@@ -258,6 +360,25 @@ void ProcessConsoleCommand(std::vector<std::string>& history, float* health, flo
             }
         }
     }
+    else if (command == "testzone") {
+        extern Vector3 playerPosition;
+        extern Camera3D camera;
+        extern MapPlayerState g_MapPlayer;
+
+        // Teleport to test zone - large grass field (500x500 units)
+        g_MapPlayer.insideInterior = false;
+        playerPosition = Vector3{ 500, 5, 500 };
+        camera.position = playerPosition;
+        
+        // Create test zone on first visit (will be handled by game_manager)
+        history.push_back("Teleported to TEST ZONE - Model Gallery");
+        history.push_back("All available models displayed in grid pattern");
+        history.push_back("Grass field: 500x500 units");
+        
+        if (g_GameManagerInstance) {
+            g_GameManagerInstance->RegenerateScene();
+        }
+    }
     else {
         history.push_back("Unknown command. Type 'help' for list of commands.");
     }
@@ -286,12 +407,9 @@ void DrawConsole(int screenW, int screenH, const std::vector<std::string>& histo
     DrawText(TextFormat("] %s_", input ? input : ""), 10, screenH / 2 - 25, 18, PIPBOY_GREEN);
 }
 
-// FIXED: Proper console input handling
 void UpdateConsoleInput(float* health, float* stamina, float* hunger, float* thirst, bool* isNoclip, float* fov) {
-    // Get typed characters
     int key = GetCharPressed();
     while (key > 0) {
-        // Only accept printable characters (space to ~)
         if (key >= 32 && key <= 126 && consoleInputLength < MAX_COMMAND_LENGTH - 1) {
             consoleInput[consoleInputLength] = (char)key;
             consoleInputLength++;
@@ -300,13 +418,11 @@ void UpdateConsoleInput(float* health, float* stamina, float* hunger, float* thi
         key = GetCharPressed();
     }
 
-    // Handle backspace
     if (IsKeyPressed(KEY_BACKSPACE) && consoleInputLength > 0) {
         consoleInputLength--;
         consoleInput[consoleInputLength] = '\0';
     }
 
-    // Handle enter
     if (IsKeyPressed(KEY_ENTER)) {
         ProcessConsoleCommand(consoleHistory, health, stamina, hunger, thirst, isNoclip, fov);
     }

@@ -92,6 +92,17 @@ static float frameTimeAccumulator = 0.0f;
 static int frameCount = 0;
 static float avgFrameTime = 0.0f;
 
+// World generation menu state
+enum class WorldGenState {
+    Menu,
+    Generating,
+    Done
+};
+
+WorldGenState worldGenState = WorldGenState::Menu;
+int worldGenMenuSelection = 0;
+bool worldGenConfirmed = false;
+
 void CloseInGameMenus() {
     inventoryOpen = false;
     isCraftingOpen = false;
@@ -111,8 +122,8 @@ void DrawCompass(int screenW, int screenH, float yaw) {
     int compassX = screenW / 2;
     int compassY = 30;
     int compassRadius = 50;
-    DrawCircle(compassX, compassY, compassRadius, Color{ 0, 0, 0, 150 });
-    DrawCircleLines(compassX, compassY, compassRadius, PIPBOY_GREEN);
+    DrawCircle((float)compassX, (float)compassY, (float)compassRadius, Color{ 0, 0, 0, 150 });
+    DrawCircleLines((float)compassX, (float)compassY, (float)compassRadius, PIPBOY_GREEN);
     const char* directions[] = { "N", "E", "S", "W" };
     float angles[] = { 0, 90, 180, 270 };
     for (int i = 0; i < 4; i++) {
@@ -208,10 +219,17 @@ void InitNewGame(Camera3D* camera, Vector3* playerPosition, Vector3* playerVeloc
     );
     g_QuestManager.AddObjective(quest1, QUEST_OBJ_REACH_LOCATION, 0, 1, "Find the exit door");
 
-    TraceLog(LOG_INFO, "New game initialized");
+    TraceLog(LOG_INFO, "New game initialized with seed: %u", g_WorldSettings.seed);
 }
 
 Door* GetNearestDoor(Vector3 playerPos, float maxDistance);
+
+// Forward declaration for splash screen function
+void DrawSplashScreen(Texture2D splashTexture, float progress);
+
+// Forward declaration for world gen menu
+extern void DrawWorldGenMenu(int screenW, int screenH, WorldSettings* settings, int* menuSelection, bool* confirmed);
+extern void UpdateWorldGenMenu(WorldSettings* settings, int* menuSelection, bool* confirmed);
 
 int main() {
     InitializeSoundSystem();
@@ -229,43 +247,99 @@ int main() {
 
     InitWindow(monitorWidth, monitorHeight, "Echoes of Time");
     SetExitKey(KEY_NULL);
+    SetTargetFPS(60);
 
+    // Load splash texture IMMEDIATELY
     Texture2D splashTexture = LoadTexture("assets/splash.png");
-    float splashTime = 2.5f;
-    while (splashTime > 0 && !WindowShouldClose()) {
-        float dt = GetFrameTime();
-        splashTime -= dt;
+    
+    float splashStartTime = (float)GetTime();
+    float splashMinDuration = 2.0f;
+    
+    // ==========================
+    // INITIALIZATION WITH SPLASH
+    // ==========================
+    
+    // Define all initialization stages with their progress targets
+    struct InitStage {
+        const char* name;
+        float progressTarget;
+        std::function<void()> initFunc;
+    };
+    
+    std::vector<InitStage> stages = {
+        { "Upscaling System", 0.11f, [&]() { InitializeUpscalingSystem(initialRes.width, initialRes.height); } },
+        { "Graphics Settings", 0.22f, [&]() { ApplyGraphicsSettings(graphicsSettings); } },
+        { "Rendering Pipeline", 0.33f, []() { InitializeRenderingPipeline(); } },
+        { "Model System", 0.44f, []() { InitializeModelSystem(); } },
+        { "Skybox System", 0.55f, []() { InitializeSkyboxSystem(); } },
+        { "Vehicle System", 0.66f, []() { InitializeVehicleSystem(); } },
+        { "Animation System", 0.77f, []() { InitializeAnimationSystem(); } },
+        { "Day/Night & Weather", 0.88f, [&]() { 
+            InitializeDayNightSystem();
+            InitializeWeatherSystem();
+            InitializeZombieSystem();
+        } },
+        { "Map & Game Systems", 1.0f, []() { 
+            InitializeEnhancedMapSystem();
+            InitializeRenderingSystems();
+        } }
+    };
+    
+    float currentProgress = 0.0f;
+    
+    // Execute each initialization stage
+    for (size_t i = 0; i < stages.size(); i++) {
+        TraceLog(LOG_INFO, "Initializing: %s", stages[i].name);
+        
+        // Show splash while initializing
+        float stageProgress = stages[i].progressTarget;
+        stages[i].initFunc();
+        
+        // Update progress
+        currentProgress = stageProgress;
+        
+        // Render splash for this stage
         BeginDrawing();
-        ClearBackground(BLACK);
-        if (splashTexture.id > 0) {
-            DrawTexturePro(splashTexture,
-                Rectangle{ 0, 0, (float)splashTexture.width, (float)splashTexture.height },
-                Rectangle{ 0, 0, (float)GetScreenWidth(), (float)GetScreenHeight() },
-                Vector2{ 0, 0 }, 0.0f, WHITE);
-        }
-        const char* loadingText = "LOADING...";
-        int textWidth = MeasureText(loadingText, 40);
-        DrawText(loadingText, GetScreenWidth() / 2 - textWidth / 2, GetScreenHeight() - 80, 40, WHITE);
+        DrawSplashScreen(splashTexture, currentProgress);
         EndDrawing();
+        
+        if (WindowShouldClose()) {
+            if (splashTexture.id > 0) UnloadTexture(splashTexture);
+            CloseWindow();
+            return 0;
+        }
+        
+        TraceLog(LOG_INFO, "%s initialized (%.0f%%)", stages[i].name, currentProgress * 100.0f);
     }
-    if (splashTexture.id > 0) UnloadTexture(splashTexture);
-
-    InitializeUpscalingSystem(initialRes.width, initialRes.height);
-    ApplyGraphicsSettings(graphicsSettings);
-    InitializeRenderingSystems();
-    InitializeModelSystem();
-    InitializeSkyboxSystem();
-    InitializeVehicleSystem();
-    InitializeAnimationSystem();
-    InitializeDayNightSystem();
-    InitializeWeatherSystem();
-    InitializeZombieSystem();
-    InitializeEnhancedMapSystem();
-    InitializeUpgradedPipeline();
-
+    
+    // Initialize game manager
     UpgradedGameManager gameManager;
     gameManager.Initialize();
+    
+    // FIXED: Set the global game manager pointer for console commands
+    extern UpgradedGameManager* g_GameManagerInstance;
+    g_GameManagerInstance = &gameManager;
+    
+    // Final splash - show for minimum duration
+    float initEndTime = (float)GetTime();
+    float elapsedSplash = initEndTime - splashStartTime;
+    float remainingSplashTime = fmaxf(0.0f, splashMinDuration - elapsedSplash);
+    
+    float splashEndTime = initEndTime + remainingSplashTime;
+    while ((float)GetTime() < splashEndTime && !WindowShouldClose()) {
+        BeginDrawing();
+        DrawSplashScreen(splashTexture, 1.0f);
+        EndDrawing();
+    }
+    
+    if (splashTexture.id > 0) UnloadTexture(splashTexture);
+    
+    if (WindowShouldClose()) {
+        CloseWindow();
+        return 0;
+    }
 
+    // Main game loop starts here
     while (!WindowShouldClose()) {
         float deltaTime = GetFrameTime();
         int screenW = GetScreenWidth();
@@ -308,6 +382,17 @@ int main() {
         // Main menu music
         if (g_SoundManager) {
             g_SoundManager->PlayMusic(MUS_MENU, true, 2.0f);
+        }
+
+        // Handle world generation menu ONLY when starting new game
+        if (worldGenState == WorldGenState::Generating) {
+            // Generate the world with current settings
+            TraceLog(LOG_INFO, "Starting world generation with settings...");
+            if (g_UpgradedMapRenderer) {
+                g_UpgradedMapRenderer->GenerateEnhancedWorld();
+            }
+            worldGenState = WorldGenState::Done;
+            TraceLog(LOG_INFO, "World generation complete!");
         }
 
         // Input handling for all states
@@ -362,6 +447,8 @@ int main() {
             }
 
             if (!isAnyMenuOpen) {
+				UpdatePlayer(deltaTime, &camera, &playerPosition, &playerVelocity, &yaw, &pitch, &onGround, playerSpeed, playerHeight, gravity, jumpForce, &stamina, isNoclip, useController);
+
                 if (g_VehicleManager && g_VehicleManager->IsPlayerInVehicle()) {
                     g_VehicleManager->HandleVehicleInput(deltaTime, useController);
                     Vehicle* v = g_VehicleManager->GetPlayerVehicle();
@@ -434,38 +521,129 @@ int main() {
             if (g_AnimationManager) g_AnimationManager->UpdateAll(deltaTime);
         }
         else if (gameState == GameState::MainMenu) {
-            // Handle main menu input
-            if (IsKeyPressed(KEY_ENTER) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
-                if (mainMenuSelection == 0) {
-                    InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst,
-                        &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov);
-                    gameState = GameState::Gameplay;
-                }
-                else if (mainMenuSelection == 1) {
-                    gameState = GameState::LoadMenu;
-                    stateBeforeSettings = GameState::MainMenu;
-                }
-                else if (mainMenuSelection == 2) {
-                    gameState = GameState::Settings;
-                    stateBeforeSettings = GameState::MainMenu;
-                }
-                else if (mainMenuSelection == 3) {
-                    break;
-                }
-            }
+            // FIXED: Handle main menu input properly
             if (IsKeyPressed(KEY_UP) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_UP)) {
                 mainMenuSelection = (mainMenuSelection - 1 + 4) % 4;
             }
             if (IsKeyPressed(KEY_DOWN) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_DOWN)) {
                 mainMenuSelection = (mainMenuSelection + 1) % 4;
             }
+
+            if (IsKeyPressed(KEY_ENTER) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
+                if (mainMenuSelection == 0) {
+                    // New Game - show world gen menu
+                    worldGenState = WorldGenState::Menu;
+                    worldGenMenuSelection = 0;
+                    worldGenConfirmed = false;
+                    gameState = GameState::WorldGenMenu;
+                }
+                else if (mainMenuSelection == 1) {
+                    // Load Game
+                    gameState = GameState::LoadMenu;
+                    stateBeforeSettings = GameState::MainMenu;
+                    saveSlotSelection = 0;
+                }
+                else if (mainMenuSelection == 2) {
+                    // Settings
+                    gameState = GameState::Settings;
+                    stateBeforeSettings = GameState::MainMenu;
+                    settingsSelection = 0;
+                }
+                else if (mainMenuSelection == 3) {
+                    // Exit
+                    break;
+                }
+            }
+        }
+        else if (gameState == GameState::WorldGenMenu) {
+            // FIXED: Handle world gen menu input
+            UpdateWorldGenMenu(&g_WorldSettings, &worldGenMenuSelection, &worldGenConfirmed);
+            
+            if (worldGenConfirmed || IsKeyPressed(KEY_ENTER)) {
+                worldGenConfirmed = false;
+                worldGenState = WorldGenState::Generating;
+                gameState = GameState::WorldGenGenerating;
+            }
+            
+            // Allow escape to go back to main menu
+            if (IsKeyPressed(KEY_ESCAPE)) {
+                gameState = GameState::MainMenu;
+                mainMenuSelection = 0;
+                worldGenState = WorldGenState::Menu;
+            }
+        }
+        else if (gameState == GameState::WorldGenGenerating) {
+            // FIXED: Generate world then start game
+            if (worldGenState == WorldGenState::Generating) {
+                TraceLog(LOG_INFO, "Starting world generation with settings...");
+                if (g_UpgradedMapRenderer) {
+                    g_UpgradedMapRenderer->GenerateEnhancedWorld();
+                }
+                worldGenState = WorldGenState::Done;
+                TraceLog(LOG_INFO, "World generation complete!");
+                
+                // Initialize the game
+                InitNewGame(&camera, &playerPosition, &playerVelocity, &health, &stamina, &hunger, &thirst,
+                    &yaw, &pitch, &onGround, inventory, &flashlightBattery, &isFlashlightOn, map, &fov);
+                gameState = GameState::Gameplay;
+                worldGenState = WorldGenState::Menu; // Reset for next game
+            }
+        }
+
+        if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
+        if (isCraftingOpen) DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
+        if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
+
+        if (gameState == GameState::Paused) {
+            DrawRectangle(0, 0, screenW, screenH, Color{ 0, 0, 0, 180 });
+            std::vector<std::string> opts = { "Continue", "Save Game", "Settings", "Main Menu" };
+            DrawMenu(screenW, screenH, opts, &pauseMenuSelection, useController, "PAUSED");
+            
+            // FIXED: Handle pause menu input
+            if (IsKeyPressed(KEY_UP) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_UP)) {
+                pauseMenuSelection = (pauseMenuSelection - 1 + 4) % 4;
+            }
+            if (IsKeyPressed(KEY_DOWN) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_DOWN)) {
+                pauseMenuSelection = (pauseMenuSelection + 1) % 4;
+            }
+            if (IsKeyPressed(KEY_ENTER) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
+                if (pauseMenuSelection == 0) {
+                    gameState = GameState::Gameplay;
+                }
+                else if (pauseMenuSelection == 1) {
+                    gameState = GameState::LoadMenu;
+                    stateBeforeSettings = GameState::Paused;
+                }
+                else if (pauseMenuSelection == 2) {
+                    gameState = GameState::Settings;
+                    stateBeforeSettings = GameState::Paused;
+                }
+                else if (pauseMenuSelection == 3) {
+                    gameState = GameState::MainMenu;
+                    mainMenuSelection = 0;
+                    worldGenState = WorldGenState::Menu;
+                }
+            }
+        }
+        else if (gameState == GameState::Console) {
+            DrawConsole(screenW, screenH, consoleHistory, consoleInput, consoleInputLength);
         }
         else if (gameState == GameState::LoadMenu) {
-            if (IsKeyPressed(KEY_ENTER) || (useController && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))) {
+            DrawLoadMenu(screenW, screenH, &saveSlotSelection, stateBeforeSettings);
+            
+            // FIXED: Handle load menu input
+            if (IsKeyPressed(KEY_UP) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_UP)) {
+                saveSlotSelection = (saveSlotSelection - 1 + 3) % 3;
+            }
+            if (IsKeyPressed(KEY_DOWN) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_DPAD_DOWN)) {
+                saveSlotSelection = (saveSlotSelection + 1) % 3;
+            }
+            if (IsKeyPressed(KEY_ENTER) || IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
                 if (stateBeforeSettings == GameState::Paused) {
                     SaveGame(saveSlotSelection + 1, playerPosition, yaw, pitch, health, stamina, hunger, thirst,
                         inventory, flashlightBattery, isFlashlightOn, map, fov);
                     gameState = GameState::Paused;
+                    TraceLog(LOG_INFO, "Game saved to slot %d", saveSlotSelection + 1);
                 }
                 else if (stateBeforeSettings == GameState::MainMenu) {
                     if (LoadGame(saveSlotSelection + 1, &playerPosition, &yaw, &pitch, &health, &stamina,
@@ -478,68 +656,13 @@ int main() {
                         };
                         camera.target = Vector3Add(camera.position, forward);
                         gameState = GameState::Gameplay;
+                        TraceLog(LOG_INFO, "Game loaded from slot %d", saveSlotSelection + 1);
+                    }
+                    else {
+                        TraceLog(LOG_WARNING, "Failed to load game from slot %d", saveSlotSelection + 1);
                     }
                 }
             }
-        }
-
-        // RENDERING - happens for ALL game states
-        BeginDrawing();
-
-        // Clear background based on location
-        if (g_MapPlayer.insideInterior) {
-            ClearBackground(Color{ 40, 45, 50, 255 });
-        }
-        else if (g_DayNightCycle) {
-            ClearBackground(g_DayNightCycle->GetSkyColor());
-        }
-        else {
-            ClearBackground(Color{ 135, 206, 235, 255 });
-        }
-
-        if (gameState == GameState::Gameplay) {
-            gameManager.Render();
-            if (!isAnyMenuOpen) {
-                DrawPlayerHands(camera, inventory, pistolRecoilPitch, pistolRecoilYaw);
-            }
-
-            if (showMinimap && !isAnyMenuOpen) {
-                DrawMinimapHUD(screenW, screenH, playerPosition, yaw);
-            }
-
-            g_QuestManager.DrawQuestTrackerCompact(screenW, screenH);
-
-            if (showcompass && !isAnyMenuOpen) {
-                DrawCompass(screenW, screenH, yaw);
-            }
-
-            Door* nearbyDoor = GetNearestDoor(playerPosition, 2.5f);
-            if (nearbyDoor && !isAnyMenuOpen) {
-                const char* doorText = nearbyDoor->isInteriorDoor ?
-                    "Press E to Exit Building" : "Press E to Enter Building";
-                int textWidth = MeasureText(doorText, 20);
-                DrawText(doorText, screenW / 2 - textWidth / 2, screenH - 100, 20, PIPBOY_GREEN);
-            }
-        }
-        else if (gameState == GameState::MainMenu) {
-            std::vector<std::string> opts = { "New Game", "Load Game", "Settings", "Exit" };
-            DrawMenu(GetScreenWidth(), GetScreenHeight(), opts, &mainMenuSelection, false, "ECHOES OF TIME");
-        }
-
-        if (inventoryOpen) DrawInventory(screenW, screenH, inventory, &selectedHandSlot, &selectedInvSlot, useController);
-        if (isCraftingOpen) DrawCraftingMenu(screenW, screenH, inventory, &selectedRecipeIndex, useController);
-        if (isMapOpen) DrawMapMenu(screenW, screenH, map, playerPosition, yaw);
-
-        if (gameState == GameState::Paused) {
-            DrawRectangle(0, 0, screenW, screenH, Color{ 0, 0, 0, 180 });
-            std::vector<std::string> opts = { "Continue", "Save Game", "Settings", "Main Menu" };
-            DrawMenu(screenW, screenH, opts, &pauseMenuSelection, useController, "PAUSED");
-        }
-        else if (gameState == GameState::Console) {
-            DrawConsole(screenW, screenH, consoleHistory, consoleInput, consoleInputLength);
-        }
-        else if (gameState == GameState::LoadMenu) {
-            DrawLoadMenu(screenW, screenH, &saveSlotSelection, stateBeforeSettings);
         }
         else if (gameState == GameState::Settings) {
             DrawSettingsMenu(screenW, screenH, &showMinimap, &showcompass, &isControllerEnabled, &isFullscreen,
@@ -555,24 +678,74 @@ int main() {
             DrawControllerBindings(screenW, screenH, &activeBindingIndex, &isBindingMode,
                 &controllerSettingsSelection, bindings);
         }
+        else if (gameState == GameState::WorldGenMenu) {
+            // FIXED: Draw world gen menu
+            DrawWorldGenMenu(screenW, screenH, &g_WorldSettings, &worldGenMenuSelection, &worldGenConfirmed);
+        }
+        else if (gameState == GameState::MainMenu && worldGenState == WorldGenState::Menu) {
+            // Draw normal main menu (this is the fallback)
+            std::vector<std::string> opts = { "New Game", "Load Game", "Settings", "Exit" };
+            DrawMenu(screenW, screenH, opts, &mainMenuSelection, useController, "ECHOES OF TIME");
+        }
 
         if (graphicsSettings.showFPS) DrawText(TextFormat("FPS: %d", GetFPS()), 10, 10, 20, GREEN);
         EndDrawing();
     }
 
     // Cleanup
+    CleanupRenderingSystems();
     CleanupZombieSystem();
     CleanupSoundSystem();
     CleanupWeatherSystem();
     CleanupDayNightSystem();
     CleanupModelSystem();
-    CleanupRenderingSystems();
+    CleanupRenderingPipeline();
     CleanupAnimationSystem();
     CleanupVehicleSystem();
     CleanupSkyboxSystem();
     CleanupEnhancedMapSystem();
-    CleanupUpgradedPipeline();
     gameManager.Cleanup();
     CloseWindow();
     return 0;
+}
+
+// Helper function to draw splash screen with progress bar
+void DrawSplashScreen(Texture2D splashTexture, float progress) {
+    int screenW = GetScreenWidth();
+    int screenH = GetScreenHeight();
+    
+    ClearBackground(BLACK);
+    
+    // Draw splash texture
+    if (splashTexture.id > 0) {
+        DrawTexturePro(splashTexture,
+            Rectangle{ 0, 0, (float)splashTexture.width, (float)splashTexture.height },
+            Rectangle{ 0, 0, (float)screenW, (float)screenH },
+            Vector2{ 0, 0 }, 0.0f, WHITE);
+    }
+    
+    // Draw progress bar
+    int barWidth = 400;
+    int barHeight = 30;
+    int barX = screenW / 2 - barWidth / 2;
+    int barY = screenH - 120;
+    
+    // Background
+    DrawRectangle(barX - 5, barY - 5, barWidth + 10, barHeight + 10, Color{ 40, 40, 40, 200 });
+    DrawRectangle(barX, barY, barWidth, barHeight, Color{ 20, 20, 20, 200 });
+    
+    // Progress fill
+    int fillWidth = (int)(barWidth * Clamp(progress, 0.0f, 1.0f));
+    DrawRectangle(barX, barY, fillWidth, barHeight, Color{ 100, 200, 100, 255 });
+    
+    // Border
+    DrawRectangleLines(barX, barY, barWidth, barHeight, Color{ 200, 255, 200, 255 });
+    
+    // Loading text above bar
+    const char* loadingText = "LOADING...";
+    int textWidth = MeasureText(loadingText, 32);
+    DrawText(loadingText, screenW / 2 - textWidth / 2, barY - 60, 32, WHITE);
+    
+    // Percentage text
+    DrawText(TextFormat("%.0f%%", progress * 100.0f), barX + barWidth + 20, barY + 5, 20, PIPBOY_GREEN);
 }

@@ -1,6 +1,6 @@
 #pragma once
 #include "globals.h"
-#include "rendering.h"  // ADD THIS - must be before using UpgradedLight
+#include "rendering.h"
 #include <vector>
 #include <memory>
 
@@ -16,6 +16,7 @@ enum WeaponAnimState;
 #include "hud.h"
 #include "weapon_renderer.h"
 #include "weapons.h"
+
 // ============================================================================
 class UpgradedGameManager {
 public:
@@ -38,12 +39,16 @@ private:
     std::unique_ptr<HandsRenderer> handsRenderer;
 
     // Scene data
+    Camera3D mainCamera;
     std::vector<UpgradedLight*> sceneLights;
-    UpgradedCamera mainCamera;
 
     void SetupScene();
     void SetupLighting();
     void UpdateCamera();
     void UpdateWeaponRendering();
     void CollectRenderables(std::vector<MeshRenderer*>& renderers);
+    void CreateFallbackGeometry();
+    void CreateTestZone();
 };
+
+extern UpgradedGameManager* g_GameManager;

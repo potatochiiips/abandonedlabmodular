@@ -3,7 +3,7 @@
 #include <memory>
 
 // Forward declarations
-class MeshRenderer;
+struct MeshRenderer;  // Changed from 'class' to 'struct' to match rendering.h
 class UpgradedMaterial;
 struct Camera3D;
 enum WeaponAnimState;
@@ -70,7 +70,7 @@ private:
     void UpdateAnimations(float deltaTime);
 
     Vector3 CalculateWeaponTransform(const Camera3D& camera);
-    Matrix CreateViewmodelMatrix(const Camera3D& camera, Vector3 offset);
+    Matrix CreateViewmodelMatrix(const Camera3D& camera, Vector3 offset, Vector3 scale = Vector3{1.0f, 1.0f, 1.0f});
 
     void DrawMuzzleFlash(const Camera3D& camera);
 };

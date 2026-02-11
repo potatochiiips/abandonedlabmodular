@@ -8,25 +8,23 @@
 #ifndef MAP_CONSTANTS
 #define MAP_CONSTANTS
 
-
 const int menuX = 50;
 const int menuY = 50;
 const int menuW = 400;
 const int mapX = 50;
 const int mapY = 50;
 
-// 1. Forward Declarations
-enum ModelID : int;      // Specify : int
-enum TextureID : int;    // Specify : int
+// Forward Declarations
+enum ModelID : int;
+enum TextureID : int;
 struct Player;
-class MeshRenderer;
+struct MeshRenderer;  // FIXED: Changed from 'class' to 'struct' to match rendering.h
 class UpgradedMaterial;
 class UpgradedMapRenderer;
 
-
-// Include rendering.h AFTER forward declarations
 #include "rendering.h"
-// 2. Enums
+
+// Enums
 enum BuildingType {
     BTYPE_UNKNOWN = 0, BTYPE_LABORATORY, BTYPE_HOUSE, BTYPE_APARTMENT,
     BTYPE_OFFICE, BTYPE_WAREHOUSE, BTYPE_FACTORY, BTYPE_HOSPITAL,
@@ -55,7 +53,7 @@ enum InteriorTile : int {
     IT_STAIRS_UP, IT_STAIRS_DOWN, IT_ELEVATOR, IT_RUBBLE
 };
 
-// 3. Structures (Order matters!)
+// Structures
 struct Room {
     RoomType type;
     int x, y, width, height;
@@ -116,28 +114,29 @@ struct MapPlayerState {
     int interiorX;
     int interiorY;
 
-    MapPlayerState() : yaw(0), isInside(false), currentBuildingId(0), currentFloor(0),
-        insideInterior(false), worldX(0), worldY(0), interiorX(0), interiorY(0) {
-    }
+    // FIXED: Initialize all members including position
+    MapPlayerState() : position({0.0f, 0.0f, 0.0f}), yaw(0), isInside(false), 
+                       currentBuildingId(0), currentFloor(0),
+                       insideInterior(false), currentInteriorId(""), 
+                       worldX(0), worldY(0), interiorX(0), interiorY(0) {}
 };
 
-// 4. Global State Declarations
+// Global State Declarations
 extern std::vector<Door> doors;
-
 extern MapData g_MapData;
 
-// 5. Map Functions
+// Map Functions
 void GenerateMapData(MapData& m);
 void InitializePlayerFromMapStart(MapData& m, MapPlayerState& p);
 bool EnterInterior(MapData& m, MapPlayerState& p, int buildingId);
 bool ExitInterior(MapData& m, MapPlayerState& p);
 const Interior* GetInterior(const MapData& m, const std::string& id);
 void GenerateMap(char map[MAP_SIZE][MAP_SIZE]);
-void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw);
+void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw);  // FIXED: Function declaration present
 void UpdateDoors(float deltaTime);
 Door* GetNearestDoor(Vector3 playerPos, float maxDistance);
 
-// 6. The Renderer Class
+// The Renderer Class
 class UpgradedMapRenderer {
 public:
     UpgradedMapRenderer();
@@ -152,6 +151,10 @@ public:
     void AddProp(Vector3 position, ModelID modelId, float scale = 1.0f);
     void RemoveProp(int propId);
     void GenerateEnhancedWorld();
+    
+    std::vector<std::unique_ptr<MeshRenderer>>& GetWorldRenderers() {
+        return worldRenderers;
+    }
 
 private:
     std::vector<std::unique_ptr<MeshRenderer>> worldRenderers;
@@ -160,6 +163,14 @@ private:
     std::vector<std::unique_ptr<MeshRenderer>> doorRenderers;
     std::shared_ptr<UpgradedMaterial> wallMaterial, floorMaterial, doorMaterial,
         concreteMaterial, grassMaterial, waterMaterial, glassMaterial;
+
+    // Terrain and world generation helpers
+    void CreateTerrainLayer();
+    void CreateBiomes();
+    void CreateRoadNetwork();
+    void CreateBuildingsClusteredByZone();
+    void CreateWaterFeatures();
+    void CreateDecorativeElements();
 
     void CreateWall(Vector3 position, TextureID texture);
     void CreateFloor(Vector3 position, float size, TextureID texture);
@@ -171,6 +182,7 @@ private:
     std::shared_ptr<UpgradedMaterial> CreateOpaqueMaterial(TextureID texture, Color tint);
     std::shared_ptr<UpgradedMaterial> CreateTransparentMaterial(TextureID texture, Color tint);
     void UpdateVisibility(const Camera3D& camera);
+    
     int nextPropId;
 };
 

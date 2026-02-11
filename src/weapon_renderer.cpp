@@ -91,6 +91,42 @@ void WeaponRenderer::UpdateAnimations(float deltaTime) {
     }
 }
 
+void WeaponRenderer::SetEquippedWeapon(int itemId) {
+    if (itemId == ITEM_NONE) {
+        weaponRenderer->enabled = false;
+        return;
+    }
+
+    // Get weapon model
+    ModelID modelId = GetModelIDFromItem(itemId);
+
+    if (g_ModelManager && g_ModelManager->IsLoaded(modelId)) {
+        Model model = g_ModelManager->GetModel(modelId);
+        const ModelData* modelData = g_ModelManager->GetModelData(modelId);
+
+        if (model.meshCount > 0 && modelData) {
+            weaponRenderer->mesh = model.meshes[0];
+            
+            // CRITICAL: Copy material from the loaded model
+            if (model.materialCount > 0 && model.materials) {
+                weaponRenderer->material = nullptr; // Use raylib's material directly
+                // Store reference to model material for drawing
+                weaponMaterial = std::make_shared<UpgradedMaterial>(g_UpgradedPipeline->CreateUnlitShader());
+                
+                // Apply textures from model
+                if (model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id > 0) {
+                    weaponMaterial->SetTexture("texture0", model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture);
+                }
+                weaponMaterial->SetColor("colDiffuse", WHITE);
+            }
+
+            weaponRenderer->enabled = true;
+            TraceLog(LOG_INFO, "Equipped weapon: %d (scale: %.3f, %.3f, %.3f)", 
+                itemId, modelData->scale.x, modelData->scale.y, modelData->scale.z);
+        }
+    }
+}
+
 void WeaponRenderer::UpdateWeaponPosition(const Camera3D& camera) {
     if (!weaponRenderer || !weaponRenderer->enabled) return;
 
@@ -119,11 +155,16 @@ void WeaponRenderer::UpdateWeaponPosition(const Camera3D& camera) {
         break;
     }
 
-    // Create transform matrix
-    weaponRenderer->transform = CreateViewmodelMatrix(camera, targetPos);
+    // Get model scale for proper sizing
+    ModelID modelId = MODEL_PISTOL; // Get current weapon type
+    const ModelData* modelData = g_ModelManager ? g_ModelManager->GetModelData(modelId) : nullptr;
+    Vector3 weaponScale = modelData ? modelData->scale : Vector3{ 1.0f, 1.0f, 1.0f };
+
+    // Create transform matrix with proper scaling
+    weaponRenderer->transform = CreateViewmodelMatrix(camera, targetPos, weaponScale);
 }
 
-Matrix WeaponRenderer::CreateViewmodelMatrix(const Camera3D& camera, Vector3 offset) {
+Matrix WeaponRenderer::CreateViewmodelMatrix(const Camera3D& camera, Vector3 offset, Vector3 scale) {
     // Get camera vectors
     Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
     Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera.up));
@@ -143,14 +184,14 @@ Matrix WeaponRenderer::CreateViewmodelMatrix(const Camera3D& camera, Vector3 off
         0.0f, 0.0f, 0.0f, 1.0f
     };
 
-    // Scale
-    Matrix scale = MatrixScale(1.0f, 1.0f, 1.0f);
+    // Apply model's auto-calculated scale
+    Matrix scaleMatrix = MatrixScale(scale.x, scale.y, scale.z);
 
     // Translation
     Matrix translation = MatrixTranslate(position.x, position.y, position.z);
 
-    // Combine transformations
-    return MatrixMultiply(MatrixMultiply(scale, orientation), translation);
+    // Combine transformations: scale -> orientation -> translation
+    return MatrixMultiply(MatrixMultiply(scaleMatrix, orientation), translation);
 }
 
 void WeaponRenderer::UpdateWeaponSway(const Camera3D& camera) {
@@ -196,34 +237,6 @@ void WeaponRenderer::UpdateWeaponBob(float deltaTime) {
 
         if (fabs(bobAmount.x) < 0.001f) bobAmount.x = 0.0f;
         if (fabs(bobAmount.y) < 0.001f) bobAmount.y = 0.0f;
-    }
-}
-
-void WeaponRenderer::SetEquippedWeapon(int itemId) {
-    if (itemId == ITEM_NONE) {
-        weaponRenderer->enabled = false;
-        return;
-    }
-
-    // Get weapon model
-    ModelID modelId = GetModelIDFromItem(itemId);
-
-    if (g_ModelManager && g_ModelManager->IsLoaded(modelId)) {
-        Model model = g_ModelManager->GetModel(modelId);
-
-        if (model.meshCount > 0) {
-            weaponRenderer->mesh = model.meshes[0];
-
-            // Apply weapon texture if available
-            const ModelData* modelData = g_ModelManager->GetModelData(modelId);
-            if (modelData) {
-                // Use model's texture
-            }
-
-            weaponRenderer->enabled = true;
-
-            TraceLog(LOG_INFO, "Equipped weapon: %d", itemId);
-        }
     }
 }
 
@@ -317,4 +330,3 @@ void WeaponRenderer::DrawMuzzleFlash(const Camera3D& camera) {
 
 // Global instances
  WeaponRenderer* g_WeaponRenderer;
- 

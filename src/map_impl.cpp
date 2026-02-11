@@ -1,79 +1,100 @@
 #include "globals.h"
 #include "map.h"
+#include "enhanced_map_system.h"
+#include "model_manager.h"
 #include <cstdlib>
+#include <ctime>
+#include <cmath>
 
-// Stub implementations for missing functions
-void GenerateMapData(MapData & m) {
-    m.width = MAP_SIZE;
-    m.height = MAP_SIZE;
-    m.tiles.resize(MAP_SIZE * MAP_SIZE, WT_GRASS);
+MapPlayerState g_MapPlayer;
+MapData g_MapData;
+std::vector<Door> doors;
+
+void GenerateMapData(MapData& m) {
+    m.width = 256;
+    m.height = 256;
+    m.tiles.resize(m.width * m.height, WT_GRASS);
+    m.buildings.clear();
+    
+    TraceLog(LOG_INFO, "Map data cleared and resized");
 }
 
 void InitializePlayerFromMapStart(MapData& m, MapPlayerState& p) {
-    p.worldX = MAP_SIZE / 2;
-    p.worldY = MAP_SIZE / 2;
-    p.interiorX = 5;
-    p.interiorY = 5;
+    p.position = { 128.0f, 1.8f, 128.0f };
+    p.yaw = 0.0f;
+    p.isInside = false;
+    p.currentBuildingId = 0;
+    p.currentFloor = 0;
     p.insideInterior = false;
+    p.currentInteriorId = "";
+    p.worldX = 128;
+    p.worldY = 128;
+    p.interiorX = 0;
+    p.interiorY = 0;
+    
+    TraceLog(LOG_INFO, "Player initialized at world spawn");
 }
 
 bool EnterInterior(MapData& m, MapPlayerState& p, int buildingId) {
-    p.insideInterior = true;
-    p.currentBuildingId = buildingId;
-    return true;
+    if (g_EnhancedMapSystem) {
+        const Interior* interior = g_EnhancedMapSystem->GetLabInterior();
+        if (interior) {
+            p.insideInterior = true;
+            p.currentInteriorId = interior->id;
+            p.currentBuildingId = buildingId;
+            p.interiorX = 10;
+            p.interiorY = 15;
+            p.currentFloor = 0;
+            TraceLog(LOG_INFO, "Entered interior: %s", interior->id.c_str());
+            return true;
+        }
+    }
+    return false;
 }
 
 bool ExitInterior(MapData& m, MapPlayerState& p) {
-    p.insideInterior = false;
-    return true;
+    if (p.insideInterior) {
+        p.insideInterior = false;
+        p.currentInteriorId = "";
+        p.position = { (float)p.worldX, 1.8f, (float)p.worldY };
+        TraceLog(LOG_INFO, "Exited to exterior at (%.1f, %.1f)", p.position.x, p.position.z);
+        return true;
+    }
+    return false;
 }
 
 const Interior* GetInterior(const MapData& m, const std::string& id) {
-    static Interior dummyInterior;
-    dummyInterior.width = 20;
-    dummyInterior.height = 20;
-    dummyInterior.id = id;
-    dummyInterior.tiles.resize(400, IT_FLOOR);
-    return &dummyInterior;
+    if (g_EnhancedMapSystem) {
+        return g_EnhancedMapSystem->GetLabInterior();
+    }
+    return nullptr;
 }
 
 void GenerateMap(char map[MAP_SIZE][MAP_SIZE]) {
+    // Initialize entire map as empty
     for (int y = 0; y < MAP_SIZE; y++) {
         for (int x = 0; x < MAP_SIZE; x++) {
-            map[y][x] = 1; // Floor
+            map[y][x] = WT_GRASS;
         }
     }
-}
-
-void DrawMapMenu(int screenW, int screenH, char map[MAP_SIZE][MAP_SIZE], Vector3 playerPos, float yaw) {
-    int menuW = 800;
-    int menuH = 600;
-    int menuX = (screenW - menuW) / 2;
-    int menuY = (screenH - menuH) / 2;
-
-    DrawRectangle(menuX, menuY, menuW, menuH, PIPBOY_DARK);
-    DrawRectangleLines(menuX, menuY, menuW, menuH, PIPBOY_GREEN);
-    DrawText("MAP", menuX + 20, menuY + 20, 24, PIPBOY_GREEN);
-
-
-    DrawRectangle(mapX, mapY, mapSize, mapSize, Color{ 20, 40, 20, 255 });
-
-    // Draw player position
-    int playerMapX = mapX + (int)((playerPos.x / MAP_SIZE) * mapSize);
-    int playerMapY = mapY + (int)((playerPos.z / MAP_SIZE) * mapSize);
-    DrawCircle(playerMapX, playerMapY, 5, PIPBOY_GREEN);
+    TraceLog(LOG_INFO, "Base map generated");
 }
 
 void UpdateDoors(float deltaTime) {
-    // Stub for door animation
+    // Door animation updates would go here
 }
 
 Door* GetNearestDoor(Vector3 playerPos, float maxDistance) {
+    Door* nearest = nullptr;
+    float nearestDist = maxDistance;
+    
     for (auto& door : doors) {
         float dist = Vector3Distance(playerPos, door.position);
-        if (dist < maxDistance) {
-            return &door;
+        if (dist < nearestDist) {
+            nearestDist = dist;
+            nearest = &door;
         }
     }
-    return nullptr;
+    
+    return nearest;
 }

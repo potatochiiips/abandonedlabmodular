@@ -63,14 +63,16 @@ const int mapSize = MAP_SIZE;
 enum class GameState {
     MainMenu,
     Gameplay,
-    GameOver,
-    Settings,
     Paused,
-    LoadMenu,
     Console,
-    ControllerBindings,
+    LoadMenu,
+    Settings,
     GraphicsSettings,
-    AudioSettings
+    AudioSettings,
+    ControllerBindings,
+    GameOver,
+    WorldGenMenu,      // NEW: World generation menu state
+    WorldGenGenerating  // NEW: World generation in progress
 };
 
 // --- ITEM DEFINITIONS ---
@@ -336,8 +338,50 @@ struct AnimationState {
 };
 
 // ----------------------------------------------------------------------------------
+// WORLD GENERATION SETTINGS
+// ----------------------------------------------------------------------------------
+struct WorldSettings {
+    uint32_t seed;
+    float scale;              // Terrain scale (height multiplier)
+    float frequency;          // Noise frequency
+    int octaves;              // Noise octaves for better detail
+    float persistence;        // Amplitude decrease per octave
+    float lacunarity;         // Frequency increase per octave
+    bool generateStructures;  // Generate buildings/structures
+    bool generateWater;       // Generate water features
+    bool generateVegetation;  // Generate trees/plants
+    
+    WorldSettings() : seed(0), scale(50.0f), frequency(0.05f), octaves(6),
+                      persistence(0.5f), lacunarity(2.0f), 
+                      generateStructures(true), generateWater(true), generateVegetation(true) {}
+};
+
+// Biome types
+enum BiomeType {
+    BIOME_PLAINS,
+    BIOME_FOREST,
+    BIOME_MOUNTAIN,
+    BIOME_DESERT,
+    BIOME_OCEAN,
+    BIOME_SNOW,
+    BIOME_SWAMP,
+    BIOME_COUNT
+};
+
+struct BiomeInfo {
+    BiomeType type;
+    Color groundColor;
+    Color decorColor;
+    float temperature;
+    float humidity;
+    const char* name;
+};
+
+// ----------------------------------------------------------------------------------
 // Externs for globals
 // ----------------------------------------------------------------------------------
+extern WorldSettings g_WorldSettings;
+
 extern Camera3D camera;
 extern Vector3 playerPosition;
 extern Vector3 playerVelocity;
@@ -400,6 +444,14 @@ extern GameState gameState;
 extern GameState stateBeforeSettings;
 
 extern GraphicsSettings graphicsSettings;
+
+// Noise and Biome Functions
+float Hash(uint32_t n);
+float LerpNoise(float a, float b, float t);
+float PerlinNoise(float x, float y, uint32_t seed);
+float GetNoiseValue(float x, float y, const WorldSettings& settings);
+BiomeType GetBiomeFromNoise(float noise, float temperature, float humidity);
+BiomeInfo GetBiomeInfo(BiomeType type);
 
 extern AnimationState playerAnimState;
 extern std::vector<Vehicle> vehicles;

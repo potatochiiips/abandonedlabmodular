@@ -103,6 +103,7 @@
     <ClCompile Include="src\model_manager.cpp" />
     <ClCompile Include="src\player.cpp" />
     <ClCompile Include="src\recipes.cpp" />
+    <ClCompile Include="src\rendering.cpp" />
     <ClCompile Include="src\terrain_system.cpp" />
     <ClCompile Include="src\waypoints.cpp" />
     <ClCompile Include="src\quest_system.cpp" />
@@ -117,11 +118,11 @@
     <ClCompile Include="src\animation_system.cpp" />
     <ClCompile Include="src\daynight_system.cpp" />
     <ClCompile Include="src\weather_system.cpp" />
+    <ClCompile Include="src\worldgen_menu.cpp" />
     <ClCompile Include="src\zombie_system.cpp" />
     <ClCompile Include="src\weapon_renderer.cpp" />
-    <ClCompile Include="src\rendering_impl.cpp" />
-	<ClCompile Include="src\hands_renderer.cpp" />
-	<ClCompile Include="src\enhanced_map_system.cpp" />
+    <ClCompile Include="src\hands_renderer.cpp" />
+    <ClCompile Include="src\enhanced_map_system.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\city_system.h" />
@@ -156,7 +157,7 @@
     <ClInclude Include="src\weapon_renderer.h" />
     <ClInclude Include="src\weather_system.h" />
     <ClInclude Include="src\zombie_system.h" />
-	<ClInclude Include="src\enhanced_map_system.h" />
+    <ClInclude Include="src\enhanced_map_system.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\shaders\lighting.vs" />

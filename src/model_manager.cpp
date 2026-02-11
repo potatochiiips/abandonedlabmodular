@@ -155,50 +155,74 @@ bool ModelManager::LoadModelFile(ModelID id, const char* filename) {
 }
 
 void ModelManager::ApplyTexturesToModel(Model& model, ModelID id) {
+    // FIXED: Don't override textures - use the ones embedded in GLB files
+    // The GLB files already contain proper textures, so we just ensure they have mipmaps
+    
     if (!g_TextureManager) return;
 
-    Texture2D texture = { 0 };
+    // Only apply fallback textures if the model doesn't already have textures
+    for (int i = 0; i < model.materialCount; i++) {
+        // Check if material already has a diffuse texture from the GLB file
+        if (model.materials[i].maps[MATERIAL_MAP_DIFFUSE].texture.id == 0) {
+            // No texture found in GLB, apply a contextual fallback
+            Texture2D texture = g_TextureManager->GetTexture(TEX_WALL_CONCRETE);
+            
+            switch (id) {
+            case MODEL_PISTOL:
+            case MODEL_M16:
+            case MODEL_MAGAZINE:
+            case MODEL_M16_MAGAZINE:
+            case MODEL_KNIFE:
+                texture = g_TextureManager->GetTexture(TEX_WALL_METAL);
+                break;
+            case MODEL_FLASHLIGHT:
+                texture = g_TextureManager->GetTexture(TEX_WALL_METAL);
+                break;
+            case MODEL_WATER_BOTTLE:
+                texture = g_TextureManager->GetTexture(TEX_WINDOW_GLASS);
+                break;
+            case MODEL_LAB_KEY:
+                texture = g_TextureManager->GetTexture(TEX_WALL_METAL);
+                break;
+            case MODEL_WOOD:
+                texture = g_TextureManager->GetTexture(TEX_FLOOR_WOOD);
+                break;
+            case MODEL_STONE:
+                texture = g_TextureManager->GetTexture(TEX_WALL_CONCRETE);
+                break;
+            case MODEL_POTATO_CHIPS:
+                texture = g_TextureManager->GetTexture(TEX_FLOOR_CARPET);
+                break;
+            case MODEL_CRYOPOD:
+                texture = g_TextureManager->GetTexture(TEX_WALL_METAL);
+                break;
+            default:
+                texture = g_TextureManager->GetTexture(TEX_WALL_CONCRETE);
+                break;
+            }
 
-    switch (id) {
-    case MODEL_PISTOL:
-    case MODEL_M16:
-    case MODEL_MAGAZINE:
-    case MODEL_M16_MAGAZINE:
-    case MODEL_KNIFE:
-        texture = g_TextureManager->GetTexture(TEX_WALL_METAL);
-        break;
-    case MODEL_FLASHLIGHT:
-        texture = g_TextureManager->GetTexture(TEX_WALL_METAL);
-        break;
-    case MODEL_WATER_BOTTLE:
-        texture = g_TextureManager->GetTexture(TEX_WINDOW_GLASS);
-        break;
-    case MODEL_LAB_KEY:
-        texture = g_TextureManager->GetTexture(TEX_WALL_METAL);
-        break;
-    case MODEL_WOOD:
-        texture = g_TextureManager->GetTexture(TEX_FLOOR_WOOD);
-        break;
-    case MODEL_STONE:
-        texture = g_TextureManager->GetTexture(TEX_WALL_CONCRETE);
-        break;
-    case MODEL_POTATO_CHIPS:
-        texture = g_TextureManager->GetTexture(TEX_FLOOR_CARPET);
-        break;
-    case MODEL_CRYOPOD:
-        texture = g_TextureManager->GetTexture(TEX_WALL_METAL);
-        break;
-    default:
-        texture = g_TextureManager->GetTexture(TEX_WALL_CONCRETE);
-        break;
-    }
+            if (texture.id > 0) {
+                GenTextureMipmaps(&texture);
+                SetTextureFilter(texture, TEXTURE_FILTER_TRILINEAR);
+                model.materials[i].maps[MATERIAL_MAP_DIFFUSE].texture = texture;
+            }
+        }
+        else {
+            // Texture exists in GLB file - just ensure it has proper filtering
+            GenTextureMipmaps(&model.materials[i].maps[MATERIAL_MAP_DIFFUSE].texture);
+            SetTextureFilter(model.materials[i].maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_TRILINEAR);
+        }
 
-    if (texture.id > 0) {
-        GenTextureMipmaps(&texture);
-        SetTextureFilter(texture, TEXTURE_FILTER_TRILINEAR);
+        // Ensure normal maps are set up if they exist
+        if (model.materials[i].maps[MATERIAL_MAP_NORMAL].texture.id > 0) {
+            GenTextureMipmaps(&model.materials[i].maps[MATERIAL_MAP_NORMAL].texture);
+            SetTextureFilter(model.materials[i].maps[MATERIAL_MAP_NORMAL].texture, TEXTURE_FILTER_TRILINEAR);
+        }
 
-        for (int i = 0; i < model.materialCount; i++) {
-            model.materials[i].maps[MATERIAL_MAP_DIFFUSE].texture = texture;
+        // Ensure specular maps are set up if they exist
+        if (model.materials[i].maps[MATERIAL_MAP_SPECULAR].texture.id > 0) {
+            GenTextureMipmaps(&model.materials[i].maps[MATERIAL_MAP_SPECULAR].texture);
+            SetTextureFilter(model.materials[i].maps[MATERIAL_MAP_SPECULAR].texture, TEXTURE_FILTER_TRILINEAR);
         }
     }
 }
